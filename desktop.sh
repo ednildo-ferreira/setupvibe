@@ -603,10 +603,16 @@ step_3() {
         brew_cmd link php@8.4 --force --overwrite
         
         # Install common extensions via PECL
+        # NOTE: pecl prompts interactively (e.g. redis asks about igbinary/lzf/
+        # zstd/msgpack/lz4). When this script is run via `curl ... | bash`, stdin
+        # IS the script, so pecl would read the following script lines as prompt
+        # answers, producing a broken ./configure call and silently consuming the
+        # rest of the script. Feeding `yes ''` answers every prompt with its
+        # default and isolates stdin from the script body.
         echo "Installing PHP Extensions..."
-        user_do pecl install redis 2>/dev/null || true
-        user_do pecl install xdebug 2>/dev/null || true
-        printf "\n" | user_do pecl install imagick 2>/dev/null || true
+        yes '' | user_do pecl install redis 2>/dev/null || true
+        yes '' | user_do pecl install xdebug 2>/dev/null || true
+        yes '' | user_do pecl install imagick 2>/dev/null || true
         
         echo "Installing Composer..."
         if [ ! -f "$REAL_HOME/.local/bin/composer" ] && ! command -v composer &>/dev/null; then
