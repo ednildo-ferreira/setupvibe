@@ -673,8 +673,14 @@ step_4() {
         echo "Checking Ruby 3.3.0..."
         if ! user_do rbenv versions --bare | grep -q "^3.3.0$"; then
             echo "Compiling Ruby 3.3.0 (this may take a few minutes)..."
-            # Optimization: Skip documentation and use parallel compilation
-            user_do bash -c "export RUBY_CONFIGURE_OPTS='--disable-install-doc'; export MAKE_OPTS='-j\$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)'; rbenv install 3.3.0"
+            # Optimization: Skip documentation and use parallel compilation.
+            # Use single quotes for the outer `bash -c` and double quotes for the
+            # values so $(...) is evaluated by the inner shell. With the previous
+            # double-quoted outer + single-quoted, escaped \$(...), MAKE_OPTS was
+            # stored literally as "-j$(nproc ...)" and ruby-build ran a broken
+            # `make "-j$(nproc" ...`, failing the build (and cascading the Rails
+            # install onto system Ruby). Mirrors the Linux path below.
+            user_do bash -c 'export RUBY_CONFIGURE_OPTS="--disable-install-doc"; export MAKE_OPTS="-j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)"; rbenv install 3.3.0'
             user_do rbenv global 3.3.0
         fi
         
