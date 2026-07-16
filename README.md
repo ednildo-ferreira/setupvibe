@@ -2,14 +2,14 @@
 
 > The ultimate cross-platform development environment setup script — v0.41.6
 
-Installs and configures a complete development stack in one command, supporting macOS and major Linux distributions.
+Installs and configures a complete development stack in one command, supporting Windows, macOS, and major Linux distributions.
 
 ## Key Features
 
-- **Smart Privilege Elevation:** Uses `sudo` only where strictly necessary; most tools are installed in `$HOME/.local/bin`.
-- **Auto-Update:** Automatically upgrades existing Homebrew packages during setup.
-- **Modern Shell:** ZSH + Oh My Zsh + Starship with a curated set of plugins and aliases.
-- **Optimized Tmux:** Pre-configured with TPM, intuitive keybindings, and window/pane numbering starting at 1.
+- **Smart Privilege Elevation:** Uses UAC on Windows and `sudo` only where required on macOS and Linux.
+- **Native Package Management:** Uses WinGet and Chocolatey on Windows, with Homebrew or APT on Unix systems.
+- **Modern Shell:** PowerShell 7 + Starship + zoxide on Windows, and ZSH + Oh My Zsh + Starship on Unix systems.
+- **Optimized Terminals:** Installs Windows Terminal on Windows and configures Tmux + TPM on Unix systems.
 - **AI-Ready:** Includes the latest AI CLI tools for developers.
 
 ## Documentation
@@ -18,17 +18,28 @@ Installs and configures a complete development stack in one command, supporting 
 | --------------- | ------------------------------------------------ |
 | Overview        | [docs/README.md](docs/README.md)                 |
 | Desktop Edition | [docs/desktop/README.md](docs/desktop/README.md) |
+| Windows Edition | [docs/windows/README.md](docs/windows/README.md) |
 | Server Edition  | [docs/server/README.md](docs/server/README.md)   |
-| Tmux Guide      | [docs/desktop/tmux.md](docs/desktop/tmux.md)     |
-| PM2 Guide       | [docs/desktop/pm2.md](docs/desktop/pm2.md)       |
+| Tmux Guide      | [docs/desktop/en/tmux.md](docs/desktop/en/tmux.md) |
+| PM2 Guide       | [docs/desktop/en/pm2.md](docs/desktop/en/pm2.md) |
 
 ## Quick Start
 
-### Desktop (macOS & Linux)
+### Desktop (macOS, Linux & WSL)
 
 ```bash
 curl -sSL desktop.setupvibe.dev | bash
 ```
+
+### Windows Desktop
+
+Run the Windows installer directly from the official repository. It requests administrator access through UAC automatically.
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/main/desktop.ps1 | iex
+```
+
+See the [Windows installation guide](docs/windows/README.md) for local installation, verification, logs, and restart options.
 
 ### Server (Linux only)
 

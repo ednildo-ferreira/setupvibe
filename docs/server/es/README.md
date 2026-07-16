@@ -168,7 +168,7 @@ Se activa pasando `--manager` o respondiendo **sí** al prompt interactivo que s
 
 ## Licencia
 
-Bajo la licencia **GNU General Public License v3.0** — ver [LICENSE](../../LICENSE) para detalles.
+Bajo la licencia **GNU General Public License v3.0** — ver [LICENSE](../../../LICENSE) para detalles.
 
 Mantenido por [promovaweb.com](https://promovaweb.com) · <contato@promovaweb.com>
 

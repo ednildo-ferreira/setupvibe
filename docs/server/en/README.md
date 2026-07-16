@@ -167,7 +167,7 @@ We welcome contributions of all sizes! Please read our [Contribution Guide](../.
 
 ## License
 
-Licensed under the **GNU General Public License v3.0** — see [LICENSE](../../LICENSE) for details.
+Licensed under the **GNU General Public License v3.0** — see [LICENSE](../../../LICENSE) for details.
 
 Maintained by [promovaweb.com](https://promovaweb.com) · <contato@promovaweb.com>
 

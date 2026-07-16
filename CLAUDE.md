@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-**SetupVibe** is a cross-platform automated development environment setup script (v0.41.6). It installs and configures a complete developer toolkit in one command, supporting macOS 12+ and Linux (Ubuntu 24.04+, Debian 12+, Zorin OS 18+).
+**SetupVibe** is a cross-platform automated development environment setup script (v0.41.6). It installs and configures a complete developer toolkit in one command, supporting Windows 10/11, macOS 12+, and Linux (Ubuntu 24.04+, Debian 12+, Zorin OS 18+).
 
-There are two editions:
+There are three editions:
 
-- `desktop.sh` — macOS & Linux desktops; full stack including language ecosystems, GUI tools, and AI CLIs
+- `desktop.sh` — macOS, Linux desktops, and WSL; full stack including language ecosystems, GUI tools, and AI CLIs
+- `desktop.ps1` — native Windows 10/11; OpenSSH Client, WinGet, Chocolatey, and native Windows developer tools
 - `server.sh` — Linux-only; lean install focused on DevOps tools, Docker, shell, and monitoring
 
 ## How to Run
@@ -24,6 +25,14 @@ bash server.sh
 curl -sSL desktop.setupvibe.dev | bash
 ```
 
+```powershell
+# Run remotely on Windows; the script requests UAC elevation automatically
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/main/desktop.ps1 | iex
+
+# Or run a local copy
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1
+```
+
 To test changes to a script, run it directly on a target machine or VM.
 
 ## Architecture
@@ -36,6 +45,10 @@ Both `desktop.sh` and `server.sh` follow a numbered-step pattern (functions pref
 2. Detect how the script was invoked (as root, via `sudo`, or as normal user) to correctly identify `$REAL_USER` and `$REAL_HOME`
 3. Use `sudo` only where elevated privileges are required; everything else installs into `$HOME/.local/bin`
 4. Clean up legacy APT repository entries before adding new ones (avoids GPG signature errors)
+
+### Windows Script Structure
+
+`desktop.ps1` contains only native Windows installation logic. It supports local execution and remote execution through `irm ... | iex`, requests UAC elevation, rejects Windows Server and 32-bit Windows, detects installed components for idempotent reruns, persists toolchain paths, and logs to `C:\ProgramData\SetupVibe\Logs`. It must not install or configure WSL; Linux and WSL environments are managed by `desktop.sh`.
 
 ### `desktop.sh` Steps (14)
 
@@ -62,9 +75,10 @@ Subset of desktop steps — no Homebrew, no language ecosystems (PHP, Ruby, Pyth
 
 | Path                        | Content                                                           |
 | --------------------------- | ----------------------------------------------------------------- |
-| `docs/README.md`            | Overview and comparison table of both editions                    |
+| `docs/README.md`            | Overview and comparison table of all editions                     |
 | `docs/desktop/en/README.md` | Full desktop edition documentation (14 steps)                     |
 | `docs/server/en/README.md`  | Server edition documentation (9 steps)                            |
+| `docs/windows/en/README.md` | Windows edition documentation                                     |
 | `docs/en/EXECUTABLES.md`    | Executable helper script documentation (shared by both editions)  |
 | `docs/desktop/en/tmux.md`   | Tmux plugin and keybinding reference (shared by both editions)    |
 | `docs/desktop/en/pm2.md`    | PM2 command and configuration reference (shared by both editions) |
@@ -111,9 +125,10 @@ ARCH_RAW=$(dpkg --print-architecture)  # amd64 or arm64
 
 ## Versioning
 
-The version number is defined at the top of both `desktop.sh` and `server.sh`. **Whenever a version is changed, it must be updated in ALL related files to maintain consistency**, including:
+The version number is defined at the top of `desktop.sh`, `desktop.ps1`, and `server.sh`. **Whenever a version is changed, it must be updated in ALL related files to maintain consistency**, including:
 
 - `desktop.sh` (version variable)
+- `desktop.ps1` (version variable)
 - `server.sh` (version variable)
 - `CHANGELOG.md` (new entry)
 - `README.md` (root project overview)

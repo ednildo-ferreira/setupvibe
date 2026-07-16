@@ -2,19 +2,26 @@
 
 > Automated development environment setup — v0.41.6
 
-SetupVibe transforms any fresh machine into a fully configured development workspace in one command. It supports two editions depending on your target:
+SetupVibe transforms any fresh machine into a fully configured development workspace in one command. It supports three editions depending on your target:
 
-| Edition     | Script       | Platforms                                            | Guides                                                                                                               |
-| ----------- | ------------ | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Desktop** | `desktop.sh` | macOS 12+, Ubuntu 24.04+, Debian 12+, Zorin OS 18+   | [EN](desktop/en/README.md) · [PT](desktop/pt-br/README.md) · [FR](desktop/fr/README.md) · [ES](desktop/es/README.md) |
-| **Server**  | `server.sh`  | Ubuntu 24.04+, Debian 12+, Zorin OS 18+ (Linux only) | [EN](server/en/README.md) · [PT](server/pt-br/README.md) · [FR](server/fr/README.md) · [ES](server/es/README.md)     |
+| Edition     | Script        | Platforms                                            | Guides                                                                                                               |
+| ----------- | ------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Desktop** | `desktop.sh`  | macOS 12+, Linux desktops, and WSL                   | [EN](desktop/en/README.md) · [PT](desktop/pt-br/README.md) · [FR](desktop/fr/README.md) · [ES](desktop/es/README.md) |
+| **Windows** | `desktop.ps1` | Windows 10 1809+ and Windows 11                      | [EN](windows/en/README.md) · [PT](windows/pt-br/README.md) · [FR](windows/fr/README.md) · [ES](windows/es/README.md) |
+| **Server**  | `server.sh`   | Ubuntu 24.04+, Debian 12+, Zorin OS 18+ (Linux only) | [EN](server/en/README.md) · [PT](server/pt-br/README.md) · [FR](server/fr/README.md) · [ES](server/es/README.md)     |
 
 ## Quick Start
 
-### Desktop (macOS & Linux)
+### Desktop (macOS, Linux & WSL)
 
 ```bash
 curl -sSL desktop.setupvibe.dev | bash
+```
+
+### Windows Desktop
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/main/desktop.ps1 | iex
 ```
 
 ### Server (Linux only)
@@ -31,26 +38,28 @@ curl -sSL server.setupvibe.dev | bash -s -- --manager
 
 ## Edition Comparison
 
-| Feature                               | Desktop        | Server  |
-| ------------------------------------- | -------------- | ------- |
-| Base system & build tools             | ✔              | ✔       |
-| Homebrew                              | ✔              | ✗       |
-| PHP 8.4 + Composer + Laravel          | ✔              | ✗       |
-| Ruby + rbenv + Rails                  | ✔              | ✗       |
-| Go, Rust, Python + uv                 | ✔              | ✗       |
-| Node.js 24 + Bun + PNPM               | ✔              | ✔ (APT) |
-| n8n                                   | ✔              | ✗       |
-| Docker + Ansible + GitHub CLI         | ✔              | ✔       |
-| Modern Unix tools (bat, eza, fzf…)    | ✔ via Homebrew | ✗       |
-| Network & monitoring tools            | ✔              | ✔       |
-| Tailscale                             | ✔              | ✔       |
-| SSH server                            | ✔ (Linux only) | ✔       |
-| ZSH + Oh My Zsh + Starship            | ✔              | ✔       |
-| Nerd Fonts (FiraCode, JetBrains Mono) | ✔              | ✗       |
-| Tmux + TPM plugins                    | ✔              | ✔       |
-| AI CLI tools                          | ✔              | ✔       |
-| PM2 auto-startup                      | ✔              | ✗       |
-| Docker Swarm Manager (`--manager`)    | ✗              | ✔       |
+| Feature                               | Desktop        | Windows | Server  |
+| ------------------------------------- | -------------- | ------- | ------- |
+| Base system & CLI tools               | ✔              | ✔       | ✔       |
+| Homebrew                              | ✔              | ✗       | ✗       |
+| WinGet + Chocolatey                   | ✗              | ✔       | ✗       |
+| OpenSSH Client                        | ✔              | ✔       | ✔       |
+| PHP 8.4 + Composer + Laravel          | ✔              | ✔       | ✗       |
+| Ruby + rbenv + Rails                  | ✔              | ✔       | ✗       |
+| Go, Rust, Python + uv                 | ✔              | ✔       | ✗       |
+| Node.js 24 + Bun + PNPM               | ✔              | ✔ (LTS) | ✔ (APT) |
+| n8n                                   | ✔              | ✔       | ✗       |
+| Docker + Ansible + GitHub CLI         | ✔              | ✗       | ✔       |
+| Modern Unix tools (bat, eza, fzf…)    | ✔ via Homebrew | ✔       | ✗       |
+| Network & monitoring tools            | ✔              | ✔       | ✔       |
+| Tailscale                             | ✔              | ✔       | ✔       |
+| SSH server                            | ✔ (Linux only) | ✗       | ✔       |
+| ZSH + Oh My Zsh + Starship            | ✔              | ✗       | ✔       |
+| Nerd Fonts (FiraCode, JetBrains Mono) | ✔              | ✔       | ✗       |
+| Tmux + TPM plugins                    | ✔              | ✗       | ✔       |
+| AI CLI tools                          | ✔              | ✔       | ✔       |
+| PM2 auto-startup                      | ✔              | ✗       | ✗       |
+| Docker Swarm Manager (`--manager`)    | ✗              | ✗       | ✔       |
 
 ## Specialized Guides
 
