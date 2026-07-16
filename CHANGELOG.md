@@ -6,6 +6,10 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Added `utils/windows/ssh_copy_id/ssh_copy_id.bat` and its usage guide for enabling the Windows 11 OpenSSH Client, creating or detecting an SSH key, copying it to a remote server, and opening the SSH session.
+
 ### Changed
 
 - Updated AI context synchronization to cover only `AGENTS.md` and `CLAUDE.md`.
