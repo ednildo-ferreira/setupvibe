@@ -6,7 +6,7 @@ Installs and configures a development environment in one command, supporting Win
 
 ## Key Features
 
-- **Administrator Setup:** Requests initial UAC elevation on Windows, then asks whether to disable UAC with `Yes` as the default; uses `sudo` only where required on macOS and Linux.
+- **Administrator Setup:** Requests standard UAC elevation on Windows without changing the UAC policy; uses `sudo` only where required on macOS and Linux.
 - **Safe Windows Servicing:** Waits for competing installers, rejects pending restarts, starts required services, validates the component store, and records dedicated DISM logs without forcibly terminating system processes.
 - **Native Package Management:** Uses WinGet and Chocolatey on Windows, with Homebrew or APT on Unix systems.
 - **Modern Shell:** PowerShell 7 + Starship + zoxide on Windows, and ZSH + Oh My Zsh + Starship on Unix systems.
@@ -36,7 +36,7 @@ curl -sSL desktop.setupvibe.dev | bash
 
 ### Windows Desktop (Beta)
 
-Run the Windows utility installer directly from the `windows` development branch. It requests administrator access through UAC automatically, then asks whether to disable UAC with `Yes` as the default.
+Run the Windows utility installer directly from the `windows` development branch. It requests administrator access through the standard UAC prompt without changing the UAC policy.
 
 ```powershell
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 | iex

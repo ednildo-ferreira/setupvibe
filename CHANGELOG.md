@@ -9,7 +9,7 @@ All notable changes to **SetupVibe** are documented in this file.
 ### Added
 
 - Added `desktop.ps1`, an idempotent native Windows 11 22H2+ Beta installer for OpenSSH Client, WSL 2 base components, WinGet, Chocolatey, modern CLI tools, network utilities, and fonts, with automatic UAC elevation, restart handling, and transcript logs. Linux distributions remain managed separately by `desktop.sh`.
-- Added `-Uninstall` to remove all Windows utilities and configurations managed by SetupVibe, clean language ecosystems left by earlier Beta versions, and re-enable UAC while preserving WinGet, Chocolatey, and logs.
+- Added `-Uninstall` to remove all Windows utilities and configurations managed by SetupVibe and clean language ecosystems left by earlier Beta versions while preserving WinGet, Chocolatey, and logs.
 - Added managed Windows helper installation in `%USERPROFILE%\.setupvibe\bin`, including a persistent user `PATH` entry, local or `windows` branch sources, state tracking, and safe removal through `-Uninstall`.
 - Added a Windows servicing and installer preflight with configurable waiting, competing-process reporting, pending-restart detection, required-service startup, WSUS warnings, component-store validation, and dedicated DISM logs.
 - Added the WSL base without a Linux distribution, set WSL 2 as the default, and configured mirrored VPN/LAN networking, DNS tunneling, Windows proxy integration, Hyper-V firewall inbound access, automatic memory reclaim, and sparse VHDs for software development.
@@ -19,7 +19,6 @@ All notable changes to **SetupVibe** are documented in this file.
 ### Changed
 
 - Pointed all Windows-specific SetupVibe repository URLs, including the elevated-process handoff and `ssh_copy_id`, to the `windows` development branch until the Windows work is merged.
-- Added an interactive `Yes` or `No` UAC policy choice to `desktop.ps1`, defaulting to `Yes`; accepted changes set the machine-wide `EnableLUA` policy to `0` and require a restart.
 - Expanded the Windows Edition (Beta) guides with one-command remote installation, local installation, execution stages, verification commands, logs, rerun behavior, restart options, and scope limitations.
 - Focused the Windows Edition exclusively on native utilities; complete language ecosystems and AI CLI tools remain available through `desktop.sh` on macOS, Linux, and WSL.
 - Raised the Windows Edition minimum to Windows 11 22H2 build 22621 so mirrored WSL networking and Hyper-V firewall controls are consistently available.
@@ -38,6 +37,7 @@ All notable changes to **SetupVibe** are documented in this file.
 
 - Removed Gemini context and skill files.
 - Removed Gemini CLI from AI tool installation, shell aliases, Spec-Kit aliases, and current documentation.
+- Removed all UAC policy management from `desktop.ps1`; the Windows Edition now uses only the standard elevation prompt and never changes `EnableLUA` during installation or removal.
 - Removed the Batch implementation of `ssh_copy_id`; PowerShell now contains all SSH logic and the CMD file only launches it.
 - Removed PHP, Composer, Laravel Installer, Ruby, Bundler, Rails, Python, uv, Spec-Kit, Go, Rustup, Cargo, Node.js, Bun, PNPM, PM2, n8n, AI CLI tools, and mise from Windows installation.
 
