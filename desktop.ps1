@@ -2,7 +2,8 @@
 
 [CmdletBinding()]
 param(
-    [switch]$Restart
+    [switch]$Restart,
+    [switch]$Uninstall
 )
 
 Set-StrictMode -Version Latest
@@ -24,14 +25,6 @@ $script:WinGetPackages = @(
     @{ Id = 'JernejSimoncic.Wget'; Name = 'Wget' }
     @{ Id = 'Gyan.FFmpeg'; Name = 'FFmpeg' }
     @{ Id = 'ImageMagick.ImageMagick'; Name = 'ImageMagick' }
-    @{ Id = 'PHP.PHP.8.4'; Name = 'PHP 8.4' }
-    @{ Id = 'RubyInstallerTeam.RubyWithDevKit.3.3'; Name = 'Ruby 3.3 with DevKit' }
-    @{ Id = 'Python.Python.3.12'; Name = 'Python 3.12' }
-    @{ Id = 'astral-sh.uv'; Name = 'uv' }
-    @{ Id = 'GoLang.Go'; Name = 'Go' }
-    @{ Id = 'Rustlang.Rustup'; Name = 'Rustup' }
-    @{ Id = 'OpenJS.NodeJS.LTS'; Name = 'Node.js LTS' }
-    @{ Id = 'Oven-sh.Bun'; Name = 'Bun' }
     @{ Id = 'GitHub.cli'; Name = 'GitHub CLI' }
     @{ Id = 'sharkdp.bat'; Name = 'bat' }
     @{ Id = 'eza-community.eza'; Name = 'eza' }
@@ -46,7 +39,6 @@ $script:WinGetPackages = @(
     @{ Id = 'Fastfetch-cli.Fastfetch'; Name = 'Fastfetch' }
     @{ Id = 'muesli.duf'; Name = 'duf' }
     @{ Id = 'jqlang.jq'; Name = 'jq' }
-    @{ Id = 'jdx.mise'; Name = 'mise' }
     @{ Id = 'Insecure.Nmap'; Name = 'Nmap' }
     @{ Id = 'Ookla.Speedtest.CLI'; Name = 'Speedtest CLI' }
     @{ Id = 'Tailscale.Tailscale'; Name = 'Tailscale' }
@@ -64,16 +56,19 @@ $script:ChocolateyPackages = @(
     @{ Id = 'firacodenf'; Name = 'FiraCode Nerd Font' }
 )
 
-$script:NpmPackages = @(
-    'pnpm'
-    'npm@latest'
-    'pm2'
-    '@n8n/cli'
-    'agentlytics'
-    '@anthropic-ai/claude-code'
-    '@openai/codex'
-    '@githubnext/github-copilot-cli'
+$script:LegacyWinGetPackages = @(
+    @{ Id = 'PHP.PHP.8.4'; Name = 'PHP 8.4' }
+    @{ Id = 'RubyInstallerTeam.RubyWithDevKit.3.3'; Name = 'Ruby 3.3 with DevKit' }
+    @{ Id = 'Python.Python.3.12'; Name = 'Python 3.12' }
+    @{ Id = 'astral-sh.uv'; Name = 'uv' }
+    @{ Id = 'GoLang.Go'; Name = 'Go' }
+    @{ Id = 'Rustlang.Rustup'; Name = 'Rustup' }
+    @{ Id = 'OpenJS.NodeJS.LTS'; Name = 'Node.js LTS' }
+    @{ Id = 'Oven-sh.Bun'; Name = 'Bun' }
+    @{ Id = 'jdx.mise'; Name = 'mise' }
 )
+
+$script:LegacyNpmPackages = @('pnpm', 'pm2', '@n8n/cli', 'agentlytics', '@anthropic-ai/claude-code', '@openai/codex', '@githubnext/github-copilot-cli', 'npm')
 
 function Write-Section {
     param([Parameter(Mandatory = $true)][string]$Message)
@@ -128,6 +123,9 @@ function Request-Elevation {
 
     if ($Restart) {
         $powerShellArguments += '-Restart'
+    }
+    if ($Uninstall) {
+        $powerShellArguments += '-Uninstall'
     }
 
     Write-Host 'Administrator privileges are required. Opening the UAC prompt...' -ForegroundColor Yellow
@@ -185,6 +183,21 @@ function Disable-UserAccountControl {
     Write-WarningMessage 'User Account Control (UAC) will be disabled after Windows restarts. This reduces Windows security.'
 }
 
+function Enable-UserAccountControl {
+    $policyPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+    $currentValue = Get-ItemPropertyValue -Path $policyPath -Name 'EnableLUA' -ErrorAction SilentlyContinue
+
+    if ($null -ne $currentValue -and [int]$currentValue -eq 1) {
+        Write-Success 'User Account Control (UAC) is already enabled.'
+        return
+    }
+
+    New-Item -Path $policyPath -Force | Out-Null
+    New-ItemProperty -Path $policyPath -Name 'EnableLUA' -PropertyType DWord -Value 1 -Force | Out-Null
+    $script:RestartRequired = $true
+    Write-WarningMessage 'User Account Control (UAC) will be enabled after Windows restarts.'
+}
+
 function Invoke-NativeCommand {
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
@@ -222,45 +235,10 @@ function Import-EnvironmentPath {
     $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     $additionalPaths = @(
-        (Join-Path $env:USERPROFILE '.cargo\bin')
-        (Join-Path $env:USERPROFILE '.local\bin')
-        (Join-Path $env:APPDATA 'npm')
-        (Join-Path $env:APPDATA 'Composer\vendor\bin')
         (Join-Path $env:ProgramData 'chocolatey\bin')
     )
 
     $env:Path = (@($machinePath, $userPath) + $additionalPaths | Where-Object { $_ }) -join ';'
-}
-
-function Add-UserPathEntry {
-    param([Parameter(Mandatory = $true)][string]$Path)
-
-    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-    $entries = @($userPath -split ';' | Where-Object { $_ })
-    $normalizedPath = $Path.TrimEnd('\')
-    $existingEntry = $entries | Where-Object {
-        ([Environment]::ExpandEnvironmentVariables($_)).TrimEnd('\') -eq $normalizedPath
-    }
-    if ($existingEntry) {
-        return
-    }
-
-    $newPath = (@($entries) + $Path) -join ';'
-    [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
-}
-
-function Initialize-UserPath {
-    $requiredPaths = @(
-        (Join-Path $env:USERPROFILE '.cargo\bin')
-        (Join-Path $env:USERPROFILE '.local\bin')
-        (Join-Path $env:APPDATA 'npm')
-        (Join-Path $env:APPDATA 'Composer\vendor\bin')
-    )
-
-    foreach ($pathEntry in $requiredPaths) {
-        Add-UserPathEntry -Path $pathEntry
-    }
-    Import-EnvironmentPath
 }
 
 function Find-Executable {
@@ -290,6 +268,21 @@ function Install-OpenSshClient {
         $script:RestartRequired = $true
     }
     Write-Success 'OpenSSH Client installed.'
+}
+
+function Uninstall-OpenSshClient {
+    $capabilityName = 'OpenSSH.Client~~~~0.0.1.0'
+    $capability = Get-WindowsCapability -Online -Name $capabilityName
+    if ($capability.State -notin @('Installed', 'InstallPending')) {
+        Write-Success 'OpenSSH Client is already absent.'
+        return
+    }
+
+    $result = Remove-WindowsCapability -Online -Name $capabilityName
+    if ($result.RestartNeeded) {
+        $script:RestartRequired = $true
+    }
+    Write-Success 'OpenSSH Client removed.'
 }
 
 function Find-WinGet {
@@ -364,18 +357,46 @@ function Install-WinGetPackage {
     Write-Success ("{0} installed." -f $Name)
 }
 
-function Install-Chocolatey {
-    $chocoPath = $null
+function Uninstall-WinGetPackage {
+    param(
+        [Parameter(Mandatory = $true)][string]$Id,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+
+    if (-not (Test-WinGetPackageInstalled -Id $Id)) {
+        Write-Success ("{0} is already absent." -f $Name)
+        return
+    }
+
+    $arguments = @(
+        'uninstall'
+        '--id', $Id
+        '--exact'
+        '--source', 'winget'
+        '--silent'
+        '--accept-source-agreements'
+        '--disable-interactivity'
+    )
+    Invoke-NativeCommand -FilePath $script:WinGetPath -ArgumentList $arguments -SuccessExitCode @(0, 1641, 3010)
+    Write-Success ("{0} removed." -f $Name)
+}
+
+function Find-Chocolatey {
     $chocoCommand = Get-Command 'choco.exe' -ErrorAction SilentlyContinue
     if ($chocoCommand) {
-        $chocoPath = $chocoCommand.Source
+        return $chocoCommand.Source
     }
-    if (-not $chocoPath) {
-        $defaultChocoPath = Join-Path $env:ProgramData 'chocolatey\bin\choco.exe'
-        if (Test-Path $defaultChocoPath) {
-            $chocoPath = $defaultChocoPath
-        }
+
+    $defaultChocoPath = Join-Path $env:ProgramData 'chocolatey\bin\choco.exe'
+    if (Test-Path $defaultChocoPath) {
+        return $defaultChocoPath
     }
+
+    return $null
+}
+
+function Install-Chocolatey {
+    $chocoPath = Find-Chocolatey
 
     if (-not $chocoPath) {
         Write-Host 'Chocolatey was not found. Running the official bootstrap script...'
@@ -420,52 +441,14 @@ function Install-ChocolateyPackage {
     Write-Success ("{0} is installed." -f $Name)
 }
 
-function Install-Composer {
-    $existingComposer = Get-Command 'composer' -ErrorAction SilentlyContinue
-    if ($existingComposer) {
-        Invoke-NativeCommand -FilePath $existingComposer.Source -ArgumentList @('self-update', '--no-interaction')
-        Write-Success 'Composer is already installed and up to date.'
-        return
-    }
+function Uninstall-ChocolateyPackage {
+    param(
+        [Parameter(Mandatory = $true)][string]$Id,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
 
-    $phpPath = Find-Executable -Name 'php.exe'
-    $binDirectory = Join-Path $env:ProgramData 'SetupVibe\bin'
-    $installerPath = Join-Path ([IO.Path]::GetTempPath()) 'SetupVibe-ComposerSetup.php'
-    New-Item -Path $binDirectory -ItemType Directory -Force | Out-Null
-
-    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    $webClient = New-Object Net.WebClient
-    try {
-        $expectedHash = $webClient.DownloadString('https://composer.github.io/installer.sig').Trim().ToLowerInvariant()
-        $webClient.DownloadFile('https://getcomposer.org/installer', $installerPath)
-        $actualHash = (Get-FileHash -Path $installerPath -Algorithm SHA384).Hash.ToLowerInvariant()
-        if ($actualHash -ne $expectedHash) {
-            throw 'Composer installer signature verification failed.'
-        }
-
-        Invoke-NativeCommand -FilePath $phpPath -ArgumentList @($installerPath, "--install-dir=$binDirectory", '--filename=composer.phar')
-    }
-    finally {
-        Remove-Item -Path $installerPath -Force -ErrorAction SilentlyContinue
-        $webClient.Dispose()
-    }
-
-    $composerCommand = Join-Path $binDirectory 'composer.cmd'
-    $commandContent = "@echo off`r`nphp.exe `"%~dp0composer.phar`" %*`r`n"
-    [IO.File]::WriteAllText($composerCommand, $commandContent, [Text.Encoding]::ASCII)
-
-    $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
-    if (($machinePath -split ';') -notcontains $binDirectory) {
-        [Environment]::SetEnvironmentVariable('Path', "${machinePath};${binDirectory}", 'Machine')
-    }
-    Import-EnvironmentPath
-    Write-Success 'Composer installed from the verified official installer.'
-}
-
-function Install-PhpToolchain {
-    $composerPath = Find-Executable -Name 'composer'
-    Invoke-NativeCommand -FilePath $composerPath -ArgumentList @('global', 'require', 'laravel/installer', '--no-interaction')
-    Write-Success 'Laravel Installer installed.'
+    Invoke-NativeCommand -FilePath $script:ChocolateyPath -ArgumentList @('uninstall', $Id, '--yes', '--no-progress') -SuccessExitCode @(0, 1605, 1614, 1641, 3010)
+    Write-Success ("{0} is removed." -f $Name)
 }
 
 function Install-PowerShellProfile {
@@ -482,10 +465,12 @@ function Install-PowerShellProfile {
         (Join-Path $documentsDirectory 'PowerShell\Microsoft.PowerShell_profile.ps1')
     )
     $profileMarker = '# SetupVibe shell initialization'
+    $profileEndMarker = '# End SetupVibe shell initialization'
     $profileContent = @(
         $profileMarker
         "Invoke-Expression (& { (& '$starshipPath' init powershell | Out-String) })"
         "Invoke-Expression (& { (& '$zoxidePath' init powershell | Out-String) })"
+        $profileEndMarker
     ) -join "`r`n"
 
     foreach ($profilePath in $profilePaths) {
@@ -498,45 +483,110 @@ function Install-PowerShellProfile {
     Write-Success 'Starship and zoxide configured for Windows PowerShell and PowerShell 7.'
 }
 
-function Install-RubyToolchain {
-    $gemPath = Find-Executable -Name 'gem'
-    Invoke-NativeCommand -FilePath $gemPath -ArgumentList @('install', 'bundler', 'rails', '--no-document')
-    Write-Success 'Bundler and Rails installed.'
+function Uninstall-PowerShellProfile {
+    $documentsDirectory = [Environment]::GetFolderPath('MyDocuments')
+    $profilePaths = @(
+        (Join-Path $documentsDirectory 'WindowsPowerShell\Microsoft.PowerShell_profile.ps1')
+        (Join-Path $documentsDirectory 'PowerShell\Microsoft.PowerShell_profile.ps1')
+    )
+    $profileMarker = '# SetupVibe shell initialization'
+    $profileEndMarker = '# End SetupVibe shell initialization'
+
+    foreach ($profilePath in $profilePaths) {
+        if (-not (Test-Path $profilePath)) {
+            continue
+        }
+
+        $lines = @(Get-Content -Path $profilePath)
+        $updatedLines = New-Object System.Collections.Generic.List[string]
+        for ($index = 0; $index -lt $lines.Count; $index++) {
+            if ($lines[$index] -ne $profileMarker) {
+                $updatedLines.Add($lines[$index])
+                continue
+            }
+
+            $endIndex = -1
+            for ($candidateIndex = $index + 1; $candidateIndex -lt $lines.Count; $candidateIndex++) {
+                if ($lines[$candidateIndex] -eq $profileEndMarker) {
+                    $endIndex = $candidateIndex
+                    break
+                }
+            }
+            if ($endIndex -ge 0) {
+                $index = $endIndex
+            }
+            else {
+                $index = [Math]::Min($index + 2, $lines.Count - 1)
+            }
+        }
+
+        if ($updatedLines.Count -eq 0 -or -not ($updatedLines | Where-Object { $_.Trim() })) {
+            Remove-Item -Path $profilePath -Force
+        }
+        else {
+            Set-Content -Path $profilePath -Value $updatedLines -Encoding UTF8
+        }
+    }
+
+    $starshipConfig = Join-Path $env:USERPROFILE '.config\starship.toml'
+    Remove-Item -Path $starshipConfig -Force -ErrorAction SilentlyContinue
+    Write-Success 'SetupVibe shell initialization and Starship configuration removed.'
 }
 
-function Install-NodeToolchain {
-    $npmPath = Find-Executable -Name 'npm.cmd'
-    foreach ($package in $script:NpmPackages) {
+function Uninstall-LegacyEcosystemTools {
+    Import-EnvironmentPath
+    $cleanupCommands = @(
+        @{ Name = 'npm ecosystem packages'; Command = 'npm.cmd'; Arguments = @('uninstall', '--global') + $script:LegacyNpmPackages }
+        @{ Name = 'Laravel Installer'; Command = 'composer'; Arguments = @('global', 'remove', 'laravel/installer', '--no-interaction') }
+        @{ Name = 'Bundler and Rails'; Command = 'gem'; Arguments = @('uninstall', 'bundler', 'rails', '--all', '--executables', '--ignore-dependencies') }
+        @{ Name = 'Spec-Kit'; Command = 'uv.exe'; Arguments = @('tool', 'uninstall', 'specify-cli') }
+    )
+
+    foreach ($cleanup in $cleanupCommands) {
+        $command = Get-Command $cleanup.Command -ErrorAction SilentlyContinue
+        if (-not $command) {
+            continue
+        }
         try {
-            Invoke-NativeCommand -FilePath $npmPath -ArgumentList @('install', '--global', $package)
-            Write-Success ("npm package {0} installed." -f $package)
+            Invoke-NativeCommand -FilePath $command.Source -ArgumentList $cleanup.Arguments
+            Write-Success ("Legacy {0} removed." -f $cleanup.Name)
         }
         catch {
-            $script:Failures.Add("npm: $package")
-            Write-Host ("[ERROR] npm package {0}: {1}" -f $package, $_.Exception.Message) -ForegroundColor Red
+            Write-WarningMessage ("Could not remove legacy {0}: {1}" -f $cleanup.Name, $_.Exception.Message)
         }
     }
 }
 
-function Install-PythonToolchain {
-    $uvPath = Find-Executable -Name 'uv.exe'
-    $uvTools = @(& $uvPath tool list 2>$null)
-    if (($uvTools -join "`n") -match '(?m)^specify-cli\s') {
-        Invoke-NativeCommand -FilePath $uvPath -ArgumentList @('tool', 'upgrade', 'specify-cli')
-        Write-Success 'Spec-Kit upgraded.'
-    }
-    else {
-        Invoke-NativeCommand -FilePath $uvPath -ArgumentList @('tool', 'install', 'specify-cli')
-        Write-Success 'Spec-Kit installed.'
-    }
+function Remove-PathEntry {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][ValidateSet('User', 'Machine')][string]$Scope
+    )
+
+    $currentPath = [Environment]::GetEnvironmentVariable('Path', $Scope)
+    $normalizedPath = $Path.TrimEnd('\')
+    $remainingEntries = @($currentPath -split ';' | Where-Object {
+        $_ -and ([Environment]::ExpandEnvironmentVariables($_)).TrimEnd('\') -ne $normalizedPath
+    })
+    [Environment]::SetEnvironmentVariable('Path', ($remainingEntries -join ';'), $Scope)
 }
 
-function Install-RustToolchain {
-    $rustupPath = Find-Executable -Name 'rustup.exe'
-    Invoke-NativeCommand -FilePath $rustupPath -ArgumentList @('update', 'stable')
-    Invoke-NativeCommand -FilePath $rustupPath -ArgumentList @('default', 'stable')
-    Find-Executable -Name 'cargo.exe' | Out-Null
-    Write-Success 'The stable Rust toolchain and Cargo are installed.'
+function Remove-LegacyToolchainPaths {
+    $legacyUserPaths = @(
+        (Join-Path $env:USERPROFILE '.cargo\bin')
+        (Join-Path $env:USERPROFILE '.local\bin')
+        (Join-Path $env:APPDATA 'npm')
+        (Join-Path $env:APPDATA 'Composer\vendor\bin')
+    )
+    foreach ($legacyPath in $legacyUserPaths) {
+        Remove-PathEntry -Path $legacyPath -Scope 'User'
+    }
+
+    $legacyBinDirectory = Join-Path $env:ProgramData 'SetupVibe\bin'
+    Remove-PathEntry -Path $legacyBinDirectory -Scope 'Machine'
+    Remove-Item -Path $legacyBinDirectory -Recurse -Force -ErrorAction SilentlyContinue
+    Import-EnvironmentPath
+    Write-Success 'Legacy language-toolchain PATH entries removed.'
 }
 
 if ($env:OS -ne 'Windows_NT') {
@@ -559,7 +609,7 @@ if (-not (Test-Administrator)) {
     Request-Elevation
 }
 
-Initialize-UserPath
+Import-EnvironmentPath
 
 New-Item -Path $script:LogDirectory -ItemType Directory -Force | Out-Null
 $logPath = Join-Path $script:LogDirectory ("desktop-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
@@ -574,40 +624,72 @@ catch {
 Write-Host ("SetupVibe Windows Desktop (Beta) v{0}" -f $script:Version) -ForegroundColor Magenta
 Write-Host ("Windows build: {0}" -f $currentBuild)
 
-if (Confirm-DisableUserAccountControl) {
-    Invoke-SetupStep -Name 'Disable User Account Control (UAC)' -Action { Disable-UserAccountControl }
+if ($Uninstall) {
+    Write-Section 'Uninstall mode'
+    Write-Host 'Removing all utilities and configurations managed by SetupVibe Windows.'
+
+    Invoke-SetupStep -Name 'Legacy ecosystem tools' -Action { Uninstall-LegacyEcosystemTools }
+    Invoke-SetupStep -Name 'PowerShell profile: Starship and zoxide' -Action { Uninstall-PowerShellProfile }
+
+    $script:WinGetPath = Find-WinGet
+    if ($script:WinGetPath) {
+        $packagesToRemove = @($script:WinGetPackages) + @($script:LegacyWinGetPackages)
+        foreach ($package in $packagesToRemove) {
+            Invoke-SetupStep -Name ("Remove WinGet: {0}" -f $package.Name) -Action {
+                Uninstall-WinGetPackage -Id $package.Id -Name $package.Name
+            }
+        }
+    }
+    else {
+        Write-WarningMessage 'WinGet was not found; WinGet-managed packages could not be checked.'
+    }
+
+    $script:ChocolateyPath = Find-Chocolatey
+    if ($script:ChocolateyPath) {
+        foreach ($package in $script:ChocolateyPackages) {
+            Invoke-SetupStep -Name ("Remove Chocolatey: {0}" -f $package.Name) -Action {
+                Uninstall-ChocolateyPackage -Id $package.Id -Name $package.Name
+            }
+        }
+    }
+    else {
+        Write-WarningMessage 'Chocolatey was not found; Chocolatey-managed packages could not be checked.'
+    }
+
+    Invoke-SetupStep -Name 'OpenSSH Client' -Action { Uninstall-OpenSshClient }
+    Invoke-SetupStep -Name 'Legacy toolchain PATH entries' -Action { Remove-LegacyToolchainPaths }
+    Invoke-SetupStep -Name 'Enable User Account Control (UAC)' -Action { Enable-UserAccountControl }
 }
 else {
-    Write-Success 'The User Account Control (UAC) policy was left unchanged by user choice.'
-}
-Invoke-SetupStep -Name 'OpenSSH Client' -Action { Install-OpenSshClient }
-Invoke-SetupStep -Name 'WinGet' -Action { Install-WinGet }
-Invoke-SetupStep -Name 'Chocolatey' -Action { Install-Chocolatey }
+    if (Confirm-DisableUserAccountControl) {
+        Invoke-SetupStep -Name 'Disable User Account Control (UAC)' -Action { Disable-UserAccountControl }
+    }
+    else {
+        Write-Success 'The User Account Control (UAC) policy was left unchanged by user choice.'
+    }
+    Invoke-SetupStep -Name 'OpenSSH Client' -Action { Install-OpenSshClient }
+    Invoke-SetupStep -Name 'WinGet' -Action { Install-WinGet }
+    Invoke-SetupStep -Name 'Chocolatey' -Action { Install-Chocolatey }
 
-if ($script:WinGetPath) {
-    foreach ($package in $script:WinGetPackages) {
-        Invoke-SetupStep -Name ("WinGet: {0}" -f $package.Name) -Action {
-            Install-WinGetPackage -Id $package.Id -Name $package.Name
+    if ($script:WinGetPath) {
+        foreach ($package in $script:WinGetPackages) {
+            Invoke-SetupStep -Name ("WinGet: {0}" -f $package.Name) -Action {
+                Install-WinGetPackage -Id $package.Id -Name $package.Name
+            }
         }
     }
-}
 
-if ($script:ChocolateyPath) {
-    foreach ($package in $script:ChocolateyPackages) {
-        Invoke-SetupStep -Name ("Chocolatey: {0}" -f $package.Name) -Action {
-            Install-ChocolateyPackage -Id $package.Id -Name $package.Name
+    if ($script:ChocolateyPath) {
+        foreach ($package in $script:ChocolateyPackages) {
+            Invoke-SetupStep -Name ("Chocolatey: {0}" -f $package.Name) -Action {
+                Install-ChocolateyPackage -Id $package.Id -Name $package.Name
+            }
         }
     }
-}
 
-Import-EnvironmentPath
-Invoke-SetupStep -Name 'Composer' -Action { Install-Composer }
-Invoke-SetupStep -Name 'PHP tools: Laravel Installer' -Action { Install-PhpToolchain }
-Invoke-SetupStep -Name 'Ruby tools: Bundler and Rails' -Action { Install-RubyToolchain }
-Invoke-SetupStep -Name 'Node.js and AI CLI tools' -Action { Install-NodeToolchain }
-Invoke-SetupStep -Name 'Python tools: Spec-Kit' -Action { Install-PythonToolchain }
-Invoke-SetupStep -Name 'Rust toolchain' -Action { Install-RustToolchain }
-Invoke-SetupStep -Name 'PowerShell profile: Starship and zoxide' -Action { Install-PowerShellProfile }
+    Import-EnvironmentPath
+    Invoke-SetupStep -Name 'PowerShell profile: Starship and zoxide' -Action { Install-PowerShellProfile }
+}
 
 Write-Section 'Summary'
 if ($script:Failures.Count -gt 0) {
@@ -622,7 +704,12 @@ if ($script:Failures.Count -gt 0) {
     exit 1
 }
 
-Write-Success 'The native Windows development environment is configured.'
+if ($Uninstall) {
+    Write-Success 'SetupVibe-managed Windows utilities and configurations were removed.'
+}
+else {
+    Write-Success 'The native Windows utility environment is configured.'
+}
 
 if ($script:RestartRequired) {
     if ($Restart) {

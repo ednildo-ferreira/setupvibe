@@ -1,8 +1,8 @@
 # SetupVibe Windows Edition (Beta)
 
-> Native Windows development environment setup — v0.41.6
+> Native Windows utility setup — v0.41.6
 
-The Windows Edition (Beta) configures a complete native Windows development environment with WinGet as the primary package source and Chocolatey for packages not available through WinGet.
+The Windows Edition (Beta) configures a focused set of native Windows utilities with WinGet as the primary package source and Chocolatey for packages not available through WinGet.
 
 ## Requirements
 
@@ -19,18 +19,15 @@ The Windows Edition (Beta) configures a complete native Windows development envi
 - WinGet through the official `Microsoft.WinGet.Client` repair workflow when missing
 - Chocolatey through its official bootstrap script when missing
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick, and GitHub CLI
-- PHP 8.4, Composer, Laravel Installer, Ruby 3.3, Bundler, and Rails
-- Python 3.12, uv, Spec-Kit, Go, Rustup, and Cargo
-- Node.js LTS, Bun, PNPM, PM2, n8n, and the configured AI CLI tools
-- bat, eza, zoxide, fzf, ripgrep, fd, lazygit, Neovim, Glow, tldr, Fastfetch, duf, jq, and mise
+- bat, eza, zoxide, fzf, ripgrep, fd, lazygit, Neovim, Glow, tldr, Fastfetch, duf, and jq
 - Nmap, Speedtest CLI, Tailscale, gping, btop4win, trippy, and RustScan
 - PowerShell 7, Windows Terminal, Starship, FiraCode Nerd Font, and JetBrains Mono Nerd Font
 
-The installer is idempotent: installed WinGet packages are detected and skipped, while Chocolatey and ecosystem installers safely ensure their packages are present. Failures are recorded per package so remaining installations can continue. A transcript is saved under `C:\ProgramData\SetupVibe\Logs`.
+The installer is idempotent: installed WinGet packages are detected and skipped, while Chocolatey safely ensures its packages are present. Failures are recorded per package so remaining installations can continue. A transcript is saved under `C:\ProgramData\SetupVibe\Logs`.
 
-Composer is installed from its official installer after SHA-384 signature verification. Starship and zoxide are initialized in both Windows PowerShell and PowerShell 7 profiles.
+Starship and zoxide are initialized in both Windows PowerShell and PowerShell 7 profiles.
 
-This script is exclusively for native Windows tools. Use `desktop.sh` inside WSL to configure the Linux environment.
+This script is exclusively for native Windows utilities. It does not install programming languages, frameworks, runtime managers, AI CLI tools, or WSL. Use `desktop.sh` inside WSL to configure a complete development environment.
 
 Docker Desktop is intentionally excluded because its usual backends require WSL 2 or Hyper-V.
 
@@ -82,20 +79,18 @@ During execution, the installer:
 1. Validates the Windows edition, build, and 64-bit architecture.
 2. Requests administrator privileges through UAC.
 3. Asks whether to disable UAC, with `Yes` as the default, and sets the machine-wide `EnableLUA` registry policy to `0` when accepted.
-4. Configures persistent user `PATH` entries.
-5. Installs OpenSSH Client, WinGet, and Chocolatey when needed.
-6. Installs each Windows package independently and continues after isolated package failures.
-7. Installs the PHP, Ruby, Node.js, Python, and Rust ecosystem tools.
-8. Configures Starship and zoxide for Windows PowerShell and PowerShell 7.
-9. Displays a final summary and the transcript log location.
+4. Installs OpenSSH Client, WinGet, and Chocolatey when needed.
+5. Installs each Windows utility independently and continues after isolated package failures.
+6. Configures Starship and zoxide for Windows PowerShell and PowerShell 7.
+7. Displays a final summary and the transcript log location.
 
-The process can take a while because Ruby, Rust, Rails, n8n, and AI CLI packages may download or compile additional dependencies.
+The process can take a while because package managers download and install each utility independently.
 
 ## After Installation
 
 1. Restart Windows when requested. If you chose to disable UAC, it remains active until this restart is complete.
 2. Open Windows Terminal or PowerShell 7 so the refreshed `PATH`, Starship, and zoxide initialization are loaded.
-3. Complete any first-run authentication required by GitHub CLI, Tailscale, Claude Code, Codex, or other external services.
+3. Complete any first-run authentication required by GitHub CLI or Tailscale.
 
 Verify the main components in a new terminal:
 
@@ -103,12 +98,8 @@ Verify the main components in a new terminal:
 winget --version
 choco --version
 git --version
-php --version
-composer --version
-ruby --version
-python --version
-node --version
-rustc --version
+rg --version
+fzf --version
 pwsh --version
 Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Name EnableLUA
 ```
@@ -117,7 +108,7 @@ The final command must return `0` after the restart if you answered `Yes` to the
 
 ## Rerunning and Logs
 
-The installer is designed to be rerun. WinGet packages already present are skipped, while ecosystem installers ensure their tools remain installed.
+The installer is designed to be rerun. WinGet packages already present are skipped, while Chocolatey ensures its managed utilities remain installed.
 
 Complete transcript logs are stored in:
 
@@ -137,6 +128,26 @@ Restart Windows automatically after a completely successful installation when Wi
 
 Without `-Restart`, the installer never restarts Windows automatically.
 
+### Uninstall
+
+Remove all utilities and configurations managed by the Windows Edition from a local clone:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1 -Uninstall
+```
+
+Or run the uninstaller from the `windows` branch:
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
+```
+
+The uninstall mode removes OpenSSH Client, every WinGet and Chocolatey utility managed by SetupVibe, the Starship and zoxide profile block, and the generated Starship configuration. It also removes language runtimes, framework tools, runtime-manager paths, and npm packages installed by earlier Windows Beta versions, then re-enables UAC. WinGet, Chocolatey, and transcript logs are preserved.
+
+**Uninstall warning:** the current Beta does not track whether OpenSSH Client or a managed package existed before SetupVibe. `-Uninstall` therefore removes OpenSSH Client and every package in its managed lists, including components that may have been installed separately before SetupVibe.
+
+Combine `-Uninstall` with `-Restart` to restart automatically when Windows reports that a restart is required.
+
 ## Re-enabling UAC
 
 To restore the Windows default security behavior, run the following command from an administrator PowerShell session and restart Windows:
@@ -150,4 +161,5 @@ New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies
 - Windows Server and 32-bit Windows are rejected during preflight checks.
 - When accepted, disabling UAC is machine-wide and reduces Windows security. A domain or device-management policy can restore the setting after the script changes it.
 - WSL is not installed or configured. Run `desktop.sh` inside an existing WSL distribution for the Linux environment.
+- Programming languages, frameworks, runtime managers, and AI CLI tools are not installed.
 - Docker Desktop and a local Docker engine are not installed.

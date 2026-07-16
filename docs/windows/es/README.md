@@ -1,8 +1,8 @@
 # Edición Windows de SetupVibe (Beta)
 
-> Configuración del entorno de desarrollo nativo de Windows — v0.41.6
+> Configuración de utilidades nativas de Windows — v0.41.6
 
-La Edición Windows (Beta) configura un entorno completo de desarrollo nativo de Windows, con WinGet como fuente principal y Chocolatey para los paquetes que no están disponibles mediante WinGet.
+La Edición Windows (Beta) configura un conjunto enfocado de utilidades nativas de Windows, con WinGet como fuente principal y Chocolatey para los paquetes que no están disponibles mediante WinGet.
 
 ## Requisitos
 
@@ -19,18 +19,15 @@ La Edición Windows (Beta) configura un entorno completo de desarrollo nativo de
 - WinGet mediante el proceso oficial de reparación `Microsoft.WinGet.Client` cuando no está disponible
 - Chocolatey mediante su script oficial de arranque cuando no está disponible
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick y GitHub CLI
-- PHP 8.4, Composer, Laravel Installer, Ruby 3.3, Bundler y Rails
-- Python 3.12, uv, Spec-Kit, Go, Rustup y Cargo
-- Node.js LTS, Bun, PNPM, PM2, n8n y las herramientas de IA configuradas
-- bat, eza, zoxide, fzf, ripgrep, fd, lazygit, Neovim, Glow, tldr, Fastfetch, duf, jq y mise
+- bat, eza, zoxide, fzf, ripgrep, fd, lazygit, Neovim, Glow, tldr, Fastfetch, duf y jq
 - Nmap, Speedtest CLI, Tailscale, gping, btop4win, trippy y RustScan
 - PowerShell 7, Windows Terminal, Starship, FiraCode Nerd Font y JetBrains Mono Nerd Font
 
-El instalador es idempotente: detecta y omite los paquetes WinGet instalados, mientras Chocolatey y los instaladores de cada ecosistema garantizan la presencia de sus paquetes. Los errores se registran por paquete para que las demás instalaciones puedan continuar. Se guarda un registro completo en `C:\ProgramData\SetupVibe\Logs`.
+El instalador es idempotente: detecta y omite los paquetes WinGet instalados, mientras Chocolatey garantiza la presencia de sus paquetes. Los errores se registran por paquete para que las demás instalaciones puedan continuar. Se guarda un registro completo en `C:\ProgramData\SetupVibe\Logs`.
 
-Composer se instala desde su instalador oficial después de verificar la firma SHA-384. Starship y zoxide se inicializan en los perfiles de Windows PowerShell y PowerShell 7.
+Starship y zoxide se inicializan en los perfiles de Windows PowerShell y PowerShell 7.
 
-Este script es exclusivo para herramientas nativas de Windows. Use `desktop.sh` dentro de WSL para configurar el entorno Linux.
+Este script es exclusivo para utilidades nativas de Windows. No instala lenguajes de programación, frameworks, administradores de runtimes, herramientas CLI de IA ni WSL. Use `desktop.sh` dentro de WSL para configurar un entorno de desarrollo completo.
 
 Docker Desktop se excluye intencionalmente porque sus motores habituales requieren WSL 2 o Hyper-V.
 
@@ -82,20 +79,18 @@ Durante la ejecución, el instalador:
 1. Valida la edición, la compilación y la arquitectura de 64 bits de Windows.
 2. Solicita privilegios de administrador mediante UAC.
 3. Pregunta si se debe desactivar UAC, usando `Yes` como opción predeterminada, y establece la directiva global del registro `EnableLUA` en `0` cuando se acepta.
-4. Configura entradas persistentes en el `PATH` del usuario.
-5. Instala el Cliente OpenSSH, WinGet y Chocolatey cuando sea necesario.
-6. Instala cada paquete de Windows de forma independiente y continúa después de errores aislados.
-7. Instala las herramientas de los ecosistemas PHP, Ruby, Node.js, Python y Rust.
-8. Configura Starship y zoxide para Windows PowerShell y PowerShell 7.
-9. Muestra un resumen final y la ubicación del registro completo.
+4. Instala el Cliente OpenSSH, WinGet y Chocolatey cuando sea necesario.
+5. Instala cada utilidad de Windows de forma independiente y continúa después de errores aislados.
+6. Configura Starship y zoxide para Windows PowerShell y PowerShell 7.
+7. Muestra un resumen final y la ubicación del registro completo.
 
-El proceso puede tardar, ya que Ruby, Rust, Rails, n8n y las herramientas de IA pueden descargar o compilar dependencias adicionales.
+El proceso puede tardar porque los administradores de paquetes descargan e instalan cada utilidad por separado.
 
 ## Después De La Instalación
 
 1. Reinicie Windows cuando se solicite. Si eligió desactivar UAC, permanece activo hasta que finalice este reinicio.
 2. Abra Windows Terminal o PowerShell 7 para cargar el nuevo `PATH`, Starship y zoxide.
-3. Complete las autenticaciones iniciales requeridas por GitHub CLI, Tailscale, Claude Code, Codex u otros servicios externos.
+3. Complete las autenticaciones iniciales requeridas por GitHub CLI o Tailscale.
 
 Verifique los componentes principales en una terminal nueva:
 
@@ -103,12 +98,8 @@ Verifique los componentes principales en una terminal nueva:
 winget --version
 choco --version
 git --version
-php --version
-composer --version
-ruby --version
-python --version
-node --version
-rustc --version
+rg --version
+fzf --version
 pwsh --version
 Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Name EnableLUA
 ```
@@ -117,7 +108,7 @@ El último comando debe devolver `0` después del reinicio si respondió `Yes` a
 
 ## Nueva Ejecución Y Registros
 
-El instalador está diseñado para ejecutarse nuevamente. Los paquetes WinGet existentes se omiten, mientras los instaladores de los ecosistemas garantizan la presencia de sus herramientas.
+El instalador está diseñado para ejecutarse nuevamente. Los paquetes WinGet existentes se omiten, mientras Chocolatey garantiza la presencia de sus utilidades administradas.
 
 Los registros completos se almacenan en:
 
@@ -137,6 +128,26 @@ Reinicie Windows automáticamente después de una instalación completamente exi
 
 Sin `-Restart`, el instalador nunca reinicia Windows automáticamente.
 
+### Desinstalación
+
+Elimine todas las utilidades y configuraciones administradas por la Edición Windows desde un clon local:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1 -Uninstall
+```
+
+O ejecute el desinstalador desde la rama `windows`:
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
+```
+
+El modo de desinstalación elimina el Cliente OpenSSH, todas las utilidades WinGet y Chocolatey administradas por SetupVibe, el bloque de perfil de Starship y zoxide y la configuración generada de Starship. También elimina runtimes de lenguajes, herramientas de frameworks, rutas de administradores de runtimes y paquetes npm instalados por versiones Beta anteriores de Windows y, a continuación, vuelve a activar UAC. WinGet, Chocolatey y los registros se conservan.
+
+**Advertencia de desinstalación:** la versión Beta actual no registra si el Cliente OpenSSH o un paquete administrado ya existía antes de SetupVibe. Por lo tanto, `-Uninstall` elimina el Cliente OpenSSH y todos los paquetes de sus listas administradas, incluidos los componentes que puedan haber sido instalados por separado antes de SetupVibe.
+
+Combine `-Uninstall` con `-Restart` para reiniciar automáticamente cuando Windows indique que se requiere un reinicio.
+
 ## Reactivación De UAC
 
 Para restaurar el comportamiento de seguridad predeterminado de Windows, ejecute el siguiente comando en una sesión de PowerShell con privilegios de administrador y reinicie Windows:
@@ -150,4 +161,5 @@ New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies
 - Windows Server y las ediciones de 32 bits de Windows se rechazan durante las comprobaciones iniciales.
 - Cuando se acepta, la desactivación de UAC afecta a todo el equipo y reduce la seguridad de Windows. Una directiva de dominio o de administración del dispositivo puede restaurar la configuración después de que el script la cambie.
 - WSL no se instala ni configura. Ejecute `desktop.sh` dentro de una distribución WSL existente para configurar el entorno Linux.
+- No se instalan lenguajes de programación, frameworks, administradores de runtimes ni herramientas CLI de IA.
 - Docker Desktop y un motor Docker local no se instalan.

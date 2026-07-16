@@ -44,11 +44,11 @@ curl -sSL server.setupvibe.dev | bash -s -- --manager
 | Homebrew                              | ✔              | ✗       | ✗       |
 | WinGet + Chocolatey                   | ✗              | ✔       | ✗       |
 | OpenSSH Client                        | ✔              | ✔       | ✔       |
-| PHP 8.4 + Composer + Laravel          | ✔              | ✔       | ✗       |
-| Ruby + rbenv + Rails                  | ✔              | ✔       | ✗       |
-| Go, Rust, Python + uv                 | ✔              | ✔       | ✗       |
-| Node.js 24 + Bun + PNPM               | ✔              | ✔ (LTS) | ✔ (APT) |
-| n8n                                   | ✔              | ✔       | ✗       |
+| PHP 8.4 + Composer + Laravel          | ✔              | ✗       | ✗       |
+| Ruby + rbenv + Rails                  | ✔              | ✗       | ✗       |
+| Go, Rust, Python + uv                 | ✔              | ✗       | ✗       |
+| Node.js 24 + Bun + PNPM               | ✔              | ✗       | ✔ (APT) |
+| n8n                                   | ✔              | ✗       | ✗       |
 | Docker + Ansible + GitHub CLI         | ✔              | ✗       | ✔       |
 | Modern Unix tools (bat, eza, fzf…)    | ✔ via Homebrew | ✔       | ✗       |
 | Network & monitoring tools            | ✔              | ✔       | ✔       |
@@ -57,7 +57,7 @@ curl -sSL server.setupvibe.dev | bash -s -- --manager
 | ZSH + Oh My Zsh + Starship            | ✔              | ✗       | ✔       |
 | Nerd Fonts (FiraCode, JetBrains Mono) | ✔              | ✔       | ✗       |
 | Tmux + TPM plugins                    | ✔              | ✗       | ✔       |
-| AI CLI tools                          | ✔              | ✔       | ✔       |
+| AI CLI tools                          | ✔              | ✗       | ✔       |
 | PM2 auto-startup                      | ✔              | ✗       | ✗       |
 | Docker Swarm Manager (`--manager`)    | ✗              | ✗       | ✔       |
 

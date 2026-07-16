@@ -2,7 +2,7 @@
 
 > The ultimate cross-platform development environment setup script — v0.41.6
 
-Installs and configures a complete development stack in one command, supporting Windows, macOS, and major Linux distributions.
+Installs and configures a development environment in one command, supporting Windows, macOS, and major Linux distributions. The Windows Edition focuses on native utilities, while the Unix editions include language ecosystems and AI CLI tools.
 
 ## Key Features
 
@@ -10,7 +10,7 @@ Installs and configures a complete development stack in one command, supporting 
 - **Native Package Management:** Uses WinGet and Chocolatey on Windows, with Homebrew or APT on Unix systems.
 - **Modern Shell:** PowerShell 7 + Starship + zoxide on Windows, and ZSH + Oh My Zsh + Starship on Unix systems.
 - **Optimized Terminals:** Installs Windows Terminal on Windows and configures Tmux + TPM on Unix systems.
-- **AI-Ready:** Includes the latest AI CLI tools for developers.
+- **AI-Ready Unix Editions:** Includes the latest AI CLI tools for developers on macOS, Linux, and WSL.
 
 ## Documentation
 
@@ -33,13 +33,13 @@ curl -sSL desktop.setupvibe.dev | bash
 
 ### Windows Desktop (Beta)
 
-Run the Windows installer directly from the `windows` development branch. It requests administrator access through UAC automatically, then asks whether to disable UAC with `Yes` as the default.
+Run the Windows utility installer directly from the `windows` development branch. It requests administrator access through UAC automatically, then asks whether to disable UAC with `Yes` as the default.
 
 ```powershell
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 | iex
 ```
 
-See the [Windows installation guide](docs/windows/README.md) for local installation, verification, logs, and restart options.
+See the [Windows installation guide](docs/windows/README.md) for local installation, verification, logs, restart options, and the `-Uninstall` mode.
 
 ### Server (Linux only)
 

@@ -9,7 +9,7 @@ This file provides instructions and context for OpenAI Codex when working with t
 There are three editions:
 
 - `desktop.sh` — macOS, Linux desktops, and WSL; full stack including language ecosystems, GUI tools, and AI CLIs
-- `desktop.ps1` — native Windows 10/11 (Beta); OpenSSH Client, WinGet, Chocolatey, and native Windows developer tools
+- `desktop.ps1` — native Windows 10/11 (Beta); Windows utilities only, without programming languages, frameworks, runtime managers, or AI CLIs
 - `server.sh` — Linux-only; lean install focused on DevOps tools, Docker, shell, and monitoring
 
 ## How to Run
@@ -31,6 +31,9 @@ curl -sSL desktop.setupvibe.dev | bash
 
 # Or run a local copy
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1
+
+# Remove every utility and configuration managed by the Windows Edition
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1 -Uninstall
 ```
 
 To test changes to a script, run it directly on a target machine or VM.
@@ -48,7 +51,7 @@ Both `desktop.sh` and `server.sh` follow a numbered-step pattern (functions pref
 
 ### Windows Script Structure
 
-`desktop.ps1` contains only native Windows installation logic. It supports local execution and remote execution through `irm ... | iex`, requests initial UAC elevation, asks whether to disable UAC with `Yes` as the default, rejects Windows Server and 32-bit Windows, detects installed components for idempotent reruns, persists toolchain paths, and logs to `C:\ProgramData\SetupVibe\Logs`. It must not install or configure WSL; Linux and WSL environments are managed by `desktop.sh`.
+`desktop.ps1` contains only native Windows utility logic. It supports local and remote execution, requests initial UAC elevation, asks whether to disable UAC with `Yes` as the default during installation, rejects Windows Server and 32-bit Windows, detects installed components for idempotent reruns, and logs to `C:\ProgramData\SetupVibe\Logs`. The `-Uninstall` mode removes all managed utilities and configurations, cleans language ecosystems left by earlier Windows Beta versions, and re-enables UAC while preserving WinGet, Chocolatey, and logs. It must not install or configure programming languages, frameworks, runtime managers, AI CLI tools, or WSL; Linux and WSL environments are managed by `desktop.sh`.
 
 While the Windows Edition is in Beta, every SetupVibe repository URL in Windows-specific scripts and documentation must target the `windows` branch. Align all of these URLs with the primary branch only after the Windows work is merged.
 
