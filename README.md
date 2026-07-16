@@ -7,7 +7,7 @@ Installs and configures a development environment in one command, supporting Win
 ## Key Features
 
 - **Administrator Setup:** Requests standard UAC elevation on Windows without changing the UAC policy; uses `sudo` only where required on macOS and Linux.
-- **Safe Windows Servicing:** Waits for competing installers, rejects pending restarts, starts required services, validates the component store, and records dedicated DISM logs without forcibly terminating system processes.
+- **Safe Windows Servicing:** Stops immediately when another installer or servicing operation is active, recommends restarting the PC, rejects pending restarts, validates the component store, and records dedicated DISM logs without forcibly terminating system processes.
 - **Native Package Management:** Uses WinGet and Chocolatey on Windows, with Homebrew or APT on Unix systems.
 - **Modern Shell:** PowerShell 7 + Starship + zoxide on Windows, and ZSH + Oh My Zsh + Starship on Unix systems.
 - **Optimized Terminals:** Installs Windows Terminal on Windows and configures Tmux + TPM on Unix systems.

@@ -3,8 +3,7 @@
 [CmdletBinding()]
 param(
     [switch]$Restart,
-    [switch]$Uninstall,
-    [ValidateRange(1, 120)][int]$InstallerWaitMinutes = 20
+    [switch]$Uninstall
 )
 
 Set-StrictMode -Version Latest
@@ -14,6 +13,7 @@ $ProgressPreference = 'Continue'
 $script:Version = '0.41.6'
 $script:InstallUrl = 'https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1'
 $script:RestartRequired = $false
+$script:RestartBeforeRetryRequired = $false
 $script:Failures = New-Object System.Collections.Generic.List[string]
 $script:LogDirectory = Join-Path $env:ProgramData 'SetupVibe\Logs'
 $script:TranscriptStarted = $false
@@ -140,7 +140,6 @@ function Request-Elevation {
     if ($Uninstall) {
         $powerShellArguments += '-Uninstall'
     }
-    $powerShellArguments += @('-InstallerWaitMinutes', [string]$InstallerWaitMinutes)
 
     Write-Host 'Administrator privileges are required. Opening the UAC prompt...' -ForegroundColor Yellow
     try {
@@ -202,7 +201,10 @@ function Stop-SetupIfFailed {
     Write-Section 'Summary'
     Write-Host ("Failed steps: {0}" -f ($script:Failures -join ', ')) -ForegroundColor Red
     Write-Host ("Review the log and run desktop.ps1 again: {0}" -f $LogPath)
-    if ($script:RestartRequired) {
+    if ($script:RestartBeforeRetryRequired) {
+        Write-WarningMessage 'Restart the PC before running SetupVibe again.'
+    }
+    elseif ($script:RestartRequired) {
         Write-WarningMessage 'Windows must be restarted before all changes can take effect.'
     }
     if ($script:TranscriptStarted) {
@@ -212,32 +214,69 @@ function Stop-SetupIfFailed {
     exit 1
 }
 
-function Wait-WindowsInstallerAvailability {
-    param([Parameter(Mandatory = $true)][ValidateRange(1, 120)][int]$TimeoutMinutes)
+function Get-ActiveWindowsInstallerOperations {
+    $operations = New-Object System.Collections.Generic.List[string]
+    $installerProcessNames = @(
+        'AppInstallerCLI'
+        'choco'
+        'dism'
+        'dismhost'
+        'msiexec'
+        'poqexec'
+        'setuphost'
+        'TiWorker'
+        'winget'
+        'Windows10UpgraderApp'
+        'Windows11InstallationAssistant'
+        'WindowsUpdateBox'
+        'wusa'
+    )
 
-    $installerProcessNames = @('dism', 'dismhost', 'TiWorker', 'msiexec', 'winget', 'choco')
-    $stopwatch = [Diagnostics.Stopwatch]::StartNew()
-    $nextHeartbeat = 0
-
-    while ($true) {
-        $activeProcesses = @(Get-Process -Name $installerProcessNames -ErrorAction SilentlyContinue | Sort-Object ProcessName, Id)
-        if ($activeProcesses.Count -eq 0) {
-            $stopwatch.Stop()
-            Write-Success 'No competing Windows servicing or package-installer process is active.'
-            return
-        }
-
-        $processSummary = ($activeProcesses | ForEach-Object { "{0} (PID {1})" -f $_.ProcessName, $_.Id }) -join ', '
-        if ($stopwatch.Elapsed.TotalSeconds -ge $nextHeartbeat) {
-            Write-Host ("[WAIT] Waiting for installer processes: {0}. Elapsed: {1:N0}s; limit: {2} minute(s)." -f $processSummary, $stopwatch.Elapsed.TotalSeconds, $TimeoutMinutes) -ForegroundColor DarkGray
-            $nextHeartbeat += 15
-        }
-
-        if ($stopwatch.Elapsed.TotalMinutes -ge $TimeoutMinutes) {
-            throw "Installer processes did not finish within $TimeoutMinutes minute(s): $processSummary. SetupVibe did not terminate them because forcibly ending Windows servicing can corrupt the component store. Restart Windows, then run the setup again."
-        }
-        Start-Sleep -Seconds 5
+    $activeProcesses = @(Get-Process -Name $installerProcessNames -ErrorAction SilentlyContinue | Sort-Object ProcessName, Id)
+    foreach ($process in $activeProcesses) {
+        $operations.Add(("Process {0} (PID {1})" -f $process.ProcessName, $process.Id))
     }
+
+    $installerRegistryPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\InProgress'
+    if (Test-Path $installerRegistryPath) {
+        $operations.Add("Windows Installer registry transaction: $installerRegistryPath")
+    }
+
+    $windowsInstallerMutex = $null
+    try {
+        $windowsInstallerMutex = [Threading.Mutex]::OpenExisting('Global\_MSIExecute')
+        $operations.Add('Windows Installer transaction mutex: Global\_MSIExecute')
+    }
+    catch [Threading.WaitHandleCannotBeOpenedException] {
+        # The mutex does not exist when Windows Installer is idle.
+    }
+    catch [UnauthorizedAccessException] {
+        $operations.Add('Windows Installer transaction mutex is active but could not be inspected')
+    }
+    finally {
+        if ($windowsInstallerMutex) {
+            $windowsInstallerMutex.Dispose()
+        }
+    }
+
+    return @($operations | Sort-Object -Unique)
+}
+
+function Assert-NoActiveWindowsInstaller {
+    $activeOperations = @(Get-ActiveWindowsInstallerOperations)
+    if ($activeOperations.Count -eq 0) {
+        Write-Success 'No competing Windows servicing or package-installer operation is active.'
+        return
+    }
+
+    $script:RestartBeforeRetryRequired = $true
+    Write-Host ''
+    Write-Host '[ALERT] Another Windows installation or servicing operation is in progress:' -ForegroundColor Red
+    foreach ($operation in $activeOperations) {
+        Write-Host ("  - {0}" -f $operation) -ForegroundColor Red
+    }
+    Write-Host '[ACTION] SetupVibe will now exit. Restart the PC, then run the installer again.' -ForegroundColor Yellow
+    throw 'SetupVibe stopped because another installation or servicing operation is in progress. Restart the PC before trying again.'
 }
 
 function Get-PendingWindowsRestartReasons {
@@ -278,12 +317,9 @@ function Ensure-WindowsServiceReady {
 }
 
 function Invoke-WindowsInstallerPreflight {
-    param(
-        [Parameter(Mandatory = $true)][ValidateRange(1, 120)][int]$TimeoutMinutes,
-        [Parameter()][switch]$RequireWindowsUpdate
-    )
+    param([Parameter()][switch]$RequireWindowsUpdate)
 
-    Wait-WindowsInstallerAvailability -TimeoutMinutes $TimeoutMinutes
+    Assert-NoActiveWindowsInstaller
 
     $restartReasons = @(Get-PendingWindowsRestartReasons)
     if ($restartReasons.Count -gt 0) {
@@ -1011,10 +1047,9 @@ catch {
 
 Write-Host ("SetupVibe Windows Desktop (Beta) v{0}" -f $script:Version) -ForegroundColor Magenta
 Write-Host ("Windows build: {0}" -f $currentBuild)
-Write-Host ("Installer wait limit: {0} minute(s)" -f $InstallerWaitMinutes)
 
 Invoke-SetupStep -Name 'Windows servicing and installer readiness' -Action {
-    Invoke-WindowsInstallerPreflight -TimeoutMinutes $InstallerWaitMinutes -RequireWindowsUpdate:(-not $Uninstall)
+    Invoke-WindowsInstallerPreflight -RequireWindowsUpdate:(-not $Uninstall)
 }
 Stop-SetupIfFailed -LogPath $logPath
 

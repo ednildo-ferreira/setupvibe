@@ -80,7 +80,7 @@ Durante la ejecución, el instalador:
 
 1. Valida Windows 11 22H2 o posterior y la arquitectura de 64 bits.
 2. Solicita privilegios de administrador mediante UAC.
-3. Espera los procesos concurrentes de mantenimiento e instalación, rechaza reinicios pendientes, inicia los servicios necesarios, comprueba la directiva WSUS y valida el almacén de componentes de Windows.
+3. Se detiene con una alerta si hay una operación concurrente de mantenimiento o instalación, recomienda reiniciar el PC, rechaza reinicios pendientes, inicia los servicios necesarios, comprueba la directiva WSUS y valida el almacén de componentes de Windows.
 4. Instala el Cliente OpenSSH cuando sea necesario.
 5. Copia los scripts auxiliares de Windows de SetupVibe a `%USERPROFILE%\.setupvibe\bin` y agrega ese directorio al `PATH` del usuario.
 6. Instala el sistema base de WSL sin una distribución Linux y establece WSL 2 como valor predeterminado.
@@ -132,9 +132,9 @@ Si un paquete falla, revise el resumen final y el registro, resuelva el problema
 
 ## Seguridad De Windows Servicing
 
-Antes de instalar o eliminar componentes, SetupVibe espera hasta 20 minutos los procesos activos de `DISM`, `dismhost`, `TiWorker`, Windows Installer, WinGet y Chocolatey. También rechaza reinicios pendientes de Component Based Servicing o Windows Update, inicia `TrustedInstaller` y, durante la instalación, inicia `wuauserv` y `bits`, y después ejecuta `DISM /Online /Cleanup-Image /CheckHealth`.
+Antes de instalar o eliminar componentes, SetupVibe comprueba los procesos activos de `DISM`, `dismhost`, `TiWorker`, Windows Installer, instaladores de Windows Update, WinGet, Chocolatey y otros procesos de mantenimiento conocidos. También comprueba la transacción de Windows Installer en el Registro y el mutex global de ejecución de MSI. Después rechaza reinicios pendientes de Component Based Servicing o Windows Update, inicia `TrustedInstaller` y, durante la instalación, inicia `wuauserv` y `bits`, y ejecuta `DISM /Online /Cleanup-Image /CheckHealth`.
 
-SetupVibe nunca finaliza por la fuerza los procesos de mantenimiento de Windows. Si se agota la espera, muestra los nombres y PID y se detiene antes de realizar cambios. Reinicie Windows y vuelva a ejecutar el instalador. Esto protege el almacén de componentes frente a operaciones parciales de paquetes o características opcionales.
+SetupVibe nunca espera ni finaliza por la fuerza un instalador concurrente. Si detecta uno, muestra una alerta con los nombres y PID de los procesos o la transacción activa, se cierra antes de realizar cambios y recomienda reiniciar el PC antes de volver a ejecutar SetupVibe. Esto protege el almacén de componentes frente a operaciones parciales de paquetes o características opcionales.
 
 En equipos administrados por WSUS, las características bajo demanda como OpenSSH aún pueden fallar cuando el origen corporativo no proporciona contenido opcional. El error de OpenSSH indica su archivo dedicado `dism-OpenSSH-Client-*.log`.
 
@@ -147,14 +147,6 @@ Reinicie Windows automáticamente después de una instalación completamente exi
 ```
 
 Sin `-Restart`, el instalador nunca reinicia Windows automáticamente.
-
-Cambie el tiempo máximo de espera de los procesos concurrentes de mantenimiento e instalación, cuyo valor predeterminado es 20 minutos:
-
-```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -InstallerWaitMinutes 45
-```
-
-`-InstallerWaitMinutes` acepta valores de `1` a `120` y no finaliza ningún proceso cuando vence el límite.
 
 ### Desinstalación
 

@@ -80,7 +80,7 @@ During execution, the installer:
 
 1. Validates Windows 11 22H2 or later and the 64-bit architecture.
 2. Requests administrator privileges through UAC.
-3. Waits for competing servicing and installer processes, rejects pending restarts, starts required services, checks WSUS policy, and validates the Windows component store.
+3. Stops with an alert if a competing servicing or installer operation is active, recommends restarting the PC, rejects pending restarts, starts required services, checks WSUS policy, and validates the Windows component store.
 4. Installs OpenSSH Client when needed.
 5. Copies SetupVibe Windows helper scripts to `%USERPROFILE%\.setupvibe\bin` and adds that directory to the user `PATH`.
 6. Installs the WSL base without a Linux distribution and makes WSL 2 the default.
@@ -132,9 +132,9 @@ If one package fails, review the final summary and log, resolve the reported iss
 
 ## Windows Servicing Safety
 
-Before installation or removal, SetupVibe waits up to 20 minutes for active `DISM`, `dismhost`, `TiWorker`, Windows Installer, WinGet, and Chocolatey processes. It also rejects Component Based Servicing or Windows Update restarts that are still pending, starts `TrustedInstaller` and, during installation, starts `wuauserv` and `bits`, then runs `DISM /Online /Cleanup-Image /CheckHealth`.
+Before installation or removal, SetupVibe checks for active `DISM`, `dismhost`, `TiWorker`, Windows Installer, Windows Update installers, WinGet, Chocolatey, and other known servicing processes. It also checks the Windows Installer registry transaction and global MSI execution mutex. It then rejects Component Based Servicing or Windows Update restarts that are still pending, starts `TrustedInstaller` and, during installation, starts `wuauserv` and `bits`, then runs `DISM /Online /Cleanup-Image /CheckHealth`.
 
-SetupVibe never forcibly terminates Windows servicing processes. If the wait expires, it reports process names and PIDs and stops before making changes. Restart Windows and rerun the installer. This protects the component store from partial package or optional-feature operations.
+SetupVibe never waits for or forcibly terminates a competing installer. If it detects one, it displays an alert with the process names and PIDs or active transaction, exits before making changes, and recommends restarting the PC before running SetupVibe again. This protects the component store from partial package or optional-feature operations.
 
 On WSUS-managed computers, Features on Demand such as OpenSSH may still fail when the corporate update source does not provide optional content. The OpenSSH error points to its dedicated `dism-OpenSSH-Client-*.log` file.
 
@@ -147,14 +147,6 @@ Restart Windows automatically after a completely successful installation when Wi
 ```
 
 Without `-Restart`, the installer never restarts Windows automatically.
-
-Change the maximum wait for competing servicing and installer processes from the default 20 minutes:
-
-```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -InstallerWaitMinutes 45
-```
-
-`-InstallerWaitMinutes` accepts values from `1` through `120`. It does not terminate a process when the limit expires.
 
 ### Uninstall
 
