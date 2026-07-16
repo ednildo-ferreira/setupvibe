@@ -1,4 +1,4 @@
-# SetupVibe Windows Edition
+# SetupVibe Windows Edition (Beta)
 
 > Native Windows development environment guides — v0.41.6
 

@@ -9,7 +9,7 @@ This file provides instructions and context for OpenAI Codex when working with t
 There are three editions:
 
 - `desktop.sh` — macOS, Linux desktops, and WSL; full stack including language ecosystems, GUI tools, and AI CLIs
-- `desktop.ps1` — native Windows 10/11; OpenSSH Client, WinGet, Chocolatey, and native Windows developer tools
+- `desktop.ps1` — native Windows 10/11 (Beta); OpenSSH Client, WinGet, Chocolatey, and native Windows developer tools
 - `server.sh` — Linux-only; lean install focused on DevOps tools, Docker, shell, and monitoring
 
 ## How to Run
@@ -26,8 +26,8 @@ curl -sSL desktop.setupvibe.dev | bash
 ```
 
 ```powershell
-# Run remotely on Windows; the script requests UAC elevation automatically
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/main/desktop.ps1 | iex
+# Run from the Windows development branch; it requests elevation, then asks whether to disable UAC
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 | iex
 
 # Or run a local copy
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1
@@ -48,7 +48,9 @@ Both `desktop.sh` and `server.sh` follow a numbered-step pattern (functions pref
 
 ### Windows Script Structure
 
-`desktop.ps1` contains only native Windows installation logic. It supports local execution and remote execution through `irm ... | iex`, requests UAC elevation, rejects Windows Server and 32-bit Windows, detects installed components for idempotent reruns, persists toolchain paths, and logs to `C:\ProgramData\SetupVibe\Logs`. It must not install or configure WSL; Linux and WSL environments are managed by `desktop.sh`.
+`desktop.ps1` contains only native Windows installation logic. It supports local execution and remote execution through `irm ... | iex`, requests initial UAC elevation, asks whether to disable UAC with `Yes` as the default, rejects Windows Server and 32-bit Windows, detects installed components for idempotent reruns, persists toolchain paths, and logs to `C:\ProgramData\SetupVibe\Logs`. It must not install or configure WSL; Linux and WSL environments are managed by `desktop.sh`.
+
+While the Windows Edition is in Beta, every SetupVibe repository URL in Windows-specific scripts and documentation must target the `windows` branch. Align all of these URLs with the primary branch only after the Windows work is merged.
 
 ### `desktop.sh` Steps (14)
 
@@ -73,15 +75,15 @@ Subset of desktop steps — no Homebrew, no language ecosystems (PHP, Ruby, Pyth
 
 ### `docs/` Directory
 
-| Path | Content |
-| --- | --- |
-| `docs/README.md` | Overview and comparison table of all editions |
-| `docs/desktop/en/README.md` | Full desktop edition documentation (14 steps) |
-| `docs/server/en/README.md` | Server edition documentation (9 steps) |
-| `docs/windows/en/README.md` | Windows edition documentation |
-| `docs/en/EXECUTABLES.md` | Executable helper script documentation (shared by both editions) |
-| `docs/desktop/en/tmux.md` | Tmux plugin and keybinding reference (shared by both editions) |
-| `docs/desktop/en/pm2.md` | PM2 command and configuration reference (shared by both editions) |
+| Path                        | Content                                                           |
+| --------------------------- | ----------------------------------------------------------------- |
+| `docs/README.md`            | Overview and comparison table of all editions                     |
+| `docs/desktop/en/README.md` | Full desktop edition documentation (14 steps)                     |
+| `docs/server/en/README.md`  | Server edition documentation (9 steps)                            |
+| `docs/windows/en/README.md` | Windows edition (Beta) documentation                              |
+| `docs/en/EXECUTABLES.md`    | Executable helper script documentation (shared by both editions)  |
+| `docs/desktop/en/tmux.md`   | Tmux plugin and keybinding reference (shared by both editions)    |
+| `docs/desktop/en/pm2.md`    | PM2 command and configuration reference (shared by both editions) |
 
 ### `conf/` Directory
 

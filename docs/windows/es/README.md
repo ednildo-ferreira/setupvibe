@@ -1,8 +1,8 @@
-# Edición Windows de SetupVibe
+# Edición Windows de SetupVibe (Beta)
 
 > Configuración del entorno de desarrollo nativo de Windows — v0.41.6
 
-La Edición Windows configura un entorno completo de desarrollo nativo de Windows, con WinGet como fuente principal y Chocolatey para los paquetes que no están disponibles mediante WinGet.
+La Edición Windows (Beta) configura un entorno completo de desarrollo nativo de Windows, con WinGet como fuente principal y Chocolatey para los paquetes que no están disponibles mediante WinGet.
 
 ## Requisitos
 
@@ -14,6 +14,7 @@ La Edición Windows configura un entorno completo de desarrollo nativo de Window
 
 ## Qué Instala
 
+- Pregunta si se debe desactivar el Control de cuentas de usuario (UAC), usando `Yes` como opción predeterminada, y establece la directiva global `EnableLUA` en `0` cuando se acepta
 - Cliente OpenSSH
 - WinGet mediante el proceso oficial de reparación `Microsoft.WinGet.Client` cuando no está disponible
 - Chocolatey mediante su script oficial de arranque cuando no está disponible
@@ -33,9 +34,13 @@ Este script es exclusivo para herramientas nativas de Windows. Use `desktop.sh` 
 
 Docker Desktop se excluye intencionalmente porque sus motores habituales requieren WSL 2 o Hyper-V.
 
+**Advertencia de seguridad:** desactivar UAC elimina sus beneficios de seguridad para todo el equipo. [Microsoft recomienda mantener habilitada esta directiva](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/user-account-control-run-all-administrators-in-admin-approval-mode). SetupVibe cambia esta configuración solo cuando responde `Yes`; Windows debe reiniciarse para que entre en vigor.
+
 ## Instalación Con Un Comando
 
 Este es el equivalente en Windows de `curl -sSL desktop.setupvibe.dev | bash`.
+
+Por ahora, las URL del instalador de Windows apuntan a la rama de desarrollo `windows`.
 
 1. Abra el menú Inicio.
 2. Busque **Windows PowerShell** y ábralo. Ejecutarlo como administrador es opcional, ya que el script solicita elevación mediante UAC automáticamente.
@@ -43,12 +48,13 @@ Este es el equivalente en Windows de `curl -sSL desktop.setupvibe.dev | bash`.
 4. Pegue el siguiente comando y presione `Entrar`:
 
    ```powershell
-   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/main/desktop.ps1 | iex
+   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 | iex
    ```
 
 5. Acepte la solicitud de UAC de Windows.
-6. Mantenga abiertas las ventanas de PowerShell hasta que aparezca el resumen.
-7. Reinicie Windows si el resumen lo solicita.
+6. Responda `Yes` o `No` cuando el script pregunte si debe desactivar UAC. Pulsar `Entrar` selecciona la opción predeterminada, `Yes`.
+7. Mantenga abiertas las ventanas de PowerShell hasta que aparezca el resumen.
+8. Reinicie Windows cuando se solicite para aplicar la directiva de UAC y los cambios de paquetes pendientes.
 
 El comando descarga `desktop.ps1` desde el repositorio oficial de SetupVibe y lo ejecuta en la sesión actual de PowerShell. Cuando se necesita elevación, el instalador descarga una copia temporal y continúa en una sesión de administrador.
 
@@ -58,7 +64,7 @@ Para descargar el script antes de ejecutarlo:
 
 ```powershell
 $scriptPath = Join-Path $HOME 'Downloads\desktop.ps1'
-Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/promovaweb/setupvibe/main/desktop.ps1 -OutFile $scriptPath
+Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 -OutFile $scriptPath
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $scriptPath
 ```
 
@@ -75,18 +81,19 @@ Durante la ejecución, el instalador:
 
 1. Valida la edición, la compilación y la arquitectura de 64 bits de Windows.
 2. Solicita privilegios de administrador mediante UAC.
-3. Configura entradas persistentes en el `PATH` del usuario.
-4. Instala el Cliente OpenSSH, WinGet y Chocolatey cuando sea necesario.
-5. Instala cada paquete de Windows de forma independiente y continúa después de errores aislados.
-6. Instala las herramientas de los ecosistemas PHP, Ruby, Node.js, Python y Rust.
-7. Configura Starship y zoxide para Windows PowerShell y PowerShell 7.
-8. Muestra un resumen final y la ubicación del registro completo.
+3. Pregunta si se debe desactivar UAC, usando `Yes` como opción predeterminada, y establece la directiva global del registro `EnableLUA` en `0` cuando se acepta.
+4. Configura entradas persistentes en el `PATH` del usuario.
+5. Instala el Cliente OpenSSH, WinGet y Chocolatey cuando sea necesario.
+6. Instala cada paquete de Windows de forma independiente y continúa después de errores aislados.
+7. Instala las herramientas de los ecosistemas PHP, Ruby, Node.js, Python y Rust.
+8. Configura Starship y zoxide para Windows PowerShell y PowerShell 7.
+9. Muestra un resumen final y la ubicación del registro completo.
 
 El proceso puede tardar, ya que Ruby, Rust, Rails, n8n y las herramientas de IA pueden descargar o compilar dependencias adicionales.
 
 ## Después De La Instalación
 
-1. Reinicie Windows cuando se solicite.
+1. Reinicie Windows cuando se solicite. Si eligió desactivar UAC, permanece activo hasta que finalice este reinicio.
 2. Abra Windows Terminal o PowerShell 7 para cargar el nuevo `PATH`, Starship y zoxide.
 3. Complete las autenticaciones iniciales requeridas por GitHub CLI, Tailscale, Claude Code, Codex u otros servicios externos.
 
@@ -103,7 +110,10 @@ python --version
 node --version
 rustc --version
 pwsh --version
+Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Name EnableLUA
 ```
+
+El último comando debe devolver `0` después del reinicio si respondió `Yes` a la pregunta sobre UAC. Responder `No` conserva la directiva existente y no reactiva UAC si ya estaba desactivado.
 
 ## Nueva Ejecución Y Registros
 
@@ -122,13 +132,22 @@ Si un paquete falla, revise el resumen final y el registro, resuelva el problema
 Reinicie Windows automáticamente después de una instalación completamente exitosa cuando el sistema indique que se necesita un reinicio:
 
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/main/desktop.ps1))) -Restart
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Restart
 ```
 
 Sin `-Restart`, el instalador nunca reinicia Windows automáticamente.
 
+## Reactivación De UAC
+
+Para restaurar el comportamiento de seguridad predeterminado de Windows, ejecute el siguiente comando en una sesión de PowerShell con privilegios de administrador y reinicie Windows:
+
+```powershell
+New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Name EnableLUA -PropertyType DWord -Value 1 -Force
+```
+
 ## Alcance Y Limitaciones
 
 - Windows Server y las ediciones de 32 bits de Windows se rechazan durante las comprobaciones iniciales.
+- Cuando se acepta, la desactivación de UAC afecta a todo el equipo y reduce la seguridad de Windows. Una directiva de dominio o de administración del dispositivo puede restaurar la configuración después de que el script la cambie.
 - WSL no se instala ni configura. Ejecute `desktop.sh` dentro de una distribución WSL existente para configurar el entorno Linux.
 - Docker Desktop y un motor Docker local no se instalan.

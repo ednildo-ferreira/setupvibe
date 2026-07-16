@@ -8,13 +8,15 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ### Added
 
-- Added `desktop.ps1`, an idempotent native Windows 10/11 installer for OpenSSH Client, WinGet, Chocolatey, language runtimes, modern CLI tools, network utilities, fonts, and AI developer CLIs, with automatic UAC elevation, restart handling, and transcript logs. Linux and WSL environments remain managed by `desktop.sh`.
-- Added Windows Edition documentation in English, Portuguese, French, and Spanish.
+- Added `desktop.ps1`, an idempotent native Windows 10/11 Beta installer for OpenSSH Client, WinGet, Chocolatey, language runtimes, modern CLI tools, network utilities, fonts, and AI developer CLIs, with automatic UAC elevation, restart handling, and transcript logs. Linux and WSL environments remain managed by `desktop.sh`.
+- Added Windows Edition (Beta) documentation in English, Portuguese, French, and Spanish.
 - Added `utils/windows/ssh_copy_id/ssh_copy_id.bat` and its usage guide for enabling the Windows 11 OpenSSH Client, creating or detecting an SSH key, copying it to a remote server, and opening the SSH session.
 
 ### Changed
 
-- Expanded the Windows Edition guides with one-command remote installation, local installation, execution stages, verification commands, logs, rerun behavior, restart options, and scope limitations.
+- Pointed all Windows-specific SetupVibe repository URLs, including the elevated-process handoff and `ssh_copy_id.bat`, to the `windows` development branch until the Windows work is merged.
+- Added an interactive `Yes` or `No` UAC policy choice to `desktop.ps1`, defaulting to `Yes`; accepted changes set the machine-wide `EnableLUA` policy to `0` and require a restart.
+- Expanded the Windows Edition (Beta) guides with one-command remote installation, local installation, execution stages, verification commands, logs, rerun behavior, restart options, and scope limitations.
 - Excluded `lazydocker` and `ctop` from the native Windows installer because the Windows edition intentionally provides no local Docker engine.
 - Updated AI context synchronization to cover only `AGENTS.md` and `CLAUDE.md`.
 - Split agent skills into platform-specific `.codex/skills` and `.claude/skills` folders.

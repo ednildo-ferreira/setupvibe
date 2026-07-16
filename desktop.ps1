@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 $script:Version = '0.41.6'
-$script:InstallUrl = 'https://raw.githubusercontent.com/promovaweb/setupvibe/main/desktop.ps1'
+$script:InstallUrl = 'https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1'
 $script:RestartRequired = $false
 $script:Failures = New-Object System.Collections.Generic.List[string]
 $script:LogDirectory = Join-Path $env:ProgramData 'SetupVibe\Logs'
@@ -140,6 +140,49 @@ function Request-Elevation {
             Remove-Item -Path $temporaryScript -Force -ErrorAction SilentlyContinue
         }
     }
+}
+
+function Confirm-DisableUserAccountControl {
+    while ($true) {
+        $response = Read-Host 'Disable User Account Control (UAC) for this computer? [Y/n]'
+        if ($null -eq $response) {
+            $response = ''
+        }
+        $response = $response.Trim().ToLowerInvariant()
+        switch ($response) {
+            { $_ -in @('', 'y', 'yes') } { return $true }
+            { $_ -in @('n', 'no') } { return $false }
+            default { Write-WarningMessage 'Enter Yes or No. Press Enter to accept the default: Yes.' }
+        }
+    }
+}
+
+function Disable-UserAccountControl {
+    [CmdletBinding(SupportsShouldProcess = $true)]
+    param()
+
+    $policyPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+    $currentValue = Get-ItemPropertyValue -Path $policyPath -Name 'EnableLUA' -ErrorAction SilentlyContinue
+
+    if ($null -ne $currentValue -and [int]$currentValue -eq 0) {
+        Write-Success 'User Account Control (UAC) is already disabled.'
+        return
+    }
+
+    if (-not $PSCmdlet.ShouldProcess($policyPath, 'Set EnableLUA to 0')) {
+        return
+    }
+
+    New-Item -Path $policyPath -Force | Out-Null
+    New-ItemProperty -Path $policyPath -Name 'EnableLUA' -PropertyType DWord -Value 0 -Force | Out-Null
+
+    $updatedValue = Get-ItemPropertyValue -Path $policyPath -Name 'EnableLUA'
+    if ([int]$updatedValue -ne 0) {
+        throw 'The EnableLUA registry policy could not be set to 0.'
+    }
+
+    $script:RestartRequired = $true
+    Write-WarningMessage 'User Account Control (UAC) will be disabled after Windows restarts. This reduces Windows security.'
 }
 
 function Invoke-NativeCommand {
@@ -528,9 +571,15 @@ catch {
     Write-WarningMessage ("Could not start the transcript log: {0}" -f $_.Exception.Message)
 }
 
-Write-Host ("SetupVibe Windows Desktop v{0}" -f $script:Version) -ForegroundColor Magenta
+Write-Host ("SetupVibe Windows Desktop (Beta) v{0}" -f $script:Version) -ForegroundColor Magenta
 Write-Host ("Windows build: {0}" -f $currentBuild)
 
+if (Confirm-DisableUserAccountControl) {
+    Invoke-SetupStep -Name 'Disable User Account Control (UAC)' -Action { Disable-UserAccountControl }
+}
+else {
+    Write-Success 'The User Account Control (UAC) policy was left unchanged by user choice.'
+}
 Invoke-SetupStep -Name 'OpenSSH Client' -Action { Install-OpenSshClient }
 Invoke-SetupStep -Name 'WinGet' -Action { Install-WinGet }
 Invoke-SetupStep -Name 'Chocolatey' -Action { Install-Chocolatey }

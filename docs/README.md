@@ -4,11 +4,11 @@
 
 SetupVibe transforms any fresh machine into a fully configured development workspace in one command. It supports three editions depending on your target:
 
-| Edition     | Script        | Platforms                                            | Guides                                                                                                               |
-| ----------- | ------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Desktop** | `desktop.sh`  | macOS 12+, Linux desktops, and WSL                   | [EN](desktop/en/README.md) · [PT](desktop/pt-br/README.md) · [FR](desktop/fr/README.md) · [ES](desktop/es/README.md) |
-| **Windows** | `desktop.ps1` | Windows 10 1809+ and Windows 11                      | [EN](windows/en/README.md) · [PT](windows/pt-br/README.md) · [FR](windows/fr/README.md) · [ES](windows/es/README.md) |
-| **Server**  | `server.sh`   | Ubuntu 24.04+, Debian 12+, Zorin OS 18+ (Linux only) | [EN](server/en/README.md) · [PT](server/pt-br/README.md) · [FR](server/fr/README.md) · [ES](server/es/README.md)     |
+| Edition            | Script        | Platforms                                            | Guides                                                                                                               |
+| ------------------ | ------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Desktop**        | `desktop.sh`  | macOS 12+, Linux desktops, and WSL                   | [EN](desktop/en/README.md) · [PT](desktop/pt-br/README.md) · [FR](desktop/fr/README.md) · [ES](desktop/es/README.md) |
+| **Windows (Beta)** | `desktop.ps1` | Windows 10 1809+ and Windows 11                      | [EN](windows/en/README.md) · [PT](windows/pt-br/README.md) · [FR](windows/fr/README.md) · [ES](windows/es/README.md) |
+| **Server**         | `server.sh`   | Ubuntu 24.04+, Debian 12+, Zorin OS 18+ (Linux only) | [EN](server/en/README.md) · [PT](server/pt-br/README.md) · [FR](server/fr/README.md) · [ES](server/es/README.md)     |
 
 ## Quick Start
 
@@ -18,10 +18,10 @@ SetupVibe transforms any fresh machine into a fully configured development works
 curl -sSL desktop.setupvibe.dev | bash
 ```
 
-### Windows Desktop
+### Windows Desktop (Beta)
 
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/main/desktop.ps1 | iex
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 | iex
 ```
 
 ### Server (Linux only)

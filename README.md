@@ -6,7 +6,7 @@ Installs and configures a complete development stack in one command, supporting 
 
 ## Key Features
 
-- **Smart Privilege Elevation:** Uses UAC on Windows and `sudo` only where required on macOS and Linux.
+- **Administrator Setup:** Requests initial UAC elevation on Windows, then asks whether to disable UAC with `Yes` as the default; uses `sudo` only where required on macOS and Linux.
 - **Native Package Management:** Uses WinGet and Chocolatey on Windows, with Homebrew or APT on Unix systems.
 - **Modern Shell:** PowerShell 7 + Starship + zoxide on Windows, and ZSH + Oh My Zsh + Starship on Unix systems.
 - **Optimized Terminals:** Installs Windows Terminal on Windows and configures Tmux + TPM on Unix systems.
@@ -14,14 +14,14 @@ Installs and configures a complete development stack in one command, supporting 
 
 ## Documentation
 
-|                 | Link                                             |
-| --------------- | ------------------------------------------------ |
-| Overview        | [docs/README.md](docs/README.md)                 |
-| Desktop Edition | [docs/desktop/README.md](docs/desktop/README.md) |
-| Windows Edition | [docs/windows/README.md](docs/windows/README.md) |
-| Server Edition  | [docs/server/README.md](docs/server/README.md)   |
-| Tmux Guide      | [docs/desktop/en/tmux.md](docs/desktop/en/tmux.md) |
-| PM2 Guide       | [docs/desktop/en/pm2.md](docs/desktop/en/pm2.md) |
+|                        | Link                                                       |
+| ---------------------- | ---------------------------------------------------------- |
+| Overview               | [docs/README.md](docs/README.md)                           |
+| Desktop Edition        | [docs/desktop/README.md](docs/desktop/README.md)           |
+| Windows Edition (Beta) | [docs/windows/README.md](docs/windows/README.md)           |
+| Server Edition         | [docs/server/README.md](docs/server/README.md)             |
+| Tmux Guide             | [docs/desktop/en/tmux.md](docs/desktop/en/tmux.md)         |
+| PM2 Guide              | [docs/desktop/en/pm2.md](docs/desktop/en/pm2.md)           |
 
 ## Quick Start
 
@@ -31,12 +31,12 @@ Installs and configures a complete development stack in one command, supporting 
 curl -sSL desktop.setupvibe.dev | bash
 ```
 
-### Windows Desktop
+### Windows Desktop (Beta)
 
-Run the Windows installer directly from the official repository. It requests administrator access through UAC automatically.
+Run the Windows installer directly from the `windows` development branch. It requests administrator access through UAC automatically, then asks whether to disable UAC with `Yes` as the default.
 
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/main/desktop.ps1 | iex
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 | iex
 ```
 
 See the [Windows installation guide](docs/windows/README.md) for local installation, verification, logs, and restart options.

@@ -1,4 +1,4 @@
-# SSH Copy ID para Windows 11
+# SSH Copy ID para Windows 11 (Beta)
 
 Este utilitário copia a chave SSH do usuário atual do Windows 11 para um servidor remoto e, após a cópia, abre automaticamente uma sessão SSH no servidor.
 
@@ -128,7 +128,7 @@ Caso não queira clonar todo o repositório, execute os comandos abaixo no Power
 ```powershell
 $destino = "$env:USERPROFILE\Downloads\ssh_copy_id"
 New-Item -ItemType Directory -Force -Path $destino | Out-Null
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/promovaweb/setupvibe/main/utils/windows/ssh_copy_id/ssh_copy_id.bat" -OutFile "$destino\ssh_copy_id.bat"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/promovaweb/setupvibe/windows/utils/windows/ssh_copy_id/ssh_copy_id.bat" -OutFile "$destino\ssh_copy_id.bat"
 Set-Location $destino
 .\ssh_copy_id.bat
 ```
