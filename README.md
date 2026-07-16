@@ -7,9 +7,11 @@ Installs and configures a development environment in one command, supporting Win
 ## Key Features
 
 - **Administrator Setup:** Requests initial UAC elevation on Windows, then asks whether to disable UAC with `Yes` as the default; uses `sudo` only where required on macOS and Linux.
+- **Safe Windows Servicing:** Waits for competing installers, rejects pending restarts, starts required services, validates the component store, and records dedicated DISM logs without forcibly terminating system processes.
 - **Native Package Management:** Uses WinGet and Chocolatey on Windows, with Homebrew or APT on Unix systems.
 - **Modern Shell:** PowerShell 7 + Starship + zoxide on Windows, and ZSH + Oh My Zsh + Starship on Unix systems.
 - **Optimized Terminals:** Installs Windows Terminal on Windows and configures Tmux + TPM on Unix systems.
+- **Global Helper Scripts:** Installs Windows helper scripts in `%USERPROFILE%\.setupvibe\bin` and adds the directory to the user's `PATH`.
 - **WSL 2 Ready:** Installs the WSL base without a Linux distribution and configures mirrored VPN/LAN networking and development optimizations on Windows 11.
 - **AI-Ready Unix Editions:** Includes the latest AI CLI tools for developers on macOS, Linux, and WSL.
 

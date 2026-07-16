@@ -3,7 +3,8 @@
 [CmdletBinding()]
 param(
     [switch]$Restart,
-    [switch]$Uninstall
+    [switch]$Uninstall,
+    [ValidateRange(1, 120)][int]$InstallerWaitMinutes = 20
 )
 
 Set-StrictMode -Version Latest
@@ -21,6 +22,15 @@ $script:ChocolateyPath = $null
 $script:WslVmCreatorId = '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'
 $script:WslFeatureStatePath = Join-Path $env:ProgramData 'SetupVibe\wsl-feature-state.json'
 $script:WslFirewallStatePath = Join-Path $env:ProgramData 'SetupVibe\wsl-firewall-inbound.txt'
+$script:SetupVibeUserDirectory = Join-Path $env:USERPROFILE '.setupvibe'
+$script:WindowsUtilitiesDirectory = Join-Path $script:SetupVibeUserDirectory 'bin'
+$script:WindowsUtilitiesStatePath = Join-Path $script:SetupVibeUserDirectory 'windows-utilities.json'
+
+$script:WindowsUtilities = @(
+    @{ Path = 'utils/windows/ssh_copy_id/ssh_copy_id.ps1'; Name = 'ssh_copy_id.ps1' }
+    @{ Path = 'utils/windows/ssh_copy_id/ssh_copy_id.cmd'; Name = 'ssh_copy_id.cmd' }
+)
+$script:LegacyWindowsUtilityFiles = @('ssh_copy_id.bat')
 
 $script:WinGetPackages = @(
     @{ Id = 'Git.Git'; Name = 'Git' }
@@ -130,6 +140,7 @@ function Request-Elevation {
     if ($Uninstall) {
         $powerShellArguments += '-Uninstall'
     }
+    $powerShellArguments += @('-InstallerWaitMinutes', [string]$InstallerWaitMinutes)
 
     Write-Host 'Administrator privileges are required. Opening the UAC prompt...' -ForegroundColor Yellow
     try {
@@ -239,6 +250,124 @@ function Invoke-SetupStep {
     }
 }
 
+function Stop-SetupIfFailed {
+    param([Parameter(Mandatory = $true)][string]$LogPath)
+
+    if ($script:Failures.Count -eq 0) {
+        return
+    }
+
+    Write-Section 'Summary'
+    Write-Host ("Failed steps: {0}" -f ($script:Failures -join ', ')) -ForegroundColor Red
+    Write-Host ("Review the log and run desktop.ps1 again: {0}" -f $LogPath)
+    if ($script:RestartRequired) {
+        Write-WarningMessage 'Windows must be restarted before all changes can take effect.'
+    }
+    if ($script:TranscriptStarted) {
+        Stop-Transcript | Out-Null
+        $script:TranscriptStarted = $false
+    }
+    exit 1
+}
+
+function Wait-WindowsInstallerAvailability {
+    param([Parameter(Mandatory = $true)][ValidateRange(1, 120)][int]$TimeoutMinutes)
+
+    $installerProcessNames = @('dism', 'dismhost', 'TiWorker', 'msiexec', 'winget', 'choco')
+    $stopwatch = [Diagnostics.Stopwatch]::StartNew()
+    $nextHeartbeat = 0
+
+    while ($true) {
+        $activeProcesses = @(Get-Process -Name $installerProcessNames -ErrorAction SilentlyContinue | Sort-Object ProcessName, Id)
+        if ($activeProcesses.Count -eq 0) {
+            $stopwatch.Stop()
+            Write-Success 'No competing Windows servicing or package-installer process is active.'
+            return
+        }
+
+        $processSummary = ($activeProcesses | ForEach-Object { "{0} (PID {1})" -f $_.ProcessName, $_.Id }) -join ', '
+        if ($stopwatch.Elapsed.TotalSeconds -ge $nextHeartbeat) {
+            Write-Host ("[WAIT] Waiting for installer processes: {0}. Elapsed: {1:N0}s; limit: {2} minute(s)." -f $processSummary, $stopwatch.Elapsed.TotalSeconds, $TimeoutMinutes) -ForegroundColor DarkGray
+            $nextHeartbeat += 15
+        }
+
+        if ($stopwatch.Elapsed.TotalMinutes -ge $TimeoutMinutes) {
+            throw "Installer processes did not finish within $TimeoutMinutes minute(s): $processSummary. SetupVibe did not terminate them because forcibly ending Windows servicing can corrupt the component store. Restart Windows, then run the setup again."
+        }
+        Start-Sleep -Seconds 5
+    }
+}
+
+function Get-PendingWindowsRestartReasons {
+    $reasons = New-Object System.Collections.Generic.List[string]
+    $rebootKeys = @(
+        @{ Path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending'; Reason = 'Component Based Servicing' }
+        @{ Path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired'; Reason = 'Windows Update' }
+    )
+
+    foreach ($rebootKey in $rebootKeys) {
+        if (Test-Path $rebootKey.Path) {
+            $reasons.Add([string]$rebootKey.Reason)
+        }
+    }
+    return @($reasons)
+}
+
+function Ensure-WindowsServiceReady {
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    $service = Get-Service -Name $Name -ErrorAction Stop
+    if ($service.Status -ne [System.ServiceProcess.ServiceControllerStatus]::Running) {
+        Write-Host ("[RUN] Starting required Windows service: {0}" -f $Name)
+        try {
+            Start-Service -Name $Name -ErrorAction Stop
+            $service.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Running, [TimeSpan]::FromSeconds(30))
+            $service.Refresh()
+        }
+        catch {
+            throw "Required Windows service '$Name' could not be started. Its startup may be disabled by local or domain policy. $($_.Exception.Message)"
+        }
+    }
+
+    if ($service.Status -ne [System.ServiceProcess.ServiceControllerStatus]::Running) {
+        throw "Required Windows service '$Name' did not reach the Running state."
+    }
+    Write-Success ("Required Windows service is ready: {0}" -f $Name)
+}
+
+function Invoke-WindowsInstallerPreflight {
+    param(
+        [Parameter(Mandatory = $true)][ValidateRange(1, 120)][int]$TimeoutMinutes,
+        [Parameter()][switch]$RequireWindowsUpdate
+    )
+
+    Wait-WindowsInstallerAvailability -TimeoutMinutes $TimeoutMinutes
+
+    $restartReasons = @(Get-PendingWindowsRestartReasons)
+    if ($restartReasons.Count -gt 0) {
+        $script:RestartRequired = $true
+        throw "Windows has a pending restart requested by: $($restartReasons -join ', '). Restart Windows before running SetupVibe so component and package operations begin from a consistent state."
+    }
+
+    Ensure-WindowsServiceReady -Name 'TrustedInstaller'
+    if ($RequireWindowsUpdate) {
+        Ensure-WindowsServiceReady -Name 'wuauserv'
+        Ensure-WindowsServiceReady -Name 'bits'
+
+        $useWsus = Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -Name 'UseWUServer' -ErrorAction SilentlyContinue
+        $blockPublicWindowsUpdate = Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -Name 'DoNotConnectToWindowsUpdateInternetLocations' -ErrorAction SilentlyContinue
+        if ([int]$useWsus -eq 1 -or [int]$blockPublicWindowsUpdate -eq 1) {
+            Write-WarningMessage 'Windows Update is controlled by WSUS or domain policy. Features on Demand such as OpenSSH can fail if the corporate update source does not provide optional content.'
+        }
+    }
+
+    $dismPath = Join-Path $env:SystemRoot 'System32\dism.exe'
+    $preflightLogPath = Join-Path $script:LogDirectory ("dism-preflight-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+    Write-Host ("[RUN] Checking the Windows component store. DISM log: {0}" -f $preflightLogPath)
+    Invoke-NativeCommand -FilePath $dismPath -ArgumentList @('/Online', '/Cleanup-Image', '/CheckHealth', "/LogPath:$preflightLogPath")
+    Write-Success 'Windows servicing and installer prerequisites are ready.'
+}
+
 function Import-EnvironmentPath {
     $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -268,15 +397,19 @@ function Invoke-WindowsCapabilityDismOperation {
     )
 
     $dismPath = Join-Path $env:SystemRoot 'System32\dism.exe'
+    $safeDisplayName = $DisplayName -replace '[^A-Za-z0-9.-]', '-'
+    $dismLogPath = Join-Path $script:LogDirectory ("dism-{0}-{1:yyyyMMdd-HHmmss}.log" -f $safeDisplayName, (Get-Date))
     $arguments = @(
         '/Online'
         ("/{0}-Capability" -f $Action)
         ("/CapabilityName:{0}" -f $CapabilityName)
         '/NoRestart'
+        ("/LogPath:{0}" -f $dismLogPath)
     )
     $operation = if ($Action -eq 'Add') { 'installation' } else { 'removal' }
 
     Write-Host ("[RUN] Starting {0} for {1}. DISM will display its native percentage below." -f $operation, $DisplayName)
+    Write-Host ("[INFO] DISM log: {0}" -f $dismLogPath) -ForegroundColor DarkGray
     Write-WarningMessage 'Windows Update may take several minutes to locate the capability. Keep this window open.'
 
     $process = Start-Process -FilePath $dismPath -ArgumentList $arguments -NoNewWindow -PassThru
@@ -294,7 +427,7 @@ function Invoke-WindowsCapabilityDismOperation {
     $stopwatch.Stop()
 
     if ($process.ExitCode -notin @(0, 3010)) {
-        throw "DISM failed to complete the $DisplayName $operation with exit code $($process.ExitCode)."
+        throw "DISM failed to complete the $DisplayName $operation with exit code $($process.ExitCode). Review $dismLogPath. If this is a Features on Demand error, verify Windows Update or WSUS optional-content policy."
     }
     if ($process.ExitCode -eq 3010) {
         $script:RestartRequired = $true
@@ -303,7 +436,9 @@ function Invoke-WindowsCapabilityDismOperation {
 
 function Install-OpenSshClient {
     $capabilityName = 'OpenSSH.Client~~~~0.0.1.0'
+    Write-Host '[RUN] Checking the current OpenSSH Client capability state...'
     $capability = Get-WindowsCapability -Online -Name $capabilityName
+    Write-Host ("[INFO] OpenSSH Client state: {0}" -f $capability.State) -ForegroundColor DarkGray
     if ($capability.State -in @('Installed', 'InstallPending')) {
         if ($capability.State -eq 'InstallPending') {
             $script:RestartRequired = $true
@@ -325,7 +460,9 @@ function Install-OpenSshClient {
 
 function Uninstall-OpenSshClient {
     $capabilityName = 'OpenSSH.Client~~~~0.0.1.0'
+    Write-Host '[RUN] Checking the current OpenSSH Client capability state...'
     $capability = Get-WindowsCapability -Online -Name $capabilityName
+    Write-Host ("[INFO] OpenSSH Client state: {0}" -f $capability.State) -ForegroundColor DarkGray
     if ($capability.State -notin @('Installed', 'InstallPending')) {
         Write-Success 'OpenSSH Client is already absent.'
         return
@@ -747,6 +884,139 @@ function Remove-PathEntry {
     [Environment]::SetEnvironmentVariable('Path', ($remainingEntries -join ';'), $Scope)
 }
 
+function Add-PathEntry {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][ValidateSet('User', 'Machine')][string]$Scope
+    )
+
+    $currentPath = [Environment]::GetEnvironmentVariable('Path', $Scope)
+    $normalizedPath = $Path.TrimEnd('\')
+    $pathExists = @($currentPath -split ';' | Where-Object {
+        $_ -and ([Environment]::ExpandEnvironmentVariables($_)).TrimEnd('\') -eq $normalizedPath
+    }).Count -gt 0
+    if ($pathExists) {
+        return
+    }
+
+    $updatedPath = @($currentPath -split ';' | Where-Object { $_ }) + $Path
+    [Environment]::SetEnvironmentVariable('Path', ($updatedPath -join ';'), $Scope)
+}
+
+function Install-WindowsUtilities {
+    New-Item -Path $script:WindowsUtilitiesDirectory -ItemType Directory -Force | Out-Null
+    $installedFiles = New-Object System.Collections.Generic.List[string]
+    $failedUtilities = New-Object System.Collections.Generic.List[string]
+    $previousManagedFiles = @()
+    if (Test-Path $script:WindowsUtilitiesStatePath -PathType Leaf) {
+        try {
+            $previousState = Get-Content -Path $script:WindowsUtilitiesStatePath -Raw | ConvertFrom-Json
+            $previousManagedFiles = @($previousState.Files)
+        }
+        catch {
+            Write-WarningMessage ("Could not read the previous Windows utility state: {0}" -f $_.Exception.Message)
+        }
+    }
+
+    foreach ($utility in $script:WindowsUtilities) {
+        $sourcePath = if ($PSScriptRoot) { Join-Path $PSScriptRoot $utility.Path } else { $null }
+        $destinationPath = Join-Path $script:WindowsUtilitiesDirectory $utility.Name
+        $temporaryPath = "{0}.{1}.tmp" -f $destinationPath, ([Guid]::NewGuid().ToString('N'))
+
+        Write-Host ("[RUN] Installing Windows utility: {0}" -f $utility.Name)
+        try {
+            if ($sourcePath -and (Test-Path $sourcePath -PathType Leaf)) {
+                Copy-Item -Path $sourcePath -Destination $temporaryPath -Force
+            }
+            else {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+                $downloadUrl = "https://raw.githubusercontent.com/promovaweb/setupvibe/windows/{0}" -f $utility.Path
+                $webClient = New-Object Net.WebClient
+                try {
+                    $webClient.DownloadFile($downloadUrl, $temporaryPath)
+                }
+                finally {
+                    $webClient.Dispose()
+                }
+            }
+
+            if (-not (Test-Path $temporaryPath -PathType Leaf) -or (Get-Item $temporaryPath).Length -eq 0) {
+                throw "The downloaded utility '$($utility.Name)' is empty or missing."
+            }
+            Move-Item -Path $temporaryPath -Destination $destinationPath -Force
+            $installedFiles.Add([string]$utility.Name)
+            Write-Success ("Windows utility installed: {0}" -f $utility.Name)
+        }
+        catch {
+            if (Test-Path $destinationPath -PathType Leaf) {
+                $installedFiles.Add([string]$utility.Name)
+            }
+            $failedUtilities.Add(("{0}: {1}" -f $utility.Name, $_.Exception.Message))
+            Write-WarningMessage ("Could not install Windows utility {0}: {1}" -f $utility.Name, $_.Exception.Message)
+        }
+        finally {
+            Remove-Item -Path $temporaryPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    foreach ($previousManagedFile in $previousManagedFiles) {
+        $previousFileName = [IO.Path]::GetFileName([string]$previousManagedFile)
+        if (-not [string]::IsNullOrWhiteSpace($previousFileName) -and $previousFileName -eq [string]$previousManagedFile -and $installedFiles -notcontains $previousFileName) {
+            Remove-Item -Path (Join-Path $script:WindowsUtilitiesDirectory $previousFileName) -Force -ErrorAction SilentlyContinue
+        }
+    }
+    foreach ($legacyFileName in $script:LegacyWindowsUtilityFiles) {
+        Remove-Item -Path (Join-Path $script:WindowsUtilitiesDirectory $legacyFileName) -Force -ErrorAction SilentlyContinue
+    }
+
+    $state = @{ Files = @($installedFiles) }
+    $state | ConvertTo-Json | Set-Content -Path $script:WindowsUtilitiesStatePath -Encoding ASCII
+    Add-PathEntry -Path $script:WindowsUtilitiesDirectory -Scope 'User'
+    Import-EnvironmentPath
+
+    if ($failedUtilities.Count -gt 0) {
+        throw "One or more Windows utilities failed to install: $($failedUtilities -join '; ')"
+    }
+    Write-Success ("Windows utilities are available from {0}. Open a new terminal to use them globally." -f $script:WindowsUtilitiesDirectory)
+}
+
+function Uninstall-WindowsUtilities {
+    $managedFiles = @($script:WindowsUtilities | ForEach-Object { $_.Name })
+    if (Test-Path $script:WindowsUtilitiesStatePath -PathType Leaf) {
+        try {
+            $state = Get-Content -Path $script:WindowsUtilitiesStatePath -Raw | ConvertFrom-Json
+            $managedFiles = @($state.Files)
+        }
+        catch {
+            Write-WarningMessage ("Could not read the Windows utility state file; using the current managed list: {0}" -f $_.Exception.Message)
+        }
+    }
+
+    foreach ($managedFile in $managedFiles) {
+        $fileName = [IO.Path]::GetFileName([string]$managedFile)
+        if ([string]::IsNullOrWhiteSpace($fileName) -or $fileName -ne [string]$managedFile) {
+            Write-WarningMessage ("Ignored an invalid managed utility file name: {0}" -f $managedFile)
+            continue
+        }
+        Remove-Item -Path (Join-Path $script:WindowsUtilitiesDirectory $fileName) -Force -ErrorAction SilentlyContinue
+    }
+    foreach ($legacyFileName in $script:LegacyWindowsUtilityFiles) {
+        Remove-Item -Path (Join-Path $script:WindowsUtilitiesDirectory $legacyFileName) -Force -ErrorAction SilentlyContinue
+    }
+
+    Remove-Item -Path $script:WindowsUtilitiesStatePath -Force -ErrorAction SilentlyContinue
+    if ((Test-Path $script:WindowsUtilitiesDirectory) -and -not (Get-ChildItem -Path $script:WindowsUtilitiesDirectory -Force | Select-Object -First 1)) {
+        Remove-Item -Path $script:WindowsUtilitiesDirectory -Force
+    }
+    if ((Test-Path $script:SetupVibeUserDirectory) -and -not (Get-ChildItem -Path $script:SetupVibeUserDirectory -Force | Select-Object -First 1)) {
+        Remove-Item -Path $script:SetupVibeUserDirectory -Force
+    }
+
+    Remove-PathEntry -Path $script:WindowsUtilitiesDirectory -Scope 'User'
+    Import-EnvironmentPath
+    Write-Success 'SetupVibe-managed Windows utilities and their user PATH entry were removed.'
+}
+
 function Remove-LegacyToolchainPaths {
     $legacyUserPaths = @(
         (Join-Path $env:USERPROFILE '.cargo\bin')
@@ -799,6 +1069,12 @@ catch {
 
 Write-Host ("SetupVibe Windows Desktop (Beta) v{0}" -f $script:Version) -ForegroundColor Magenta
 Write-Host ("Windows build: {0}" -f $currentBuild)
+Write-Host ("Installer wait limit: {0} minute(s)" -f $InstallerWaitMinutes)
+
+Invoke-SetupStep -Name 'Windows servicing and installer readiness' -Action {
+    Invoke-WindowsInstallerPreflight -TimeoutMinutes $InstallerWaitMinutes -RequireWindowsUpdate:(-not $Uninstall)
+}
+Stop-SetupIfFailed -LogPath $logPath
 
 if ($Uninstall) {
     Write-Section 'Uninstall mode'
@@ -833,6 +1109,7 @@ if ($Uninstall) {
     }
 
     Invoke-SetupStep -Name 'OpenSSH Client' -Action { Uninstall-OpenSshClient }
+    Invoke-SetupStep -Name 'SetupVibe Windows utilities' -Action { Uninstall-WindowsUtilities }
     if ($currentBuild -ge 22621) {
         Invoke-SetupStep -Name 'Windows Subsystem for Linux' -Action { Uninstall-WindowsSubsystemForLinux }
     }
@@ -847,6 +1124,7 @@ else {
         Write-Success 'The User Account Control (UAC) policy was left unchanged by user choice.'
     }
     Invoke-SetupStep -Name 'OpenSSH Client' -Action { Install-OpenSshClient }
+    Invoke-SetupStep -Name 'SetupVibe Windows utilities' -Action { Install-WindowsUtilities }
     Invoke-SetupStep -Name 'Windows Subsystem for Linux base' -Action { Install-WindowsSubsystemForLinux }
     Invoke-SetupStep -Name 'WSL development networking and optimization' -Action { Install-WslDevelopmentConfiguration }
     Invoke-SetupStep -Name 'WinGet' -Action { Install-WinGet }
@@ -872,19 +1150,8 @@ else {
     Invoke-SetupStep -Name 'PowerShell profile: Starship and zoxide' -Action { Install-PowerShellProfile }
 }
 
+Stop-SetupIfFailed -LogPath $logPath
 Write-Section 'Summary'
-if ($script:Failures.Count -gt 0) {
-    Write-Host ("Failed steps: {0}" -f ($script:Failures -join ', ')) -ForegroundColor Red
-    Write-Host ("Review the log and run desktop.ps1 again: {0}" -f $logPath)
-    if ($script:RestartRequired) {
-        Write-WarningMessage 'Windows must be restarted before all changes can take effect.'
-    }
-    if ($script:TranscriptStarted) {
-        Stop-Transcript | Out-Null
-    }
-    exit 1
-}
-
 if ($Uninstall) {
     Write-Success 'SetupVibe-managed Windows utilities and configurations were removed.'
 }

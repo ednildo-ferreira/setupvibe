@@ -84,14 +84,16 @@ Pendant l'exécution, le programme :
 
 1. Valide Windows 11 22H2 ou ultérieur et l'architecture 64 bits.
 2. Demande les privilèges administrateur via l'UAC.
-3. Demande s'il faut désactiver l'UAC, avec `Yes` comme choix par défaut, et définit la stratégie globale de registre `EnableLUA` sur `0` après confirmation.
-4. Installe le client OpenSSH si nécessaire.
-5. Installe le système WSL de base sans distribution Linux et définit WSL 2 par défaut.
-6. Applique à WSL le réseau en mode miroir, l'accès VPN/LAN, le DNS, le proxy, le pare-feu, la récupération de mémoire et les disques VHD épars.
-7. Installe WinGet et Chocolatey si nécessaire.
-8. Installe chaque utilitaire Windows indépendamment et continue après les échecs isolés.
-9. Configure Starship et zoxide pour Windows PowerShell et PowerShell 7.
-10. Affiche un résumé final et l'emplacement du journal complet.
+3. Attend les processus concurrents de maintenance et d'installation, refuse les redémarrages en attente, démarre les services requis, vérifie la stratégie WSUS et valide le magasin de composants Windows.
+4. Demande s'il faut désactiver l'UAC, avec `Yes` comme choix par défaut, et définit la stratégie globale de registre `EnableLUA` sur `0` après confirmation.
+5. Installe le client OpenSSH si nécessaire.
+6. Copie les scripts auxiliaires Windows de SetupVibe dans `%USERPROFILE%\.setupvibe\bin` et ajoute ce répertoire au `PATH` de l'utilisateur.
+7. Installe le système WSL de base sans distribution Linux et définit WSL 2 par défaut.
+8. Applique à WSL le réseau en mode miroir, l'accès VPN/LAN, le DNS, le proxy, le pare-feu, la récupération de mémoire et les disques VHD épars.
+9. Installe WinGet et Chocolatey si nécessaire.
+10. Installe chaque utilitaire Windows indépendamment et continue après les échecs isolés.
+11. Configure Starship et zoxide pour Windows PowerShell et PowerShell 7.
+12. Affiche un résumé final et l'emplacement du journal complet.
 
 Le processus peut prendre du temps, car les gestionnaires de paquets téléchargent et installent chaque utilitaire séparément.
 
@@ -100,6 +102,8 @@ Le processus peut prendre du temps, car les gestionnaires de paquets télécharg
 1. Redémarrez Windows lorsque cela est demandé. Si vous avez choisi de désactiver l'UAC, il reste actif jusqu'à la fin de ce redémarrage.
 2. Ouvrez Windows Terminal ou PowerShell 7 pour charger le nouveau `PATH`, Starship et zoxide.
 3. Effectuez les authentifications initiales requises par GitHub CLI ou Tailscale.
+
+Les scripts auxiliaires SetupVibe sont stockés dans `%USERPROFILE%\.setupvibe\bin`. Le noyau `ssh_copy_id.ps1` et son lanceur minimal `ssh_copy_id.cmd` peuvent être lancés avec `ssh_copy_id` depuis toute nouvelle session PowerShell, Windows Terminal ou Invite de commandes.
 
 Vérifiez les principaux composants dans un nouveau terminal :
 
@@ -110,6 +114,7 @@ git --version
 rg --version
 fzf --version
 pwsh --version
+Get-Command ssh_copy_id
 wsl --status
 wsl --list --verbose
 Get-Content $HOME\.wslconfig
@@ -121,15 +126,23 @@ Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Pol
 
 ## Nouvelle Exécution Et Journaux
 
-Le programme est conçu pour être réexécuté. Les paquets WinGet déjà présents sont ignorés, tandis que Chocolatey garantit la présence de ses utilitaires gérés.
+Le programme est conçu pour être réexécuté. Les scripts auxiliaires SetupVibe sont actualisés, les paquets WinGet déjà présents sont ignorés et Chocolatey garantit la présence de ses utilitaires gérés.
 
-Les journaux complets sont enregistrés dans :
+Les journaux complets de transcription et les journaux DISM dédiés sont enregistrés dans :
 
 ```text
 C:\ProgramData\SetupVibe\Logs
 ```
 
 Si un paquet échoue, consultez le résumé final et le journal, corrigez le problème signalé, puis exécutez à nouveau la même commande.
+
+## Sécurité De Windows Servicing
+
+Avant d'installer ou de supprimer des composants, SetupVibe attend jusqu'à 20 minutes les processus actifs `DISM`, `dismhost`, `TiWorker`, Windows Installer, WinGet et Chocolatey. Il refuse également les redémarrages en attente de Component Based Servicing ou Windows Update, démarre `TrustedInstaller` et, pendant l'installation, démarre `wuauserv` et `bits`, puis exécute `DISM /Online /Cleanup-Image /CheckHealth`.
+
+SetupVibe ne termine jamais de force les processus de maintenance Windows. Si l'attente expire, il affiche les noms et PID et s'arrête avant toute modification. Redémarrez Windows et relancez le programme. Cela protège le magasin de composants contre les opérations partielles de paquets ou de fonctionnalités facultatives.
+
+Sur les ordinateurs gérés par WSUS, les fonctionnalités à la demande telles qu'OpenSSH peuvent encore échouer lorsque la source d'entreprise ne fournit pas le contenu facultatif. L'erreur OpenSSH indique son fichier dédié `dism-OpenSSH-Client-*.log`.
 
 ## Options
 
@@ -140,6 +153,14 @@ Redémarrez automatiquement Windows après une installation entièrement réussi
 ```
 
 Sans `-Restart`, le programme ne redémarre jamais Windows automatiquement.
+
+Modifiez le délai maximal d'attente des processus concurrents de maintenance et d'installation, dont la valeur par défaut est de 20 minutes :
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -InstallerWaitMinutes 45
+```
+
+`-InstallerWaitMinutes` accepte les valeurs de `1` à `120` et ne termine aucun processus lorsque le délai expire.
 
 ### Désinstallation
 
@@ -155,7 +176,7 @@ Ou exécutez le programme de désinstallation depuis la branche `windows` :
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
 ```
 
-Le mode de désinstallation supprime le client OpenSSH, restaure les états précédents des fonctionnalités facultatives et du pare-feu WSL, supprime la configuration WSL appliquée par SetupVibe, supprime tous les utilitaires WinGet et Chocolatey gérés par SetupVibe et supprime le bloc de profil Starship et zoxide ainsi que la configuration Starship générée. Il supprime également les runtimes de langages, les outils de frameworks, les chemins des gestionnaires de runtimes et les paquets npm installés par les versions Beta Windows précédentes, puis réactive l'UAC. Les distributions Linux existantes ne sont pas supprimées. WinGet, Chocolatey et les journaux sont conservés.
+Le mode de désinstallation supprime le client OpenSSH, les fichiers gérés par SetupVibe dans `%USERPROFILE%\.setupvibe\bin` et leur entrée dans le `PATH` utilisateur, restaure les états précédents des fonctionnalités facultatives et du pare-feu WSL, supprime la configuration WSL appliquée par SetupVibe, supprime tous les utilitaires WinGet et Chocolatey gérés par SetupVibe et supprime le bloc de profil Starship et zoxide ainsi que la configuration Starship générée. Il supprime également les runtimes de langages, les outils de frameworks, les chemins des gestionnaires de runtimes et les paquets npm installés par les versions Beta Windows précédentes, puis réactive l'UAC. Les distributions Linux existantes ne sont pas supprimées. WinGet, Chocolatey, les journaux et les fichiers sans rapport dans `%USERPROFILE%\.setupvibe` sont conservés.
 
 **Avertissement de désinstallation :** la version Beta actuelle ne détermine pas si le client OpenSSH ou un paquet géré existait avant SetupVibe. Par conséquent, `-Uninstall` supprime le client OpenSSH et tous les paquets de ses listes gérées, y compris les composants qui ont pu être installés séparément avant SetupVibe.
 
