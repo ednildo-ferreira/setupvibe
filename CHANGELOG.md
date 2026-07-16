@@ -27,6 +27,7 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ### Fixed
 
+- Replaced the silent OpenSSH capability operation with visible DISM percentage output, periodic elapsed-time updates, final state validation, and timing for every Windows setup step.
 - Fixed `desktop.ps1` UAC elevation for remote `irm ... | iex` execution by handing off a temporary script to the elevated process.
 - Added Windows Server, 32-bit Windows, and minimum-build preflight checks to avoid unsupported WinGet installations.
 - Corrected broken contribution, license, Tmux, and PM2 links in the existing documentation indexes and localized guides.

@@ -8,7 +8,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$ProgressPreference = 'SilentlyContinue'
+$ProgressPreference = 'Continue'
 
 $script:Version = '0.41.6'
 $script:InstallUrl = 'https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1'
@@ -225,12 +225,17 @@ function Invoke-SetupStep {
     )
 
     Write-Section $Name
+    Write-Host ("[RUN] {0} started at {1:HH:mm:ss}." -f $Name, (Get-Date)) -ForegroundColor Cyan
+    $stopwatch = [Diagnostics.Stopwatch]::StartNew()
     try {
         & $Action
+        $stopwatch.Stop()
+        Write-Host ("[DONE] {0} finished in {1:N1}s." -f $Name, $stopwatch.Elapsed.TotalSeconds) -ForegroundColor DarkGray
     }
     catch {
+        $stopwatch.Stop()
         $script:Failures.Add($Name)
-        Write-Host ("[ERROR] {0}" -f $_.Exception.Message) -ForegroundColor Red
+        Write-Host ("[ERROR] {0} failed after {1:N1}s: {2}" -f $Name, $stopwatch.Elapsed.TotalSeconds, $_.Exception.Message) -ForegroundColor Red
     }
 }
 
@@ -255,6 +260,47 @@ function Find-Executable {
     return $command.Source
 }
 
+function Invoke-WindowsCapabilityDismOperation {
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('Add', 'Remove')][string]$Action,
+        [Parameter(Mandatory = $true)][string]$CapabilityName,
+        [Parameter(Mandatory = $true)][string]$DisplayName
+    )
+
+    $dismPath = Join-Path $env:SystemRoot 'System32\dism.exe'
+    $arguments = @(
+        '/Online'
+        ("/{0}-Capability" -f $Action)
+        ("/CapabilityName:{0}" -f $CapabilityName)
+        '/NoRestart'
+    )
+    $operation = if ($Action -eq 'Add') { 'installation' } else { 'removal' }
+
+    Write-Host ("[RUN] Starting {0} for {1}. DISM will display its native percentage below." -f $operation, $DisplayName)
+    Write-WarningMessage 'Windows Update may take several minutes to locate the capability. Keep this window open.'
+
+    $process = Start-Process -FilePath $dismPath -ArgumentList $arguments -NoNewWindow -PassThru
+    $stopwatch = [Diagnostics.Stopwatch]::StartNew()
+    $nextHeartbeat = 15
+    while (-not $process.HasExited) {
+        Start-Sleep -Seconds 2
+        $process.Refresh()
+        if ($stopwatch.Elapsed.TotalSeconds -ge $nextHeartbeat) {
+            Write-Host ("[WAIT] {0} {1} is still running ({2:N0}s elapsed)." -f $DisplayName, $operation, $stopwatch.Elapsed.TotalSeconds) -ForegroundColor DarkGray
+            $nextHeartbeat += 15
+        }
+    }
+    $process.WaitForExit()
+    $stopwatch.Stop()
+
+    if ($process.ExitCode -notin @(0, 3010)) {
+        throw "DISM failed to complete the $DisplayName $operation with exit code $($process.ExitCode)."
+    }
+    if ($process.ExitCode -eq 3010) {
+        $script:RestartRequired = $true
+    }
+}
+
 function Install-OpenSshClient {
     $capabilityName = 'OpenSSH.Client~~~~0.0.1.0'
     $capability = Get-WindowsCapability -Online -Name $capabilityName
@@ -266,8 +312,12 @@ function Install-OpenSshClient {
         return
     }
 
-    $result = Add-WindowsCapability -Online -Name $capabilityName
-    if ($result.RestartNeeded) {
+    Invoke-WindowsCapabilityDismOperation -Action 'Add' -CapabilityName $capabilityName -DisplayName 'OpenSSH Client'
+    $capability = Get-WindowsCapability -Online -Name $capabilityName
+    if ($capability.State -notin @('Installed', 'InstallPending')) {
+        throw "OpenSSH Client installation returned without reaching an installed state. Current state: $($capability.State)."
+    }
+    if ($capability.State -eq 'InstallPending') {
         $script:RestartRequired = $true
     }
     Write-Success 'OpenSSH Client installed.'
@@ -281,8 +331,12 @@ function Uninstall-OpenSshClient {
         return
     }
 
-    $result = Remove-WindowsCapability -Online -Name $capabilityName
-    if ($result.RestartNeeded) {
+    Invoke-WindowsCapabilityDismOperation -Action 'Remove' -CapabilityName $capabilityName -DisplayName 'OpenSSH Client'
+    $capability = Get-WindowsCapability -Online -Name $capabilityName
+    if ($capability.State -in @('Installed', 'InstallPending')) {
+        throw "OpenSSH Client removal returned without leaving the installed state. Current state: $($capability.State)."
+    }
+    if ($capability.State -eq 'UninstallPending') {
         $script:RestartRequired = $true
     }
     Write-Success 'OpenSSH Client removed.'
