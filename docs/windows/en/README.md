@@ -6,8 +6,8 @@ The Windows Edition (Beta) configures a focused set of native Windows utilities 
 
 ## Requirements
 
-- Windows 10 version 1809 (build 17763) or later, or Windows 11
-- A 64-bit Windows desktop edition; Windows Server is not supported
+- Windows 11 version 22H2 (build 22621) or later
+- A 64-bit Windows desktop edition; Windows 10 and Windows Server are not supported
 - Windows PowerShell 5.1 or later
 - An administrator account
 - Internet access
@@ -18,6 +18,8 @@ The Windows Edition (Beta) configures a focused set of native Windows utilities 
 - OpenSSH Client
 - WinGet through the official `Microsoft.WinGet.Client` repair workflow when missing
 - Chocolatey through its official bootstrap script when missing
+- WSL base without a Linux distribution, with WSL 2 as the default
+- Mirrored WSL networking with VPN/LAN access, DNS tunneling, Windows proxy integration, Hyper-V firewall inbound access, automatic memory reclaim, and sparse virtual disks
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick, and GitHub CLI
 - bat, eza, zoxide, fzf, ripgrep, fd, lazygit, Neovim, Glow, tldr, Fastfetch, duf, and jq
 - Nmap, Speedtest CLI, Tailscale, gping, btop4win, trippy, and RustScan
@@ -27,9 +29,13 @@ The installer is idempotent: installed WinGet packages are detected and skipped,
 
 Starship and zoxide are initialized in both Windows PowerShell and PowerShell 7 profiles.
 
-This script is exclusively for native Windows utilities. It does not install programming languages, frameworks, runtime managers, AI CLI tools, or WSL. Use `desktop.sh` inside WSL to configure a complete development environment.
+This script is exclusively for native Windows utilities and the WSL base system. It does not install a Linux distribution, programming languages, frameworks, runtime managers, or AI CLI tools. After installing a distribution separately, use `desktop.sh` inside it to configure a complete development environment.
 
-Docker Desktop is intentionally excluded because its usual backends require WSL 2 or Hyper-V.
+If `%USERPROFILE%\.wslconfig` already exists, SetupVibe backs it up before applying the development defaults. The backup and the previous WSL feature and firewall states are restored by `-Uninstall`.
+
+Docker Desktop is intentionally excluded. SetupVibe prepares WSL 2 but does not install Docker or a Linux distribution.
+
+**WSL network warning:** SetupVibe allows inbound traffic to WSL on all ports through the Hyper-V firewall so future services can be reached through the local network and compatible VPNs. Restrict this policy with specific Hyper-V firewall rules on untrusted networks. A future Linux service must listen on `0.0.0.0` or the appropriate network interface to accept remote connections.
 
 **Security warning:** Disabling UAC removes its security benefits for the entire computer. [Microsoft recommends keeping this policy enabled](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/user-account-control-run-all-administrators-in-admin-approval-mode). SetupVibe changes this setting only when you answer `Yes`; Windows must restart before it takes effect.
 
@@ -76,13 +82,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1
 
 During execution, the installer:
 
-1. Validates the Windows edition, build, and 64-bit architecture.
+1. Validates Windows 11 22H2 or later and the 64-bit architecture.
 2. Requests administrator privileges through UAC.
 3. Asks whether to disable UAC, with `Yes` as the default, and sets the machine-wide `EnableLUA` registry policy to `0` when accepted.
-4. Installs OpenSSH Client, WinGet, and Chocolatey when needed.
-5. Installs each Windows utility independently and continues after isolated package failures.
-6. Configures Starship and zoxide for Windows PowerShell and PowerShell 7.
-7. Displays a final summary and the transcript log location.
+4. Installs OpenSSH Client when needed.
+5. Installs the WSL base without a Linux distribution and makes WSL 2 the default.
+6. Applies mirrored networking, VPN/LAN access, DNS, proxy, firewall, memory reclaim, and sparse VHD settings to WSL.
+7. Installs WinGet and Chocolatey when needed.
+8. Installs each Windows utility independently and continues after isolated package failures.
+9. Configures Starship and zoxide for Windows PowerShell and PowerShell 7.
+10. Displays a final summary and the transcript log location.
 
 The process can take a while because package managers download and install each utility independently.
 
@@ -101,10 +110,14 @@ git --version
 rg --version
 fzf --version
 pwsh --version
+wsl --status
+wsl --list --verbose
+Get-Content $HOME\.wslconfig
+Get-NetFirewallHyperVVMSetting -PolicyStore ActiveStore -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'
 Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Name EnableLUA
 ```
 
-The final command must return `0` after the restart if you answered `Yes` to the UAC question. Answering `No` leaves the existing policy unchanged and does not re-enable UAC if it was already disabled.
+`wsl --list --verbose` should report that no distributions are installed unless the machine already had one. The firewall output should show `DefaultInboundAction` as `Allow`. The final command must return `0` after the restart if you answered `Yes` to the UAC question. Answering `No` leaves the existing policy unchanged and does not re-enable UAC if it was already disabled.
 
 ## Rerunning and Logs
 
@@ -142,7 +155,7 @@ Or run the uninstaller from the `windows` branch:
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
 ```
 
-The uninstall mode removes OpenSSH Client, every WinGet and Chocolatey utility managed by SetupVibe, the Starship and zoxide profile block, and the generated Starship configuration. It also removes language runtimes, framework tools, runtime-manager paths, and npm packages installed by earlier Windows Beta versions, then re-enables UAC. WinGet, Chocolatey, and transcript logs are preserved.
+The uninstall mode removes OpenSSH Client, restores the previous WSL optional-feature and firewall states, removes the SetupVibe WSL configuration, removes every WinGet and Chocolatey utility managed by SetupVibe, and removes the Starship and zoxide profile block and generated Starship configuration. It also removes language runtimes, framework tools, runtime-manager paths, and npm packages installed by earlier Windows Beta versions, then re-enables UAC. Existing Linux distributions are not deleted. WinGet, Chocolatey, and transcript logs are preserved.
 
 **Uninstall warning:** the current Beta does not track whether OpenSSH Client or a managed package existed before SetupVibe. `-Uninstall` therefore removes OpenSSH Client and every package in its managed lists, including components that may have been installed separately before SetupVibe.
 
@@ -158,8 +171,8 @@ New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies
 
 ## Scope and Limitations
 
-- Windows Server and 32-bit Windows are rejected during preflight checks.
+- Windows 10, Windows Server, Windows 11 builds older than 22621, and 32-bit Windows are rejected during preflight checks.
 - When accepted, disabling UAC is machine-wide and reduces Windows security. A domain or device-management policy can restore the setting after the script changes it.
-- WSL is not installed or configured. Run `desktop.sh` inside an existing WSL distribution for the Linux environment.
+- WSL is installed and configured for WSL 2, mirrored VPN/LAN networking, and common development optimizations, but no Linux distribution is installed.
 - Programming languages, frameworks, runtime managers, and AI CLI tools are not installed.
 - Docker Desktop and a local Docker engine are not installed.

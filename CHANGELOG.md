@@ -8,8 +8,9 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ### Added
 
-- Added `desktop.ps1`, an idempotent native Windows 10/11 Beta installer for OpenSSH Client, WinGet, Chocolatey, modern CLI tools, network utilities, and fonts, with automatic UAC elevation, restart handling, and transcript logs. Linux and WSL environments remain managed by `desktop.sh`.
+- Added `desktop.ps1`, an idempotent native Windows 11 22H2+ Beta installer for OpenSSH Client, WSL 2 base components, WinGet, Chocolatey, modern CLI tools, network utilities, and fonts, with automatic UAC elevation, restart handling, and transcript logs. Linux distributions remain managed separately by `desktop.sh`.
 - Added `-Uninstall` to remove all Windows utilities and configurations managed by SetupVibe, clean language ecosystems left by earlier Beta versions, and re-enable UAC while preserving WinGet, Chocolatey, and logs.
+- Added the WSL base without a Linux distribution, set WSL 2 as the default, and configured mirrored VPN/LAN networking, DNS tunneling, Windows proxy integration, Hyper-V firewall inbound access, automatic memory reclaim, and sparse VHDs for software development.
 - Added Windows Edition (Beta) documentation in English, Portuguese, French, and Spanish.
 - Added `utils/windows/ssh_copy_id/ssh_copy_id.bat` and its usage guide for enabling the Windows 11 OpenSSH Client, creating or detecting an SSH key, copying it to a remote server, and opening the SSH session.
 
@@ -19,6 +20,7 @@ All notable changes to **SetupVibe** are documented in this file.
 - Added an interactive `Yes` or `No` UAC policy choice to `desktop.ps1`, defaulting to `Yes`; accepted changes set the machine-wide `EnableLUA` policy to `0` and require a restart.
 - Expanded the Windows Edition (Beta) guides with one-command remote installation, local installation, execution stages, verification commands, logs, rerun behavior, restart options, and scope limitations.
 - Focused the Windows Edition exclusively on native utilities; complete language ecosystems and AI CLI tools remain available through `desktop.sh` on macOS, Linux, and WSL.
+- Raised the Windows Edition minimum to Windows 11 22H2 build 22621 so mirrored WSL networking and Hyper-V firewall controls are consistently available.
 - Excluded `lazydocker` and `ctop` from the native Windows installer because the Windows edition intentionally provides no local Docker engine.
 - Updated AI context synchronization to cover only `AGENTS.md` and `CLAUDE.md`.
 - Split agent skills into platform-specific `.codex/skills` and `.claude/skills` folders.

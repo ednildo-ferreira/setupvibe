@@ -4,12 +4,12 @@ This file provides instructions and context for OpenAI Codex when working with t
 
 ## What This Project Is
 
-**SetupVibe** is a cross-platform automated development environment setup script (v0.41.6). It installs and configures a complete developer toolkit in one command, supporting Windows 10/11, macOS 12+, and Linux (Ubuntu 24.04+, Debian 12+, Zorin OS 18+).
+**SetupVibe** is a cross-platform automated development environment setup script (v0.41.6). It installs and configures a complete developer toolkit in one command, supporting Windows 11 22H2+, macOS 12+, and Linux (Ubuntu 24.04+, Debian 12+, Zorin OS 18+).
 
 There are three editions:
 
 - `desktop.sh` — macOS, Linux desktops, and WSL; full stack including language ecosystems, GUI tools, and AI CLIs
-- `desktop.ps1` — native Windows 10/11 (Beta); Windows utilities only, without programming languages, frameworks, runtime managers, or AI CLIs
+- `desktop.ps1` — native Windows 11 22H2+ (Beta); Windows utilities and the WSL 2 base without a Linux distribution, programming languages, frameworks, runtime managers, or AI CLIs
 - `server.sh` — Linux-only; lean install focused on DevOps tools, Docker, shell, and monitoring
 
 ## How to Run
@@ -51,7 +51,7 @@ Both `desktop.sh` and `server.sh` follow a numbered-step pattern (functions pref
 
 ### Windows Script Structure
 
-`desktop.ps1` contains only native Windows utility logic. It supports local and remote execution, requests initial UAC elevation, asks whether to disable UAC with `Yes` as the default during installation, rejects Windows Server and 32-bit Windows, detects installed components for idempotent reruns, and logs to `C:\ProgramData\SetupVibe\Logs`. The `-Uninstall` mode removes all managed utilities and configurations, cleans language ecosystems left by earlier Windows Beta versions, and re-enables UAC while preserving WinGet, Chocolatey, and logs. It must not install or configure programming languages, frameworks, runtime managers, AI CLI tools, or WSL; Linux and WSL environments are managed by `desktop.sh`.
+`desktop.ps1` contains only native Windows utility and WSL base logic. It supports local and remote execution, requests initial UAC elevation, asks whether to disable UAC with `Yes` as the default during installation, requires Windows 11 22H2 build 22621 or later, rejects Windows Server and 32-bit Windows, detects installed components for idempotent reruns, and logs to `C:\ProgramData\SetupVibe\Logs`. It installs WSL without a Linux distribution, makes WSL 2 the default, and configures mirrored VPN/LAN networking, Hyper-V firewall inbound access, DNS tunneling, Windows proxy integration, automatic memory reclaim, and sparse VHDs. Existing `.wslconfig`, optional-feature, and firewall states are backed up before changes. The `-Uninstall` mode removes all managed utilities and configurations, restores the previous WSL states, cleans language ecosystems left by earlier Windows Beta versions, and re-enables UAC while preserving Linux distribution data, WinGet, Chocolatey, and logs. It must not install programming languages, frameworks, runtime managers, AI CLI tools, or a Linux distribution; installed WSL distributions are configured separately by `desktop.sh`.
 
 While the Windows Edition is in Beta, every SetupVibe repository URL in Windows-specific scripts and documentation must target the `windows` branch. Align all of these URLs with the primary branch only after the Windows work is merged.
 

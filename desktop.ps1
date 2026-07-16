@@ -18,6 +18,9 @@ $script:LogDirectory = Join-Path $env:ProgramData 'SetupVibe\Logs'
 $script:TranscriptStarted = $false
 $script:WinGetPath = $null
 $script:ChocolateyPath = $null
+$script:WslVmCreatorId = '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'
+$script:WslFeatureStatePath = Join-Path $env:ProgramData 'SetupVibe\wsl-feature-state.json'
+$script:WslFirewallStatePath = Join-Path $env:ProgramData 'SetupVibe\wsl-firewall-inbound.txt'
 
 $script:WinGetPackages = @(
     @{ Id = 'Git.Git'; Name = 'Git' }
@@ -283,6 +286,125 @@ function Uninstall-OpenSshClient {
         $script:RestartRequired = $true
     }
     Write-Success 'OpenSSH Client removed.'
+}
+
+function Install-WindowsSubsystemForLinux {
+    $wslPath = Join-Path $env:SystemRoot 'System32\wsl.exe'
+    $featureNames = @('Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform')
+    $featureStates = @{}
+    foreach ($featureName in $featureNames) {
+        $featureStates[$featureName] = (Get-WindowsOptionalFeature -Online -FeatureName $featureName).State
+    }
+    if (-not (Test-Path $script:WslFeatureStatePath)) {
+        $featureStates | ConvertTo-Json | Set-Content -Path $script:WslFeatureStatePath -Encoding ASCII
+    }
+
+    $hasPendingFeature = $featureStates.Values -contains 'EnablePending'
+    $hasDisabledFeature = @($featureStates.Values | Where-Object { $_ -notin @('Enabled', 'EnablePending') }).Count -gt 0
+
+    if ($hasDisabledFeature) {
+        Invoke-NativeCommand -FilePath $wslPath -ArgumentList @('--install', '--no-distribution', '--web-download') -SuccessExitCode @(0, 3010)
+        $script:RestartRequired = $true
+        Write-Success 'WSL base installed without a Linux distribution. New distributions will use WSL 2 by default.'
+        return
+    }
+
+    if ($hasPendingFeature) {
+        $script:RestartRequired = $true
+        Write-WarningMessage 'WSL features are waiting for a Windows restart. WSL 2 will be finalized after the restart.'
+        return
+    }
+
+    Invoke-NativeCommand -FilePath $wslPath -ArgumentList @('--update', '--web-download')
+    Invoke-NativeCommand -FilePath $wslPath -ArgumentList @('--set-default-version', '2')
+    Write-Success 'WSL is up to date and WSL 2 is the default for future distributions.'
+}
+
+function Install-WslDevelopmentConfiguration {
+    $configPath = Join-Path $env:USERPROFILE '.wslconfig'
+    $backupPath = Join-Path $env:USERPROFILE '.wslconfig.setupvibe.bak'
+    if ((Test-Path $configPath) -and -not (Test-Path $backupPath)) {
+        Copy-Item -Path $configPath -Destination $backupPath -Force
+    }
+
+    $configContent = @(
+        '# Managed by SetupVibe Windows'
+        '[wsl2]'
+        'networkingMode=mirrored'
+        'dnsTunneling=true'
+        'autoProxy=true'
+        'firewall=true'
+        'guiApplications=true'
+        'nestedVirtualization=true'
+        ''
+        '[experimental]'
+        'autoMemoryReclaim=gradual'
+        'sparseVhd=true'
+        'bestEffortDnsParsing=true'
+        'hostAddressLoopback=true'
+    )
+    Set-Content -Path $configPath -Value $configContent -Encoding ASCII
+
+    $firewallSetting = Get-NetFirewallHyperVVMSetting -Name $script:WslVmCreatorId -ErrorAction SilentlyContinue
+    if (-not (Test-Path $script:WslFirewallStatePath)) {
+        $previousInboundAction = if ($firewallSetting) { [string]$firewallSetting.DefaultInboundAction } else { 'NotConfigured' }
+        Set-Content -Path $script:WslFirewallStatePath -Value $previousInboundAction -Encoding ASCII
+    }
+    if ($firewallSetting) {
+        Set-NetFirewallHyperVVMSetting -Name $script:WslVmCreatorId -DefaultInboundAction Allow
+    }
+    else {
+        New-NetFirewallHyperVVMSetting -Name $script:WslVmCreatorId -DefaultInboundAction Allow
+    }
+
+    Write-Success 'WSL mirrored networking, VPN/LAN access, DNS, proxy, firewall, memory reclaim, and sparse VHD settings configured.'
+    Write-WarningMessage 'WSL inbound traffic is allowed for all ports. Restrict it with Hyper-V firewall rules if the machine is on an untrusted network.'
+}
+
+function Uninstall-WindowsSubsystemForLinux {
+    $wslPath = Join-Path $env:SystemRoot 'System32\wsl.exe'
+    if (Test-Path $wslPath) {
+        & $wslPath --shutdown 2>$null
+    }
+
+    $configPath = Join-Path $env:USERPROFILE '.wslconfig'
+    $backupPath = Join-Path $env:USERPROFILE '.wslconfig.setupvibe.bak'
+    if (Test-Path $backupPath) {
+        Move-Item -Path $backupPath -Destination $configPath -Force
+    }
+    elseif ((Test-Path $configPath) -and (Select-String -Path $configPath -SimpleMatch '# Managed by SetupVibe Windows' -Quiet)) {
+        Remove-Item -Path $configPath -Force -ErrorAction SilentlyContinue
+    }
+
+    $firewallSetting = Get-NetFirewallHyperVVMSetting -Name $script:WslVmCreatorId -ErrorAction SilentlyContinue
+    if ($firewallSetting -and (Test-Path $script:WslFirewallStatePath)) {
+        $previousInboundAction = (Get-Content -Path $script:WslFirewallStatePath -Raw).Trim()
+        if ($previousInboundAction -notin @('Allow', 'Block', 'NotConfigured')) {
+            $previousInboundAction = 'NotConfigured'
+        }
+        Set-NetFirewallHyperVVMSetting -Name $script:WslVmCreatorId -DefaultInboundAction $previousInboundAction
+    }
+    Remove-Item -Path $script:WslFirewallStatePath -Force -ErrorAction SilentlyContinue
+
+    if (Test-Path $script:WslFeatureStatePath) {
+        $previousFeatureStates = Get-Content -Path $script:WslFeatureStatePath -Raw | ConvertFrom-Json
+        foreach ($featureName in @('Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform')) {
+            $previousState = $previousFeatureStates.PSObject.Properties[$featureName].Value
+            $feature = Get-WindowsOptionalFeature -Online -FeatureName $featureName
+            if ($previousState -notin @('Enabled', 'EnablePending') -and $feature.State -in @('Enabled', 'EnablePending')) {
+                $result = Disable-WindowsOptionalFeature -Online -FeatureName $featureName -NoRestart
+                if ($result.RestartNeeded) {
+                    $script:RestartRequired = $true
+                }
+            }
+            elseif ($feature.State -eq 'DisablePending') {
+                $script:RestartRequired = $true
+            }
+        }
+        Remove-Item -Path $script:WslFeatureStatePath -Force
+    }
+
+    Write-Success 'The previous WSL feature state and firewall policy were restored, and the SetupVibe WSL configuration was removed. Existing Linux distributions were not deleted.'
 }
 
 function Find-WinGet {
@@ -598,8 +720,8 @@ $currentBuild = [int]$currentVersion.CurrentBuildNumber
 if ([string]$currentVersion.ProductName -match 'Server') {
     throw 'SetupVibe Windows Desktop does not support Windows Server. Use the Linux Server Edition instead.'
 }
-if ($currentBuild -lt 17763) {
-    throw 'SetupVibe Windows requires Windows 10 version 1809 (build 17763) or later, or Windows 11.'
+if (-not $Uninstall -and $currentBuild -lt 22621) {
+    throw 'SetupVibe Windows requires Windows 11 version 22H2 (build 22621) or later.'
 }
 if (-not [Environment]::Is64BitOperatingSystem) {
     throw 'SetupVibe Windows requires a 64-bit edition of Windows.'
@@ -657,6 +779,9 @@ if ($Uninstall) {
     }
 
     Invoke-SetupStep -Name 'OpenSSH Client' -Action { Uninstall-OpenSshClient }
+    if ($currentBuild -ge 22621) {
+        Invoke-SetupStep -Name 'Windows Subsystem for Linux' -Action { Uninstall-WindowsSubsystemForLinux }
+    }
     Invoke-SetupStep -Name 'Legacy toolchain PATH entries' -Action { Remove-LegacyToolchainPaths }
     Invoke-SetupStep -Name 'Enable User Account Control (UAC)' -Action { Enable-UserAccountControl }
 }
@@ -668,6 +793,8 @@ else {
         Write-Success 'The User Account Control (UAC) policy was left unchanged by user choice.'
     }
     Invoke-SetupStep -Name 'OpenSSH Client' -Action { Install-OpenSshClient }
+    Invoke-SetupStep -Name 'Windows Subsystem for Linux base' -Action { Install-WindowsSubsystemForLinux }
+    Invoke-SetupStep -Name 'WSL development networking and optimization' -Action { Install-WslDevelopmentConfiguration }
     Invoke-SetupStep -Name 'WinGet' -Action { Install-WinGet }
     Invoke-SetupStep -Name 'Chocolatey' -Action { Install-Chocolatey }
 

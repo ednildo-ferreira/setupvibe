@@ -7,7 +7,7 @@ SetupVibe transforms any fresh machine into a fully configured development works
 | Edition            | Script        | Platforms                                            | Guides                                                                                                               |
 | ------------------ | ------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | **Desktop**        | `desktop.sh`  | macOS 12+, Linux desktops, and WSL                   | [EN](desktop/en/README.md) · [PT](desktop/pt-br/README.md) · [FR](desktop/fr/README.md) · [ES](desktop/es/README.md) |
-| **Windows (Beta)** | `desktop.ps1` | Windows 10 1809+ and Windows 11                      | [EN](windows/en/README.md) · [PT](windows/pt-br/README.md) · [FR](windows/fr/README.md) · [ES](windows/es/README.md) |
+| **Windows (Beta)** | `desktop.ps1` | Windows 11 22H2+ (build 22621+)                      | [EN](windows/en/README.md) · [PT](windows/pt-br/README.md) · [FR](windows/fr/README.md) · [ES](windows/es/README.md) |
 | **Server**         | `server.sh`   | Ubuntu 24.04+, Debian 12+, Zorin OS 18+ (Linux only) | [EN](server/en/README.md) · [PT](server/pt-br/README.md) · [FR](server/fr/README.md) · [ES](server/es/README.md)     |
 
 ## Quick Start
@@ -44,6 +44,7 @@ curl -sSL server.setupvibe.dev | bash -s -- --manager
 | Homebrew                              | ✔              | ✗       | ✗       |
 | WinGet + Chocolatey                   | ✗              | ✔       | ✗       |
 | OpenSSH Client                        | ✔              | ✔       | ✔       |
+| WSL 2 base without a distribution     | ✗              | ✔       | ✗       |
 | PHP 8.4 + Composer + Laravel          | ✔              | ✗       | ✗       |
 | Ruby + rbenv + Rails                  | ✔              | ✗       | ✗       |
 | Go, Rust, Python + uv                 | ✔              | ✗       | ✗       |

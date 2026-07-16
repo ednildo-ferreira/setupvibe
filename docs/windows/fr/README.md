@@ -6,8 +6,8 @@ L'Édition Windows (Beta) configure un ensemble ciblé d'utilitaires Windows nat
 
 ## Prérequis
 
-- Windows 10 version 1809 (build 17763) ou ultérieure, ou Windows 11
-- Une édition de bureau Windows 64 bits ; Windows Server n'est pas pris en charge
+- Windows 11 version 22H2 (build 22621) ou ultérieure
+- Une édition de bureau Windows 64 bits ; Windows 10 et Windows Server ne sont pas pris en charge
 - Windows PowerShell 5.1 ou ultérieur
 - Un compte administrateur
 - Un accès à Internet
@@ -18,6 +18,8 @@ L'Édition Windows (Beta) configure un ensemble ciblé d'utilitaires Windows nat
 - Client OpenSSH
 - WinGet via le processus officiel de réparation `Microsoft.WinGet.Client` s'il est absent
 - Chocolatey via son script d'amorçage officiel s'il est absent
+- Système WSL de base sans distribution Linux, avec WSL 2 par défaut
+- Réseau WSL en mode miroir avec accès VPN/LAN, tunneling DNS, intégration du proxy Windows, trafic entrant autorisé dans le pare-feu Hyper-V, récupération automatique de la mémoire et disques virtuels épars
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick et GitHub CLI
 - bat, eza, zoxide, fzf, ripgrep, fd, lazygit, Neovim, Glow, tldr, Fastfetch, duf et jq
 - Nmap, Speedtest CLI, Tailscale, gping, btop4win, trippy et RustScan
@@ -27,9 +29,13 @@ Le programme d'installation est idempotent : les paquets WinGet installés sont 
 
 Starship et zoxide sont initialisés dans les profils Windows PowerShell et PowerShell 7.
 
-Ce script est exclusivement destiné aux utilitaires Windows natifs. Il n'installe aucun langage de programmation, framework, gestionnaire de runtime, outil CLI d'IA ou WSL. Utilisez `desktop.sh` dans WSL pour configurer un environnement de développement complet.
+Ce script est exclusivement destiné aux utilitaires Windows natifs et au système WSL de base. Il n'installe aucune distribution Linux, aucun langage de programmation, framework, gestionnaire de runtime ou outil CLI d'IA. Après avoir installé une distribution séparément, utilisez `desktop.sh` dans celle-ci pour configurer un environnement de développement complet.
 
-Docker Desktop est volontairement exclu, car ses moteurs habituels nécessitent WSL 2 ou Hyper-V.
+Si `%USERPROFILE%\.wslconfig` existe déjà, SetupVibe le sauvegarde avant d'appliquer les paramètres de développement par défaut. `-Uninstall` restaure cette sauvegarde ainsi que les états précédents des fonctionnalités et du pare-feu WSL.
+
+Docker Desktop est volontairement exclu. SetupVibe prépare WSL 2, mais n'installe ni Docker ni distribution Linux.
+
+**Avertissement sur le réseau WSL :** SetupVibe autorise le trafic entrant vers WSL sur tous les ports via le pare-feu Hyper-V afin que les futurs services soient accessibles depuis le réseau local et les VPN compatibles. Limitez cette stratégie avec des règles de pare-feu Hyper-V spécifiques sur les réseaux non fiables. Un futur service Linux doit écouter sur `0.0.0.0` ou sur l'interface réseau appropriée pour accepter les connexions distantes.
 
 **Avertissement de sécurité :** la désactivation de l'UAC supprime ses avantages de sécurité pour l'ensemble de l'ordinateur. [Microsoft recommande de maintenir cette stratégie activée](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/user-account-control-run-all-administrators-in-admin-approval-mode). SetupVibe modifie ce paramètre uniquement si vous répondez `Yes` ; Windows doit redémarrer pour que la modification prenne effet.
 
@@ -76,13 +82,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1
 
 Pendant l'exécution, le programme :
 
-1. Valide l'édition, la build et l'architecture 64 bits de Windows.
+1. Valide Windows 11 22H2 ou ultérieur et l'architecture 64 bits.
 2. Demande les privilèges administrateur via l'UAC.
 3. Demande s'il faut désactiver l'UAC, avec `Yes` comme choix par défaut, et définit la stratégie globale de registre `EnableLUA` sur `0` après confirmation.
-4. Installe le client OpenSSH, WinGet et Chocolatey si nécessaire.
-5. Installe chaque utilitaire Windows indépendamment et continue après les échecs isolés.
-6. Configure Starship et zoxide pour Windows PowerShell et PowerShell 7.
-7. Affiche un résumé final et l'emplacement du journal complet.
+4. Installe le client OpenSSH si nécessaire.
+5. Installe le système WSL de base sans distribution Linux et définit WSL 2 par défaut.
+6. Applique à WSL le réseau en mode miroir, l'accès VPN/LAN, le DNS, le proxy, le pare-feu, la récupération de mémoire et les disques VHD épars.
+7. Installe WinGet et Chocolatey si nécessaire.
+8. Installe chaque utilitaire Windows indépendamment et continue après les échecs isolés.
+9. Configure Starship et zoxide pour Windows PowerShell et PowerShell 7.
+10. Affiche un résumé final et l'emplacement du journal complet.
 
 Le processus peut prendre du temps, car les gestionnaires de paquets téléchargent et installent chaque utilitaire séparément.
 
@@ -101,10 +110,14 @@ git --version
 rg --version
 fzf --version
 pwsh --version
+wsl --status
+wsl --list --verbose
+Get-Content $HOME\.wslconfig
+Get-NetFirewallHyperVVMSetting -PolicyStore ActiveStore -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'
 Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -Name EnableLUA
 ```
 
-La dernière commande doit renvoyer `0` après le redémarrage si vous avez répondu `Yes` à la question sur l'UAC. Répondre `No` conserve la stratégie existante et ne réactive pas l'UAC s'il était déjà désactivé.
+`wsl --list --verbose` doit indiquer qu'aucune distribution n'est installée, sauf si la machine en possédait déjà une. La sortie du pare-feu doit afficher `DefaultInboundAction` avec la valeur `Allow`. La dernière commande doit renvoyer `0` après le redémarrage si vous avez répondu `Yes` à la question sur l'UAC. Répondre `No` conserve la stratégie existante et ne réactive pas l'UAC s'il était déjà désactivé.
 
 ## Nouvelle Exécution Et Journaux
 
@@ -142,7 +155,7 @@ Ou exécutez le programme de désinstallation depuis la branche `windows` :
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
 ```
 
-Le mode de désinstallation supprime le client OpenSSH, tous les utilitaires WinGet et Chocolatey gérés par SetupVibe, le bloc de profil Starship et zoxide et la configuration Starship générée. Il supprime également les runtimes de langages, les outils de frameworks, les chemins des gestionnaires de runtimes et les paquets npm installés par les versions Beta Windows précédentes, puis réactive l'UAC. WinGet, Chocolatey et les journaux sont conservés.
+Le mode de désinstallation supprime le client OpenSSH, restaure les états précédents des fonctionnalités facultatives et du pare-feu WSL, supprime la configuration WSL appliquée par SetupVibe, supprime tous les utilitaires WinGet et Chocolatey gérés par SetupVibe et supprime le bloc de profil Starship et zoxide ainsi que la configuration Starship générée. Il supprime également les runtimes de langages, les outils de frameworks, les chemins des gestionnaires de runtimes et les paquets npm installés par les versions Beta Windows précédentes, puis réactive l'UAC. Les distributions Linux existantes ne sont pas supprimées. WinGet, Chocolatey et les journaux sont conservés.
 
 **Avertissement de désinstallation :** la version Beta actuelle ne détermine pas si le client OpenSSH ou un paquet géré existait avant SetupVibe. Par conséquent, `-Uninstall` supprime le client OpenSSH et tous les paquets de ses listes gérées, y compris les composants qui ont pu être installés séparément avant SetupVibe.
 
@@ -158,8 +171,8 @@ New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies
 
 ## Portée Et Limites
 
-- Windows Server et les éditions 32 bits de Windows sont refusés lors des contrôles initiaux.
+- Windows 10, Windows Server, les builds de Windows 11 antérieures à 22621 et les éditions 32 bits sont refusés lors des contrôles initiaux.
 - Lorsqu'elle est confirmée, la désactivation de l'UAC s'applique à l'ensemble de l'ordinateur et réduit la sécurité de Windows. Une stratégie de domaine ou de gestion de l'appareil peut restaurer le paramètre après sa modification par le script.
-- WSL n'est ni installé ni configuré. Exécutez `desktop.sh` dans une distribution WSL existante pour configurer l'environnement Linux.
+- WSL est installé et configuré pour WSL 2, le réseau en mode miroir via VPN/LAN et les optimisations de développement courantes, mais aucune distribution Linux n'est installée.
 - Aucun langage de programmation, framework, gestionnaire de runtime ou outil CLI d'IA n'est installé.
 - Docker Desktop et un moteur Docker local ne sont pas installés.
