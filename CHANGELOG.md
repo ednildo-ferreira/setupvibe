@@ -33,6 +33,7 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ### Fixed
 
+- Fixed strict-mode failures while scanning Windows uninstall Registry entries that do not define `DisplayName`, including OpenSSH repair detection and the OpenSSH, Node.js, and Python removal paths.
 - Replaced the unreliable OpenSSH Feature on Demand operation with the latest official Microsoft Win32-OpenSSH MSI, installing and force-repairing the Client and Server features, prioritizing the binaries in the machine `PATH`, validating `ssh.exe -V`, starting `sshd` automatically, and enabling inbound TCP/22.
 - Fixed OpenSSH release resolution by removing the GitHub releases-list API dependency, resolving `releases/latest` and its expanded assets directly, accepting only the x64 `OpenSSH-Win64-*.msi`, and validating its Authenticode signature.
 - Fixed Windows Terminal startup errors caused by a restricted PowerShell execution policy by removing SetupVibe's PowerShell profile initialization instead of weakening the policy.

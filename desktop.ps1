@@ -173,6 +173,19 @@ function Invoke-NativeCommand {
     }
 }
 
+function Get-ObjectPropertyValue {
+    param(
+        [Parameter(Mandatory = $true)][object]$InputObject,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+
+    $property = $InputObject.PSObject.Properties[$Name]
+    if ($property) {
+        return $property.Value
+    }
+    return $null
+}
+
 function Invoke-SetupStep {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
@@ -441,11 +454,14 @@ function Install-OpenSsh {
                     'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
                     'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
                 ) -ErrorAction SilentlyContinue | Where-Object {
-                $_.DisplayName -match '^OpenSSH' -and $_.PSChildName -match '^\{[0-9A-Fa-f-]+\}$'
+                $displayName = [string](Get-ObjectPropertyValue -InputObject $_ -Name 'DisplayName')
+                $productCode = [string](Get-ObjectPropertyValue -InputObject $_ -Name 'PSChildName')
+                $displayName -match '^OpenSSH' -and $productCode -match '^\{[0-9A-Fa-f-]+\}$'
             } | Select-Object -First 1)
         if ($installedProduct.Count -gt 0) {
+            $productCode = [string](Get-ObjectPropertyValue -InputObject $installedProduct[0] -Name 'PSChildName')
             Write-Host '[RUN] Forcing repair of all installed OpenSSH Client and Server files...'
-            Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/fa', $installedProduct[0].PSChildName, '/qn', '/norestart', '/L*v', $msiRepairLogPath) -SuccessExitCode @(0, 1641, 3010)
+            Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/fa', $productCode, '/qn', '/norestart', '/L*v', $msiRepairLogPath) -SuccessExitCode @(0, 1641, 3010)
         }
     }
     finally {
@@ -495,13 +511,16 @@ function Uninstall-OpenSsh {
         'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
     )
     $openSshProducts = @(Get-ItemProperty -Path $uninstallRegistryPaths -ErrorAction SilentlyContinue | Where-Object {
-            $_.DisplayName -match '^OpenSSH'
+            $displayName = [string](Get-ObjectPropertyValue -InputObject $_ -Name 'DisplayName')
+            $displayName -match '^OpenSSH'
         })
 
     foreach ($product in $openSshProducts) {
-        if ($product.PSChildName -match '^\{[0-9A-Fa-f-]+\}$') {
-            Write-Host ("[RUN] Removing Microsoft OpenSSH MSI product: {0}" -f $product.DisplayName)
-            Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/x', $product.PSChildName, '/qn', '/norestart') -SuccessExitCode @(0, 1605, 1641, 3010)
+        $displayName = [string](Get-ObjectPropertyValue -InputObject $product -Name 'DisplayName')
+        $productCode = [string](Get-ObjectPropertyValue -InputObject $product -Name 'PSChildName')
+        if ($productCode -match '^\{[0-9A-Fa-f-]+\}$') {
+            Write-Host ("[RUN] Removing Microsoft OpenSSH MSI product: {0}" -f $displayName)
+            Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/x', $productCode, '/qn', '/norestart') -SuccessExitCode @(0, 1605, 1641, 3010)
         }
     }
 
@@ -1088,7 +1107,8 @@ function Get-NodeJsMsiProducts {
                 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
                 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
             ) -ErrorAction SilentlyContinue | Where-Object {
-            $_.DisplayName -match '^Node\.js'
+            $displayName = [string](Get-ObjectPropertyValue -InputObject $_ -Name 'DisplayName')
+            $displayName -match '^Node\.js'
         })
 }
 
@@ -1100,11 +1120,13 @@ function Uninstall-NodeJs {
     }
 
     foreach ($product in $products) {
-        if ($product.PSChildName -notmatch '^\{[0-9A-Fa-f-]+\}$') {
+        $displayName = [string](Get-ObjectPropertyValue -InputObject $product -Name 'DisplayName')
+        $productCode = [string](Get-ObjectPropertyValue -InputObject $product -Name 'PSChildName')
+        if ($productCode -notmatch '^\{[0-9A-Fa-f-]+\}$') {
             continue
         }
-        Write-Host ("[RUN] Removing Node.js MSI product: {0}" -f $product.DisplayName)
-        Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/x', $product.PSChildName, '/qn', '/norestart') -SuccessExitCode @(0, 1605, 1641, 3010)
+        Write-Host ("[RUN] Removing Node.js MSI product: {0}" -f $displayName)
+        Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/x', $productCode, '/qn', '/norestart') -SuccessExitCode @(0, 1605, 1641, 3010)
     }
     Write-Success 'Node.js MSI installation removed.'
 }
@@ -1192,7 +1214,8 @@ function Uninstall-Python {
                 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
                 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
             ) -ErrorAction SilentlyContinue | Where-Object {
-            $_.DisplayName -match '^Python 3\.14\.\d+ \(64-bit\)$'
+            $displayName = [string](Get-ObjectPropertyValue -InputObject $_ -Name 'DisplayName')
+            $displayName -match '^Python 3\.14\.\d+ \(64-bit\)$'
         })
     if ($products.Count -eq 0) {
         Write-Success 'Python 3.14 is already absent.'
@@ -1200,11 +1223,12 @@ function Uninstall-Python {
     }
 
     foreach ($product in $products) {
+        $displayName = [string](Get-ObjectPropertyValue -InputObject $product -Name 'DisplayName')
         $quietUninstallProperty = $product.PSObject.Properties['QuietUninstallString']
         $uninstallProperty = $product.PSObject.Properties['UninstallString']
         $commandLine = if ($quietUninstallProperty) { [string]$quietUninstallProperty.Value } elseif ($uninstallProperty) { [string]$uninstallProperty.Value } else { $null }
         if ([string]::IsNullOrWhiteSpace($commandLine)) {
-            Write-WarningMessage ("Python uninstaller command was not found for {0}." -f $product.DisplayName)
+            Write-WarningMessage ("Python uninstaller command was not found for {0}." -f $displayName)
             continue
         }
         if ($commandLine -notmatch '^\s*"([^"]+)"\s*(.*)$') {
@@ -1216,7 +1240,7 @@ function Uninstall-Python {
         if ($uninstallerArguments -notmatch '(?i)/quiet') {
             $uninstallerArguments = "$uninstallerArguments /quiet"
         }
-        Write-Host ("[RUN] Removing {0}..." -f $product.DisplayName)
+        Write-Host ("[RUN] Removing {0}..." -f $displayName)
         $process = Start-Process -FilePath $uninstallerPath -ArgumentList $uninstallerArguments -Wait -PassThru
         if ($process.ExitCode -notin @(0, 1641, 3010)) {
             throw "Python uninstaller failed with exit code $($process.ExitCode)."
