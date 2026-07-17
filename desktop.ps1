@@ -406,10 +406,69 @@ function Find-Executable {
     return $command.Source
 }
 
+function Get-OpenSshMsiProducts {
+    return @(Get-ItemProperty -Path @(
+                'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+                'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+            ) -ErrorAction SilentlyContinue | Where-Object {
+            $displayName = [string](Get-ObjectPropertyValue -InputObject $_ -Name 'DisplayName')
+            $displayName -match '^OpenSSH'
+        })
+}
+
+function Get-OpenSshCandidateDirectories {
+    param([Parameter()][object[]]$Products = @())
+
+    $candidateDirectories = @()
+    foreach ($product in $Products) {
+        $installLocation = [string](Get-ObjectPropertyValue -InputObject $product -Name 'InstallLocation')
+        if (-not [string]::IsNullOrWhiteSpace($installLocation)) {
+            $candidateDirectories += $installLocation.TrimEnd('\')
+        }
+    }
+
+    $nativeProgramFiles = [Environment]::GetEnvironmentVariable('ProgramW6432', 'Process')
+    if ([string]::IsNullOrWhiteSpace($nativeProgramFiles)) {
+        $nativeProgramFiles = [Environment]::GetEnvironmentVariable('ProgramFiles', 'Process')
+    }
+    foreach ($programFilesDirectory in @($nativeProgramFiles, $env:ProgramFiles)) {
+        if ([string]::IsNullOrWhiteSpace($programFilesDirectory)) {
+            continue
+        }
+        $candidateDirectories += Join-Path $programFilesDirectory 'OpenSSH'
+        $candidateDirectories += Join-Path $programFilesDirectory 'OpenSSH-Win64'
+        $candidateDirectories += @(Get-ChildItem -Path $programFilesDirectory -Directory -Filter 'OpenSSH*' -ErrorAction SilentlyContinue | ForEach-Object {
+                $_.FullName
+            })
+    }
+
+    $sshdImagePath = [string](Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\sshd' -Name 'ImagePath' -ErrorAction SilentlyContinue)
+    if (-not [string]::IsNullOrWhiteSpace($sshdImagePath)) {
+        $sshdImagePath = [Environment]::ExpandEnvironmentVariables($sshdImagePath)
+        if ($sshdImagePath -match '^\s*"([^"]+\.exe)"' -or $sshdImagePath -match '^\s*(.+?\.exe)(?:\s|$)') {
+            $candidateDirectories += Split-Path -Path $matches[1] -Parent
+        }
+    }
+
+    return @($candidateDirectories | Where-Object {
+            -not [string]::IsNullOrWhiteSpace($_)
+        } | Sort-Object -Unique)
+}
+
+function Find-OpenSshInstallDirectory {
+    param([Parameter()][object[]]$Products = @())
+
+    return @(Get-OpenSshCandidateDirectories -Products $Products | Where-Object {
+            Test-Path (Join-Path $_ 'ssh.exe') -PathType Leaf
+        } | Select-Object -First 1)
+}
+
 function Install-OpenSsh {
     $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("SetupVibe-OpenSSH-{0}" -f $PID)
-    $msiLogPath = Join-Path $script:LogDirectory ("openssh-client-msi-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
-    $msiRepairLogPath = Join-Path $script:LogDirectory ("openssh-client-repair-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+    $msiLogPath = Join-Path $script:LogDirectory ("openssh-msi-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+    $msiReconfigureLogPath = Join-Path $script:LogDirectory ("openssh-reconfigure-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+    $installedProducts = @()
+    $openSshDirectory = @()
 
     New-Item -Path $temporaryDirectory -ItemType Directory -Force | Out-Null
     try {
@@ -441,8 +500,6 @@ function Install-OpenSsh {
         $msiArguments = @(
             '/i'
             $msiPath
-            'ADDLOCAL=Client,Server'
-            'REINSTALLMODE=amus'
             '/qn'
             '/norestart'
             '/L*v'
@@ -450,31 +507,37 @@ function Install-OpenSsh {
         )
         Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList $msiArguments -SuccessExitCode @(0, 1641, 3010)
 
-        $installedProduct = @(Get-ItemProperty -Path @(
-                    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
-                    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-                ) -ErrorAction SilentlyContinue | Where-Object {
-                $displayName = [string](Get-ObjectPropertyValue -InputObject $_ -Name 'DisplayName')
-                $productCode = [string](Get-ObjectPropertyValue -InputObject $_ -Name 'PSChildName')
-                $displayName -match '^OpenSSH' -and $productCode -match '^\{[0-9A-Fa-f-]+\}$'
-            } | Select-Object -First 1)
-        if ($installedProduct.Count -gt 0) {
-            $productCode = [string](Get-ObjectPropertyValue -InputObject $installedProduct[0] -Name 'PSChildName')
-            Write-Host '[RUN] Forcing repair of all installed OpenSSH Client and Server files...'
-            Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/fa', $productCode, '/qn', '/norestart', '/L*v', $msiRepairLogPath) -SuccessExitCode @(0, 1641, 3010)
+        $installedProducts = @(Get-OpenSshMsiProducts)
+        $openSshDirectory = @(Find-OpenSshInstallDirectory -Products $installedProducts)
+        if ($openSshDirectory.Count -eq 0) {
+            Write-WarningMessage 'OpenSSH files were not found after the default MSI installation. Reconfiguring every MSI feature...'
+            Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @(
+                '/i'
+                $msiPath
+                'ADDLOCAL=ALL'
+                'REMOVE='
+                'REINSTALL=ALL'
+                'REINSTALLMODE=amus'
+                '/qn'
+                '/norestart'
+                '/L*v'
+                $msiReconfigureLogPath
+            ) -SuccessExitCode @(0, 1641, 3010)
+            $installedProducts = @(Get-OpenSshMsiProducts)
+            $openSshDirectory = @(Find-OpenSshInstallDirectory -Products $installedProducts)
         }
     }
     finally {
         Remove-Item -Path $temporaryDirectory -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-    $openSshDirectories = @(
-        (Join-Path $env:ProgramFiles 'OpenSSH')
-        (Join-Path $env:ProgramFiles 'OpenSSH-Win64')
-    )
-    $openSshDirectory = @($openSshDirectories | Where-Object { Test-Path (Join-Path $_ 'ssh.exe') } | Select-Object -First 1)
     if ($openSshDirectory.Count -eq 0) {
-        throw "OpenSSH Client MSI completed, but ssh.exe was not found. Review $msiLogPath."
+        $checkedDirectories = @(Get-OpenSshCandidateDirectories -Products $installedProducts)
+        $checkedDirectoryText = if ($checkedDirectories.Count -gt 0) { $checkedDirectories -join ', ' } else { 'no MSI installation directory was registered' }
+        throw "OpenSSH MSI completed, but ssh.exe was not found. Checked: $checkedDirectoryText. Review $msiLogPath and $msiReconfigureLogPath."
+    }
+    if (-not (Test-Path (Join-Path $openSshDirectory[0] 'sshd.exe') -PathType Leaf)) {
+        throw "OpenSSH Client was installed at $($openSshDirectory[0]), but sshd.exe was not found. Review $msiLogPath and $msiReconfigureLogPath."
     }
 
     Add-PathEntry -Path $openSshDirectory[0] -Scope 'Machine' -Prepend
@@ -506,14 +569,8 @@ function Install-OpenSsh {
 }
 
 function Uninstall-OpenSsh {
-    $uninstallRegistryPaths = @(
-        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
-        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-    )
-    $openSshProducts = @(Get-ItemProperty -Path $uninstallRegistryPaths -ErrorAction SilentlyContinue | Where-Object {
-            $displayName = [string](Get-ObjectPropertyValue -InputObject $_ -Name 'DisplayName')
-            $displayName -match '^OpenSSH'
-        })
+    $openSshProducts = @(Get-OpenSshMsiProducts)
+    $openSshDirectories = @(Get-OpenSshCandidateDirectories -Products $openSshProducts)
 
     foreach ($product in $openSshProducts) {
         $displayName = [string](Get-ObjectPropertyValue -InputObject $product -Name 'DisplayName')
@@ -524,7 +581,7 @@ function Uninstall-OpenSsh {
         }
     }
 
-    foreach ($openSshDirectory in @((Join-Path $env:ProgramFiles 'OpenSSH'), (Join-Path $env:ProgramFiles 'OpenSSH-Win64'))) {
+    foreach ($openSshDirectory in $openSshDirectories) {
         Remove-PathEntry -Path $openSshDirectory -Scope 'Machine'
     }
     Write-Success 'SetupVibe-managed Microsoft OpenSSH Client and Server MSI installation removed.'

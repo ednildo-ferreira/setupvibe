@@ -153,7 +153,7 @@ System File Checker details are recorded in `C:\Windows\Logs\CBS\CBS.log`.
 
 If a process remains active after normal and forced termination attempts, SetupVibe completes the SFC verification, waits for ENTER, and exits with a recommendation to restart the PC.
 
-OpenSSH does not use Windows Features on Demand or the GitHub releases API. SetupVibe resolves the official `releases/latest` page and its expanded assets, accepts only the x64 `OpenSSH-Win64-*.msi`, validates its Authenticode signature, installs `ADDLOCAL=Client,Server`, force-repairs installed files, prepends the installation directory to the machine `PATH`, sets `sshd` to automatic startup, starts it, enables the `OpenSSH-Server-In-TCP` firewall rule for inbound TCP/22, and records `openssh-client-msi-*.log` and `openssh-client-repair-*.log` under `C:\ProgramData\SetupVibe\Logs`.
+OpenSSH does not use Windows Features on Demand or the GitHub releases API. SetupVibe resolves the official `releases/latest` page and its expanded assets, accepts only the x64 `OpenSSH-Win64-*.msi`, validates its Authenticode signature, installs Client and Server through the MSI's default feature selection, and forces all MSI features only if the binaries are initially missing. It resolves the installation directory from the native x64 Program Files directory, MSI metadata, and the `sshd` service, prepends that directory to the machine `PATH`, sets `sshd` to automatic startup, starts it, enables the `OpenSSH-Server-In-TCP` firewall rule for inbound TCP/22, and records `openssh-msi-*.log` and `openssh-reconfigure-*.log` under `C:\ProgramData\SetupVibe\Logs`.
 
 ## Options
 

@@ -153,7 +153,7 @@ Os detalhes do Verificador de Arquivos do Sistema são registrados em `C:\Window
 
 Se um processo permanecer ativo depois das tentativas de encerramento normal e forçado, o SetupVibe conclui a verificação do SFC, aguarda ENTER e encerra recomendando reiniciar o PC.
 
-O OpenSSH não usa os Recursos sob Demanda do Windows nem a API de releases do GitHub. O SetupVibe resolve a página oficial `releases/latest` e seus assets expandidos, aceita somente o MSI x64 `OpenSSH-Win64-*.msi`, valida sua assinatura Authenticode, instala `ADDLOCAL=Client,Server`, força o reparo dos arquivos instalados, coloca o diretório de instalação no início do `PATH` da máquina, configura `sshd` para inicialização automática, inicia o serviço, habilita a regra de firewall `OpenSSH-Server-In-TCP` para entrada TCP/22 e registra `openssh-client-msi-*.log` e `openssh-client-repair-*.log` em `C:\ProgramData\SetupVibe\Logs`.
+O OpenSSH não usa os Recursos sob Demanda do Windows nem a API de releases do GitHub. O SetupVibe resolve a página oficial `releases/latest` e seus assets expandidos, aceita somente o MSI x64 `OpenSSH-Win64-*.msi`, valida sua assinatura Authenticode, instala Cliente e Servidor pela seleção padrão de recursos do MSI e força todos os recursos do MSI somente se os binários estiverem inicialmente ausentes. Ele resolve o diretório de instalação pelo diretório Program Files x64 nativo, pelos metadados do MSI e pelo serviço `sshd`, coloca esse diretório no início do `PATH` da máquina, configura `sshd` para inicialização automática, inicia o serviço, habilita a regra de firewall `OpenSSH-Server-In-TCP` para entrada TCP/22 e registra `openssh-msi-*.log` e `openssh-reconfigure-*.log` em `C:\ProgramData\SetupVibe\Logs`.
 
 ## Opções
 
