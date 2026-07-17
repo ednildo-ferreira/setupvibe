@@ -2,7 +2,7 @@
 
 > The ultimate cross-platform development environment setup script — v0.41.6
 
-Installs and configures a development environment in one command, supporting Windows 11, macOS, and major Linux distributions. The Windows Edition focuses on native utilities, Python, Node.js, and the WSL 2 base system, while the Unix editions include complete language ecosystems and AI CLI tools.
+Installs and configures a development environment in one command, supporting Windows 11, macOS, and major Linux distributions. The Windows Edition focuses on native utilities, Python, Node.js, selected native AI CLIs, and the WSL 2 base system, while the Unix editions include complete language ecosystems and a broader AI toolkit.
 
 ## Key Features
 
@@ -14,6 +14,7 @@ Installs and configures a development environment in one command, supporting Win
 - **Optimized Terminals:** Installs Windows Terminal on Windows and configures Tmux + TPM on Unix systems.
 - **Global Helper Scripts:** Installs Windows helper scripts in `%USERPROFILE%\.setupvibe\bin` and adds the directory to the user's `PATH`.
 - **AI Runtime Foundation:** Installs Python 3.14 directly from `python.org` and Node.js LTS directly from `nodejs.org`, then exposes `python`, `pip`, `node`, `npm`, and `npx` in the Windows machine `PATH` for Claude and Codex.
+- **Native Windows AI CLIs:** Installs Claude Code through Anthropic's native installer, Codex CLI from `@openai/codex`, and Google Antigravity CLI as `agy`, while preserving PowerShell profiles and restricted execution policies.
 - **WSL 2 Ready:** Installs the WSL base without a Linux distribution and configures mirrored VPN/LAN networking and development optimizations on Windows 11.
 - **AI-Ready Unix Editions:** Includes the latest AI CLI tools for developers on macOS, Linux, and WSL.
 

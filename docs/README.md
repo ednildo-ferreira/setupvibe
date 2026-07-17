@@ -38,29 +38,29 @@ curl -sSL server.setupvibe.dev | bash -s -- --manager
 
 ## Edition Comparison
 
-| Feature                               | Desktop        | Windows | Server  |
-| ------------------------------------- | -------------- | ------- | ------- |
-| Base system & CLI tools               | ✔              | ✔       | ✔       |
-| Homebrew                              | ✔              | ✗       | ✗       |
-| WinGet + Chocolatey                   | ✗              | ✔       | ✗       |
-| OpenSSH Client                        | ✔              | ✔       | ✔       |
-| WSL 2 base without a distribution     | ✗              | ✔       | ✗       |
-| PHP 8.4 + Composer + Laravel          | ✔              | ✗       | ✗       |
-| Ruby + rbenv + Rails                  | ✔              | ✗       | ✗       |
-| Go, Rust, Python + uv                 | ✔              | ✗       | ✗       |
-| Node.js 24 + Bun + PNPM               | ✔              | ✗       | ✔ (APT) |
-| n8n                                   | ✔              | ✗       | ✗       |
-| Docker + Ansible + GitHub CLI         | ✔              | ✗       | ✔       |
-| Modern Unix tools (bat, eza, fzf…)    | ✔ via Homebrew | ✔       | ✗       |
-| Network & monitoring tools            | ✔              | ✔       | ✔       |
-| Tailscale                             | ✔              | ✔       | ✔       |
-| SSH server                            | ✔ (Linux only) | ✗       | ✔       |
-| ZSH + Oh My Zsh + Starship            | ✔              | ✗       | ✔       |
-| Nerd Fonts (FiraCode, JetBrains Mono) | ✔              | ✔       | ✗       |
-| Tmux + TPM plugins                    | ✔              | ✗       | ✔       |
-| AI CLI tools                          | ✔              | ✗       | ✔       |
-| PM2 auto-startup                      | ✔              | ✗       | ✗       |
-| Docker Swarm Manager (`--manager`)    | ✗              | ✗       | ✔       |
+| Feature                               | Desktop        | Windows         | Server  |
+| ------------------------------------- | -------------- | --------------- | ------- |
+| Base system & CLI tools               | ✔              | ✔               | ✔       |
+| Homebrew                              | ✔              | ✗               | ✗       |
+| WinGet + Chocolatey                   | ✗              | ✔               | ✗       |
+| OpenSSH Client                        | ✔              | ✔               | ✔       |
+| WSL 2 base without a distribution     | ✗              | ✔               | ✗       |
+| PHP 8.4 + Composer + Laravel          | ✔              | ✗               | ✗       |
+| Ruby + rbenv + Rails                  | ✔              | ✗               | ✗       |
+| Go, Rust, Python + uv                 | ✔              | ✗               | ✗       |
+| Node.js 24 + Bun + PNPM               | ✔              | Node.js LTS only | ✔ (APT) |
+| n8n                                   | ✔              | ✗               | ✗       |
+| Docker + Ansible + GitHub CLI         | ✔              | GitHub CLI only | ✔       |
+| Modern Unix tools (bat, eza, fzf…)    | ✔ via Homebrew | ✔               | ✗       |
+| Network & monitoring tools            | ✔              | ✔               | ✔       |
+| Tailscale                             | ✔              | ✔               | ✔       |
+| SSH server                            | ✔ (Linux only) | ✔               | ✔       |
+| ZSH + Oh My Zsh + Starship            | ✔              | ✗               | ✔       |
+| Nerd Fonts (FiraCode, JetBrains Mono) | ✔              | ✔               | ✗       |
+| Tmux + TPM plugins                    | ✔              | ✗               | ✔       |
+| AI CLI tools                          | ✔              | ✔ (selected)    | ✔       |
+| PM2 auto-startup                      | ✔              | ✗               | ✗       |
+| Docker Swarm Manager (`--manager`)    | ✗              | ✗               | ✔       |
 
 ## Specialized Guides
 

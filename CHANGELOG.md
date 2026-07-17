@@ -16,13 +16,14 @@ All notable changes to **SetupVibe** are documented in this file.
 - Added Windows Edition (Beta) documentation in English, Portuguese, French, and Spanish.
 - Added `utils/windows/ssh_copy_id/ssh_copy_id.ps1`, a minimal `ssh_copy_id.cmd` compatibility launcher, and their usage guide for creating or detecting an SSH key, copying it to a remote server, selecting a port, and optionally opening the SSH session.
 - Added Python 3.14 from the official signed `python.org` standalone installer and Node.js LTS from the official signed `nodejs.org` MSI, with Node.js SHA-256 verification, machine `PATH` normalization, and validation of `python`, `pip`, `node`, `npm`, and `npx` for Claude and Codex.
+- Added Claude Code through Anthropic's checksum-verifying native Windows installer, Codex CLI through the official `@openai/codex` npm package with an execution-policy-safe CMD launcher, and Google Antigravity CLI through its checksum-verifying native installer as `agy`.
 
 ### Changed
 
-- Added explicit post-install validation for the Windows GitHub CLI package so SetupVibe confirms that `gh.exe` is available as `gh` in the refreshed Windows `PATH`.
+- Added explicit post-install validation for GitHub CLI and Windows Terminal so SetupVibe confirms that `gh.exe` and the `wt.exe` app execution alias are available in the refreshed Windows environment without changing the Terminal default profile.
 - Pointed all Windows-specific SetupVibe repository URLs, including the elevated-process handoff and `ssh_copy_id`, to the `windows` development branch until the Windows work is merged.
 - Expanded the Windows Edition (Beta) guides with one-command remote installation, local installation, execution stages, verification commands, logs, rerun behavior, restart options, and scope limitations.
-- Focused the Windows Edition on native utilities plus Python and Node.js as its only programming runtimes; complete language ecosystems and AI CLI tools remain available through `desktop.sh` on macOS, Linux, and WSL.
+- Focused the Windows Edition on native utilities, Python and Node.js as its only programming runtimes, and the selected Claude Code, Codex, and Antigravity AI CLIs; complete language ecosystems and the broader AI toolkit remain available through `desktop.sh` on macOS, Linux, and WSL.
 - Raised the Windows Edition minimum to Windows 11 22H2 build 22621 so mirrored WSL networking and Hyper-V firewall controls are consistently available.
 - Excluded `lazydocker` and `ctop` from the native Windows installer because the Windows edition intentionally provides no local Docker engine.
 - Changed the Windows servicing preflight to ask before stopping competing installer processes, try normal termination before a forced fallback, and run `sfc.exe /scannow` after accepted termination attempts. Declining waits for ENTER and exits without adding another servicing operation.
@@ -46,7 +47,7 @@ All notable changes to **SetupVibe** are documented in this file.
 - Removed all UAC policy management from `desktop.ps1`; the Windows Edition now uses only the standard elevation prompt and never changes `EnableLUA` during installation or removal.
 - Removed the Batch implementation of `ssh_copy_id`; PowerShell now contains all SSH logic and the CMD file only launches it.
 - Removed Starship and all automatic PowerShell profile customization from the Windows Edition; ZSH remains Unix-only, zoxide stays available as an uninitialized CLI utility, and the original Windows shell policy and profile are preserved.
-- Removed PHP, Composer, Laravel Installer, Ruby, Bundler, Rails, uv, Spec-Kit, Go, Rustup, Cargo, Bun, PNPM, PM2, n8n, AI CLI tools, and mise from Windows installation.
+- Removed PHP, Composer, Laravel Installer, Ruby, Bundler, Rails, uv, Spec-Kit, Go, Rustup, Cargo, Bun, PNPM, PM2, n8n, legacy AI CLI packages, and mise from Windows installation.
 
 ---
 

@@ -24,6 +24,7 @@ $script:WslVmCreatorId = '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'
 $script:WslFeatureStatePath = Join-Path $env:ProgramData 'SetupVibe\wsl-feature-state.json'
 $script:WslFirewallStatePath = Join-Path $env:ProgramData 'SetupVibe\wsl-firewall-inbound.txt'
 $script:RuntimePathStatePath = Join-Path $env:ProgramData 'SetupVibe\windows-runtime-paths.json'
+$script:AiCliPathStatePath = Join-Path $env:ProgramData 'SetupVibe\windows-ai-cli-paths.json'
 $script:SetupVibeUserDirectory = Join-Path $env:USERPROFILE '.setupvibe'
 $script:WindowsUtilitiesDirectory = Join-Path $script:SetupVibeUserDirectory 'bin'
 $script:WindowsUtilitiesStatePath = Join-Path $script:SetupVibeUserDirectory 'windows-utilities.json'
@@ -31,6 +32,7 @@ $script:WindowsUtilitiesStatePath = Join-Path $script:SetupVibeUserDirectory 'wi
 $script:WindowsUtilities = @(
     @{ Path = 'utils/windows/ssh_copy_id/ssh_copy_id.ps1'; Name = 'ssh_copy_id.ps1' }
     @{ Path = 'utils/windows/ssh_copy_id/ssh_copy_id.cmd'; Name = 'ssh_copy_id.cmd' }
+    @{ Path = 'utils/windows/ai_cli/codex.cmd'; Name = 'codex.cmd' }
 )
 $script:LegacyWindowsUtilityFiles = @('ssh_copy_id.bat')
 
@@ -82,7 +84,7 @@ $script:LegacyWinGetPackages = @(
     @{ Id = 'jdx.mise'; Name = 'mise' }
 )
 
-$script:LegacyNpmPackages = @('pnpm', 'pm2', '@n8n/cli', 'agentlytics', '@anthropic-ai/claude-code', '@openai/codex', '@githubnext/github-copilot-cli', 'npm')
+$script:LegacyNpmPackages = @('pnpm', 'pm2', '@n8n/cli', 'agentlytics', '@githubnext/github-copilot-cli', 'npm')
 
 function Write-Section {
     param([Parameter(Mandatory = $true)][string]$Message)
@@ -730,6 +732,21 @@ function Test-GitHubCli {
     Write-Success 'GitHub CLI is available as gh in the Windows PATH.'
 }
 
+function Test-WindowsTerminal {
+    Import-EnvironmentPath
+    $terminalPackage = Get-AppxPackage -Name 'Microsoft.WindowsTerminal' -ErrorAction SilentlyContinue
+    $terminalCommand = Get-Command 'wt.exe' -ErrorAction SilentlyContinue
+    $terminalAliasPath = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\wt.exe'
+
+    if (-not $terminalPackage) {
+        throw 'The Microsoft.WindowsTerminal AppX package was not found after WinGet installation.'
+    }
+    if (-not $terminalCommand -and -not (Test-Path $terminalAliasPath -PathType Leaf)) {
+        throw 'Windows Terminal is installed, but its wt.exe app execution alias is unavailable.'
+    }
+    Write-Success 'Windows Terminal is installed and available as wt without changing its default profile.'
+}
+
 function Find-Chocolatey {
     $chocoCommand = Get-Command 'choco.exe' -ErrorAction SilentlyContinue
     if ($chocoCommand) {
@@ -800,12 +817,50 @@ function Uninstall-ChocolateyPackage {
     Write-Success ("{0} is removed." -f $Name)
 }
 
-function Uninstall-PowerShellProfile {
+function Get-UserPowerShellProfilePaths {
     $documentsDirectory = [Environment]::GetFolderPath('MyDocuments')
-    $profilePaths = @(
+    return @(
+        (Join-Path $documentsDirectory 'WindowsPowerShell\profile.ps1')
         (Join-Path $documentsDirectory 'WindowsPowerShell\Microsoft.PowerShell_profile.ps1')
+        (Join-Path $documentsDirectory 'PowerShell\profile.ps1')
         (Join-Path $documentsDirectory 'PowerShell\Microsoft.PowerShell_profile.ps1')
     )
+}
+
+function Invoke-WithUserPowerShellProfilesPreserved {
+    param([Parameter(Mandatory = $true)][scriptblock]$Action)
+
+    $profileStates = @{}
+    foreach ($profilePath in Get-UserPowerShellProfilePaths) {
+        $profileStates[$profilePath] = if (Test-Path $profilePath -PathType Leaf) {
+            [Convert]::ToBase64String([IO.File]::ReadAllBytes($profilePath))
+        }
+        else {
+            $null
+        }
+    }
+
+    try {
+        & $Action
+    }
+    finally {
+        foreach ($profilePath in Get-UserPowerShellProfilePaths) {
+            $profileContent = $profileStates[$profilePath]
+            if ($null -eq $profileContent) {
+                Remove-Item -Path $profilePath -Force -ErrorAction SilentlyContinue
+                continue
+            }
+
+            $profileDirectory = Split-Path -Parent $profilePath
+            New-Item -Path $profileDirectory -ItemType Directory -Force | Out-Null
+            [IO.File]::WriteAllBytes($profilePath, [Convert]::FromBase64String($profileContent))
+        }
+    }
+    Write-Success 'The original Windows PowerShell and PowerShell 7 profile files were preserved.'
+}
+
+function Uninstall-PowerShellProfile {
+    $profilePaths = Get-UserPowerShellProfilePaths
     $profileMarker = '# SetupVibe shell initialization'
     $profileEndMarker = '# End SetupVibe shell initialization'
 
@@ -910,6 +965,63 @@ function Add-PathEntry {
         })
     $updatedPath = if ($Prepend) { @($Path) + $remainingEntries } else { $remainingEntries + $Path }
     [Environment]::SetEnvironmentVariable('Path', ($updatedPath -join ';'), $Scope)
+}
+
+function Test-PathEntry {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][ValidateSet('User', 'Machine')][string]$Scope
+    )
+
+    $normalizedPath = $Path.TrimEnd('\')
+    $currentPath = [Environment]::GetEnvironmentVariable('Path', $Scope)
+    return @($currentPath -split ';' | Where-Object {
+            $_ -and ([Environment]::ExpandEnvironmentVariables($_)).TrimEnd('\') -eq $normalizedPath
+        }).Count -gt 0
+}
+
+function Register-AiCliPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][bool]$WasPresent
+    )
+
+    $pathsAdded = @()
+    if (Test-Path $script:AiCliPathStatePath -PathType Leaf) {
+        try {
+            $state = Get-Content -Path $script:AiCliPathStatePath -Raw | ConvertFrom-Json
+            if ($state.PSObject.Properties['PathsAdded']) {
+                $pathsAdded = @($state.PathsAdded)
+            }
+        }
+        catch {
+            Write-WarningMessage ("Could not read the AI CLI PATH state: {0}" -f $_.Exception.Message)
+        }
+    }
+
+    if (-not $WasPresent -and $pathsAdded -notcontains $Path) {
+        $pathsAdded += $Path
+    }
+    @{ PathsAdded = @($pathsAdded) } | ConvertTo-Json | Set-Content -Path $script:AiCliPathStatePath -Encoding ASCII
+}
+
+function Uninstall-AiCliPaths {
+    if (Test-Path $script:AiCliPathStatePath -PathType Leaf) {
+        try {
+            $state = Get-Content -Path $script:AiCliPathStatePath -Raw | ConvertFrom-Json
+            foreach ($path in @($state.PathsAdded)) {
+                if (-not [string]::IsNullOrWhiteSpace([string]$path)) {
+                    Remove-PathEntry -Path ([string]$path) -Scope 'User'
+                }
+            }
+        }
+        catch {
+            Write-WarningMessage ("Could not restore the AI CLI PATH state: {0}" -f $_.Exception.Message)
+        }
+    }
+    Remove-Item -Path $script:AiCliPathStatePath -Force -ErrorAction SilentlyContinue
+    Import-EnvironmentPath
+    Write-Success 'SetupVibe-managed AI CLI user PATH entries were removed.'
 }
 
 function Assert-ValidAuthenticodeSignature {
@@ -1179,6 +1291,150 @@ function Uninstall-DevelopmentRuntimePaths {
     Write-Success 'SetupVibe-managed Python and Node.js machine PATH entries were removed.'
 }
 
+function Invoke-OfficialPowerShellInstaller {
+    param(
+        [Parameter(Mandatory = $true)][string]$Uri,
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter()][string[]]$ScriptArguments = @()
+    )
+
+    $installerUri = [Uri]$Uri
+    if ($installerUri.Scheme -ne 'https' -or $installerUri.Host -notin @('claude.ai', 'antigravity.google')) {
+        throw "Unsupported official installer URL for ${Name}: $Uri"
+    }
+
+    $installerPath = Join-Path ([IO.Path]::GetTempPath()) ("SetupVibe-{0}-{1}.ps1" -f ($Name -replace '[^A-Za-z0-9]', ''), ([Guid]::NewGuid().ToString('N')))
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        Write-Host ("[RUN] Downloading the official {0} installer from {1}..." -f $Name, $installerUri.Host)
+        Invoke-WebRequest -Uri $installerUri.AbsoluteUri -OutFile $installerPath -UseBasicParsing
+        if (-not (Test-Path $installerPath -PathType Leaf) -or (Get-Item $installerPath).Length -eq 0) {
+            throw "The official $Name installer was empty or missing."
+        }
+
+        $windowsPowerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+        $arguments = @('-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $installerPath) + $ScriptArguments
+        Invoke-NativeCommand -FilePath $windowsPowerShell -ArgumentList $arguments
+    }
+    finally {
+        Remove-Item -Path $installerPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Get-NpmCommandPath {
+    return Find-RuntimeExecutable -Name 'npm.cmd' -PreferredPaths @(
+        (Join-Path $env:ProgramFiles 'nodejs\npm.cmd')
+    )
+}
+
+function Install-ClaudeCode {
+    $npmPath = Get-NpmCommandPath
+    try {
+        Invoke-NativeCommand -FilePath $npmPath -ArgumentList @('uninstall', '--global', '@anthropic-ai/claude-code')
+    }
+    catch {
+        Write-WarningMessage ("Could not remove a legacy npm Claude Code installation: {0}" -f $_.Exception.Message)
+    }
+
+    $claudeDirectory = Join-Path $env:USERPROFILE '.local\bin'
+    $pathWasPresent = Test-PathEntry -Path $claudeDirectory -Scope 'User'
+    Invoke-WithUserPowerShellProfilesPreserved -Action {
+        Invoke-OfficialPowerShellInstaller -Uri 'https://claude.ai/install.ps1' -Name 'Claude Code' -ScriptArguments @('latest')
+    }
+    Add-PathEntry -Path $claudeDirectory -Scope 'User'
+    Register-AiCliPath -Path $claudeDirectory -WasPresent $pathWasPresent
+    Import-EnvironmentPath
+
+    $claudePath = Find-RuntimeExecutable -Name 'claude.exe' -PreferredPaths @(
+        (Join-Path $claudeDirectory 'claude.exe')
+    )
+    Invoke-NativeCommand -FilePath $claudePath -ArgumentList @('--version')
+    Write-Success 'Claude Code was installed with the official native Windows installer.'
+}
+
+function Install-CodexCli {
+    $npmPath = Get-NpmCommandPath
+    Invoke-NativeCommand -FilePath $npmPath -ArgumentList @('install', '--global', '@openai/codex@latest', '--no-audit', '--no-fund')
+
+    $prefixOutput = @(& $npmPath 'config' 'get' 'prefix')
+    if ($LASTEXITCODE -ne 0 -or $prefixOutput.Count -eq 0) {
+        throw 'npm did not return its global prefix after installing Codex CLI.'
+    }
+    $npmPrefix = ([string]$prefixOutput[0]).Trim()
+    $npmCodexPath = Join-Path $npmPrefix 'codex.cmd'
+    if (-not (Test-Path $npmCodexPath -PathType Leaf)) {
+        throw "The official Codex CLI npm shim was not found at $npmCodexPath."
+    }
+    Invoke-NativeCommand -FilePath $npmCodexPath -ArgumentList @('--version')
+
+    $codexLauncher = Join-Path $script:WindowsUtilitiesDirectory 'codex.cmd'
+    if (-not (Test-Path $codexLauncher -PathType Leaf)) {
+        throw "The SetupVibe Codex launcher was not found at $codexLauncher."
+    }
+    Import-EnvironmentPath
+    $resolvedCodexCommand = Get-Command 'codex' -ErrorAction SilentlyContinue
+    if (-not $resolvedCodexCommand -or [IO.Path]::GetFullPath($resolvedCodexCommand.Source) -ne [IO.Path]::GetFullPath($codexLauncher)) {
+        throw 'The codex command does not resolve to the SetupVibe CMD launcher before PowerShell npm shims.'
+    }
+    Invoke-NativeCommand -FilePath $resolvedCodexCommand.Source -ArgumentList @('--version')
+    Write-Success 'Codex CLI was installed from @openai/codex and is available through the execution-policy-safe codex.cmd launcher.'
+}
+
+function Install-AntigravityCli {
+    $antigravityDirectory = Join-Path $env:LOCALAPPDATA 'agy\bin'
+    $pathWasPresent = Test-PathEntry -Path $antigravityDirectory -Scope 'User'
+    Invoke-WithUserPowerShellProfilesPreserved -Action {
+        Invoke-OfficialPowerShellInstaller -Uri 'https://antigravity.google/cli/install.ps1' -Name 'Antigravity CLI' -ScriptArguments @('--skip-aliases', '--skip-path')
+    }
+    Add-PathEntry -Path $antigravityDirectory -Scope 'User'
+    Register-AiCliPath -Path $antigravityDirectory -WasPresent $pathWasPresent
+    Import-EnvironmentPath
+
+    $antigravityPath = Find-RuntimeExecutable -Name 'agy.exe' -PreferredPaths @(
+        (Join-Path $antigravityDirectory 'agy.exe')
+    )
+    if ((Get-Item $antigravityPath).Length -eq 0) {
+        throw "The official Antigravity CLI executable at $antigravityPath is empty."
+    }
+    Write-Success 'Antigravity CLI was installed as agy without modifying PowerShell profiles or aliases.'
+}
+
+function Uninstall-ClaudeCode {
+    Remove-Item -Path (Join-Path $env:USERPROFILE '.local\bin\claude.exe') -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path (Join-Path $env:USERPROFILE '.local\share\claude') -Recurse -Force -ErrorAction SilentlyContinue
+
+    $npmCommand = Get-Command 'npm.cmd' -ErrorAction SilentlyContinue
+    if ($npmCommand) {
+        try {
+            Invoke-NativeCommand -FilePath $npmCommand.Source -ArgumentList @('uninstall', '--global', '@anthropic-ai/claude-code')
+        }
+        catch {
+            Write-WarningMessage ("Could not remove a legacy npm Claude Code installation: {0}" -f $_.Exception.Message)
+        }
+    }
+    Write-Success 'Claude Code native and legacy npm installations were removed; user configuration was preserved.'
+}
+
+function Uninstall-CodexCli {
+    $npmCommand = Get-Command 'npm.cmd' -ErrorAction SilentlyContinue
+    if ($npmCommand) {
+        Invoke-NativeCommand -FilePath $npmCommand.Source -ArgumentList @('uninstall', '--global', '@openai/codex')
+    }
+    else {
+        Write-WarningMessage 'npm was not found; the Codex CLI package could not be removed.'
+    }
+    Write-Success 'The SetupVibe-managed Codex CLI npm package was removed.'
+}
+
+function Uninstall-AntigravityCli {
+    $antigravityDirectory = Join-Path $env:LOCALAPPDATA 'agy\bin'
+    Remove-Item -Path (Join-Path $antigravityDirectory 'agy.exe') -Force -ErrorAction SilentlyContinue
+    if ((Test-Path $antigravityDirectory) -and -not (Get-ChildItem -Path $antigravityDirectory -Force | Select-Object -First 1)) {
+        Remove-Item -Path $antigravityDirectory -Force
+    }
+    Write-Success 'Antigravity CLI was removed; user credentials and configuration were preserved.'
+}
+
 function Install-WindowsUtilities {
     New-Item -Path $script:WindowsUtilitiesDirectory -ItemType Directory -Force | Out-Null
     $installedFiles = New-Object System.Collections.Generic.List[string]
@@ -1247,7 +1503,7 @@ function Install-WindowsUtilities {
 
     $state = @{ Files = @($installedFiles) }
     $state | ConvertTo-Json | Set-Content -Path $script:WindowsUtilitiesStatePath -Encoding ASCII
-    Add-PathEntry -Path $script:WindowsUtilitiesDirectory -Scope 'User'
+    Add-PathEntry -Path $script:WindowsUtilitiesDirectory -Scope 'User' -Prepend
     Import-EnvironmentPath
 
     if ($failedUtilities.Count -gt 0) {
@@ -1356,8 +1612,12 @@ if ($Uninstall) {
     Write-Section 'Uninstall mode'
     Write-Host 'Removing all utilities and configurations managed by SetupVibe Windows.'
 
-    Invoke-SetupStep -Name 'Legacy ecosystem tools' -Action { Uninstall-LegacyEcosystemTools }
     Invoke-SetupStep -Name 'Legacy SetupVibe PowerShell profile blocks' -Action { Uninstall-PowerShellProfile }
+    Invoke-SetupStep -Name 'Claude Code' -Action { Uninstall-ClaudeCode }
+    Invoke-SetupStep -Name 'Codex CLI' -Action { Uninstall-CodexCli }
+    Invoke-SetupStep -Name 'Antigravity CLI' -Action { Uninstall-AntigravityCli }
+    Invoke-SetupStep -Name 'AI CLI PATH entries' -Action { Uninstall-AiCliPaths }
+    Invoke-SetupStep -Name 'Legacy ecosystem tools' -Action { Uninstall-LegacyEcosystemTools }
     Invoke-SetupStep -Name 'Node.js LTS official MSI' -Action { Uninstall-NodeJs }
     Invoke-SetupStep -Name 'Python 3.14 official installer' -Action { Uninstall-Python }
     Invoke-SetupStep -Name 'Python and Node.js machine PATH' -Action { Uninstall-DevelopmentRuntimePaths }
@@ -1411,8 +1671,12 @@ else {
             }
         }
         Invoke-SetupStep -Name 'GitHub CLI command (gh)' -Action { Test-GitHubCli }
+        Invoke-SetupStep -Name 'Windows Terminal command (wt)' -Action { Test-WindowsTerminal }
     }
     Invoke-SetupStep -Name 'Python and Node.js PATH for Claude and Codex' -Action { Install-DevelopmentRuntimePaths }
+    Invoke-SetupStep -Name 'Claude Code native CLI' -Action { Install-ClaudeCode }
+    Invoke-SetupStep -Name 'Codex CLI' -Action { Install-CodexCli }
+    Invoke-SetupStep -Name 'Antigravity CLI (agy)' -Action { Install-AntigravityCli }
 
     if ($script:ChocolateyPath) {
         foreach ($package in $script:ChocolateyPackages) {
@@ -1438,7 +1702,7 @@ if ($Uninstall) {
     Write-Success 'SetupVibe-managed Windows utilities and configurations were removed.'
 }
 else {
-    Write-Success 'The native Windows utility environment with Python and Node.js is configured.'
+    Write-Success 'The native Windows utility environment with Python, Node.js, Claude Code, Codex CLI, and Antigravity CLI is configured.'
 }
 
 if ($script:RestartRequired) {

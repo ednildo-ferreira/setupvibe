@@ -2,7 +2,7 @@
 
 > Configuration des utilitaires Windows natifs — v0.41.6
 
-L'Édition Windows (Beta) configure des utilitaires Windows natifs, Python et Node.js, avec WinGet comme source principale et Chocolatey pour les paquets indisponibles via WinGet.
+L'Édition Windows (Beta) configure des utilitaires Windows natifs, Python, Node.js et une sélection de CLI d'IA, avec WinGet comme source principale et Chocolatey pour les paquets indisponibles via WinGet.
 
 ## Prérequis
 
@@ -18,6 +18,7 @@ L'Édition Windows (Beta) configure des utilitaires Windows natifs, Python et No
 - WinGet via le processus officiel de réparation `Microsoft.WinGet.Client` s'il est absent
 - Chocolatey via son script d'amorçage officiel s'il est absent
 - Python 3.14 directement via l'installateur officiel de `python.org` et Node.js LTS directement via le MSI officiel de `nodejs.org`, avec `python`, `pip`, `node`, `npm` et `npx` dans le `PATH` de la machine pour Claude et Codex
+- Claude Code via l'installateur Windows natif officiel d'Anthropic, Codex CLI via le paquet npm officiel `@openai/codex` et Google Antigravity CLI sous la commande `agy` via son installateur natif officiel
 - Système WSL de base sans distribution Linux, avec WSL 2 par défaut
 - Réseau WSL en mode miroir avec accès VPN/LAN, tunneling DNS, intégration du proxy Windows, trafic entrant autorisé dans le pare-feu Hyper-V, récupération automatique de la mémoire et disques virtuels épars
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick et GitHub CLI (`gh`)
@@ -29,7 +30,7 @@ Le programme d'installation est idempotent : les paquets WinGet installés sont 
 
 Les profils d'origine de Windows PowerShell et PowerShell 7, ainsi que leurs stratégies d'exécution persistantes, sont conservés. Starship et ZSH ne sont pas installés ; zoxide reste disponible uniquement comme utilitaire CLI, sans initialisation automatique.
 
-Python et Node.js sont les seuls runtimes de programmation installés par ce script. Il n'installe aucune distribution Linux, aucun framework, gestionnaire de runtime, outil CLI d'IA ou autre écosystème de langage. Après avoir installé une distribution séparément, utilisez `desktop.sh` dans celle-ci pour configurer un environnement de développement complet.
+Python et Node.js sont les seuls runtimes de programmation installés par ce script. Claude Code, Codex CLI et Antigravity CLI sont ses seuls CLI d'IA. Il n'installe aucune distribution Linux, aucun framework, gestionnaire de runtime, autre CLI d'IA ou autre écosystème de langage. Après avoir installé une distribution séparément, utilisez `desktop.sh` dans celle-ci pour configurer un environnement de développement complet.
 
 Si `%USERPROFILE%\.wslconfig` existe déjà, SetupVibe le sauvegarde avant d'appliquer les paramètres de développement par défaut. `-Uninstall` restaure cette sauvegarde ainsi que les états précédents des fonctionnalités et du pare-feu WSL.
 
@@ -89,9 +90,10 @@ Pendant l'exécution, le programme :
 8. Applique à WSL le réseau en mode miroir, l'accès VPN/LAN, le DNS, le proxy, le pare-feu, la récupération de mémoire et les disques VHD épars.
 9. Installe WinGet et Chocolatey si nécessaire.
 10. Télécharge Python 3.14 depuis `python.org` et Node.js LTS depuis `nodejs.org` sans WinGet ni Chocolatey, valide leurs signatures Authenticode et le SHA-256 officiel de Node.js, place leurs répertoires au début du `PATH` de la machine et valide leurs commandes pour Claude et Codex.
-11. Installe chaque utilitaire Windows restant indépendamment et continue après les échecs isolés.
-12. Supprime les anciens blocs Starship et zoxide ainsi que Starship lui-même installés par les versions Beta précédentes, et conserve le profil et la stratégie d'exécution PowerShell d'origine.
-13. Affiche un résumé final et l'emplacement du journal complet.
+11. Installe chaque utilitaire Windows restant indépendamment, valide `gh.exe` et l'alias `wt.exe` de Windows Terminal et continue après les échecs isolés.
+12. Installe et valide Claude Code, Codex CLI et Antigravity CLI depuis leurs sources officielles tout en préservant tous les fichiers de profil PowerShell de l'utilisateur.
+13. Supprime les anciens blocs Starship et zoxide ainsi que Starship lui-même installés par les versions Beta précédentes, et conserve le profil et la stratégie d'exécution PowerShell d'origine.
+14. Affiche un résumé final et l'emplacement du journal complet.
 
 Le processus peut prendre du temps, car les gestionnaires de paquets téléchargent et installent chaque utilitaire séparément.
 
@@ -99,9 +101,9 @@ Le processus peut prendre du temps, car les gestionnaires de paquets télécharg
 
 1. Redémarrez Windows lorsque cela est demandé pour terminer les modifications de composants ou de paquets en attente.
 2. Ouvrez Windows Terminal ou PowerShell 7 pour charger le nouveau `PATH`.
-3. Effectuez les authentifications initiales requises par GitHub CLI ou Tailscale.
+3. Effectuez les authentifications initiales requises par GitHub CLI, Tailscale, Claude Code, Codex CLI ou Antigravity CLI.
 
-Les scripts auxiliaires SetupVibe sont stockés dans `%USERPROFILE%\.setupvibe\bin`. Le noyau `ssh_copy_id.ps1` et son lanceur minimal `ssh_copy_id.cmd` peuvent être lancés avec `ssh_copy_id` depuis toute nouvelle session PowerShell, Windows Terminal ou Invite de commandes.
+Les scripts auxiliaires SetupVibe sont stockés dans `%USERPROFILE%\.setupvibe\bin`. Le noyau `ssh_copy_id.ps1` et son lanceur minimal `ssh_copy_id.cmd` peuvent être lancés avec `ssh_copy_id` ; le lanceur géré `codex.cmd` maintient Codex CLI utilisable avec une stratégie d'exécution PowerShell restreinte. Les deux commandes fonctionnent depuis une nouvelle session PowerShell, Windows Terminal ou Invite de commandes.
 
 Vérifiez les principaux composants dans un nouveau terminal :
 
@@ -110,6 +112,7 @@ winget --version
 choco --version
 git --version
 gh --version
+Get-Command wt
 rg --version
 fzf --version
 pwsh --version
@@ -118,6 +121,9 @@ pip --version
 node --version
 npm --version
 npx --version
+claude --version
+codex --version
+Get-Command agy
 Get-Command ssh_copy_id
 wsl --status
 wsl --list --verbose
@@ -173,7 +179,7 @@ Ou exécutez le programme de désinstallation depuis la branche `windows` :
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
 ```
 
-Le mode de désinstallation supprime le client et le serveur OpenSSH, Python et Node.js via leurs programmes de désinstallation officiels, les fichiers gérés par SetupVibe dans `%USERPROFILE%\.setupvibe\bin` et leur entrée dans le `PATH` utilisateur, restaure les états précédents des fonctionnalités facultatives et du pare-feu WSL, supprime la configuration WSL appliquée par SetupVibe, supprime tous les utilitaires WinGet et Chocolatey gérés par SetupVibe et supprime les entrées des runtimes du `PATH` de la machine ainsi que les anciens blocs Starship et zoxide créés par SetupVibe. Il supprime également les anciens outils de frameworks, les chemins des gestionnaires de runtimes et les paquets npm installés par les versions Beta Windows précédentes. Les distributions Linux existantes ne sont pas supprimées. WinGet, Chocolatey, les journaux et les fichiers sans rapport dans `%USERPROFILE%\.setupvibe` sont conservés.
+Le mode de désinstallation supprime le client et le serveur OpenSSH, Python et Node.js via leurs programmes de désinstallation officiels, Claude Code, Codex CLI, Antigravity CLI, les fichiers gérés par SetupVibe dans `%USERPROFILE%\.setupvibe\bin` et leurs entrées dans le `PATH` utilisateur, restaure les états précédents des fonctionnalités facultatives et du pare-feu WSL, supprime la configuration WSL appliquée par SetupVibe, supprime tous les utilitaires WinGet et Chocolatey gérés par SetupVibe et supprime les entrées des runtimes du `PATH` de la machine ainsi que les anciens blocs Starship et zoxide créés par SetupVibe. Il supprime également les anciens outils de frameworks, les chemins des gestionnaires de runtimes et les paquets npm installés par les versions Beta Windows précédentes. Les distributions Linux existantes ne sont pas supprimées. Les configurations et identifiants utilisateur des CLI d'IA, WinGet, Chocolatey, les journaux et les fichiers sans rapport dans `%USERPROFILE%\.setupvibe` sont conservés.
 
 **Avertissement de désinstallation :** la version Beta actuelle ne détermine pas si le client et le serveur OpenSSH ou un paquet géré existaient avant SetupVibe. Par conséquent, `-Uninstall` supprime le produit MSI OpenSSH et tous les paquets de ses listes gérées, y compris les composants qui ont pu être installés séparément avant SetupVibe.
 
@@ -184,5 +190,5 @@ Associez `-Uninstall` à `-Restart` pour redémarrer automatiquement lorsque Win
 - Windows 10, Windows Server, les builds de Windows 11 antérieures à 22621, Windows 32 bits et Windows sur ARM sont refusés ; seul x64 est pris en charge.
 - WSL est installé et configuré pour WSL 2, le réseau en mode miroir via VPN/LAN et les optimisations de développement courantes, mais aucune distribution Linux n'est installée.
 - Starship et ZSH ne sont pas installés, les profils PowerShell ne sont pas personnalisés et aucune modification persistante de la stratégie d'exécution n'est effectuée ; zoxide reste uniquement disponible comme utilitaire CLI.
-- Python 3.14 et Node.js LTS sont installés pour l'automatisation locale, Claude et Codex ; aucun autre langage de programmation, framework, gestionnaire de runtime ou outil CLI d'IA n'est installé.
+- Python 3.14 et Node.js LTS sont installés pour l'automatisation locale ; Claude Code, Codex CLI et Antigravity CLI sont les seuls CLI d'IA installés. Les autres langages de programmation, frameworks, gestionnaires de runtimes et CLI d'IA sont exclus.
 - Docker Desktop et un moteur Docker local ne sont pas installés.
