@@ -7,27 +7,27 @@ The Windows Edition (Beta) configures native Windows utilities plus Python and N
 ## Requirements
 
 - Windows 11 version 22H2 (build 22621) or later
-- A 64-bit Windows desktop edition; Windows 10 and Windows Server are not supported
+- An x64 (AMD64) Windows desktop edition; 32-bit Windows, Windows on ARM, Windows 10, and Windows Server are not supported
 - Windows PowerShell 5.1 or later
 - An administrator account
 - Internet access
 
 ## What It Installs
 
-- Latest official Microsoft Win32-OpenSSH Client and Server from the official MSI
+- Latest official Microsoft Win32-OpenSSH Client and Server from the signed x64 Win64 MSI
 - WinGet through the official `Microsoft.WinGet.Client` repair workflow when missing
 - Chocolatey through its official bootstrap script when missing
 - Python 3.14 directly from the official `python.org` installer and Node.js LTS directly from the official `nodejs.org` MSI, with `python`, `pip`, `node`, `npm`, and `npx` in the machine `PATH` for Claude and Codex
 - WSL base without a Linux distribution, with WSL 2 as the default
 - Mirrored WSL networking with VPN/LAN access, DNS tunneling, Windows proxy integration, Hyper-V firewall inbound access, automatic memory reclaim, and sparse virtual disks
-- Git, 7-Zip, Wget, FFmpeg, ImageMagick, and GitHub CLI
+- Git, 7-Zip, Wget, FFmpeg, ImageMagick, and GitHub CLI (`gh`)
 - bat, eza, zoxide, fzf, ripgrep, fd, lazygit, Neovim, Glow, tldr, Fastfetch, duf, and jq
 - Nmap, Speedtest CLI, Tailscale, gping, btop4win, trippy, and RustScan
-- PowerShell 7, Windows Terminal, Starship, FiraCode Nerd Font, and JetBrains Mono Nerd Font
+- PowerShell 7, Windows Terminal, FiraCode Nerd Font, and JetBrains Mono Nerd Font
 
 The installer is idempotent: installed WinGet packages are detected and skipped, Chocolatey safely ensures its packages are present, and the official Python and Node.js installers are reapplied safely. Failures are recorded per package so remaining installations can continue. A transcript is saved under `C:\ProgramData\SetupVibe\Logs`.
 
-Starship and zoxide are initialized in both Windows PowerShell and PowerShell 7 profiles.
+Windows PowerShell and PowerShell 7 profiles remain original. Starship and ZSH are not installed, the execution policy is not changed, and zoxide remains an uninitialized CLI utility.
 
 Python and Node.js are the only programming runtimes installed by this script. It does not install a Linux distribution, frameworks, runtime managers, AI CLI tools, or other language ecosystems. After installing a distribution separately, use `desktop.sh` inside it to configure a complete development environment.
 
@@ -79,18 +79,18 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1
 
 During execution, the installer:
 
-1. Validates Windows 11 22H2 or later and the 64-bit architecture.
+1. Validates Windows 11 22H2 or later and the x64 architecture.
 2. Requests administrator privileges through UAC.
 3. Lists competing installer processes and asks whether to stop them. If accepted, it tries normally, forces those that remain, and runs `sfc.exe /scannow`; if declined, it waits for ENTER and exits.
 4. Rejects pending restarts, starts required services, runs `sfc.exe /scannow` if it has not already run, checks WSUS policy, and validates the Windows component store.
-5. Force-installs the latest official Microsoft Win32-OpenSSH Client and Server from the official MSI, configures the machine `PATH`, verifies `ssh.exe -V`, starts `sshd` automatically, and enables inbound TCP/22.
+5. Resolves the latest official x64 Microsoft Win32-OpenSSH MSI without the GitHub releases API, validates its signature, force-installs Client and Server, configures the machine `PATH`, verifies `ssh.exe -V`, starts `sshd` automatically, and enables inbound TCP/22.
 6. Copies SetupVibe Windows helper scripts to `%USERPROFILE%\.setupvibe\bin` and adds that directory to the user `PATH`.
 7. Installs the WSL base without a Linux distribution and makes WSL 2 the default.
 8. Applies mirrored networking, VPN/LAN access, DNS, proxy, firewall, memory reclaim, and sparse VHD settings to WSL.
 9. Installs WinGet and Chocolatey when needed.
 10. Downloads Python 3.14 from `python.org` and Node.js LTS from `nodejs.org` without WinGet or Chocolatey, validates their Authenticode signatures and the official Node.js SHA-256, prepends their directories to the machine `PATH`, and verifies their commands for Claude and Codex.
 11. Installs each remaining Windows utility independently and continues after isolated package failures.
-12. Configures Starship and zoxide for Windows PowerShell and PowerShell 7.
+12. Removes legacy SetupVibe Starship/zoxide profile blocks and Starship itself, preserving the original Windows PowerShell profiles and execution policy.
 13. Displays a final summary and the transcript log location.
 
 The process can take a while because package managers download and install each utility independently.
@@ -98,7 +98,7 @@ The process can take a while because package managers download and install each 
 ## After Installation
 
 1. Restart Windows when requested so pending component or package changes can finish.
-2. Open Windows Terminal or PowerShell 7 so the refreshed `PATH`, Starship, and zoxide initialization are loaded.
+2. Open Windows Terminal or PowerShell 7 so the refreshed `PATH` is loaded.
 3. Complete any first-run authentication required by GitHub CLI or Tailscale.
 
 SetupVibe helper scripts are stored in `%USERPROFILE%\.setupvibe\bin`. The `ssh_copy_id.ps1` core and its minimal `ssh_copy_id.cmd` launcher can be started as `ssh_copy_id` from any new PowerShell, Windows Terminal, or Command Prompt session.
@@ -109,6 +109,7 @@ Verify the main components in a new terminal:
 winget --version
 choco --version
 git --version
+gh --version
 rg --version
 fzf --version
 pwsh --version
@@ -146,7 +147,7 @@ System File Checker details are recorded in `C:\Windows\Logs\CBS\CBS.log`.
 
 If a process remains active after normal and forced termination attempts, SetupVibe completes the SFC verification, waits for ENTER, and exits with a recommendation to restart the PC.
 
-OpenSSH does not use Windows Features on Demand. SetupVibe downloads the latest official Microsoft MSI, installs `ADDLOCAL=Client,Server`, force-repairs installed files, prepends the installation directory to the machine `PATH`, sets `sshd` to automatic startup, starts it, enables the `OpenSSH-Server-In-TCP` firewall rule for inbound TCP/22, and records `openssh-client-msi-*.log` and `openssh-client-repair-*.log` under `C:\ProgramData\SetupVibe\Logs`.
+OpenSSH does not use Windows Features on Demand or the GitHub releases API. SetupVibe resolves the official `releases/latest` page and its expanded assets, accepts only the x64 `OpenSSH-Win64-*.msi`, validates its Authenticode signature, installs `ADDLOCAL=Client,Server`, force-repairs installed files, prepends the installation directory to the machine `PATH`, sets `sshd` to automatic startup, starts it, enables the `OpenSSH-Server-In-TCP` firewall rule for inbound TCP/22, and records `openssh-client-msi-*.log` and `openssh-client-repair-*.log` under `C:\ProgramData\SetupVibe\Logs`.
 
 ## Options
 
@@ -172,7 +173,7 @@ Or run the uninstaller from the `windows` branch:
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
 ```
 
-The uninstall mode removes OpenSSH Client and Server, Python and Node.js through their official uninstallers, the SetupVibe-managed files from `%USERPROFILE%\.setupvibe\bin` and their user `PATH` entry, restores the previous WSL optional-feature and firewall states, removes the SetupVibe WSL configuration, removes every WinGet and Chocolatey utility managed by SetupVibe, and removes the runtime machine `PATH` entries and the Starship and zoxide configuration. It also removes legacy framework tools, runtime-manager paths, and npm packages installed by earlier Windows Beta versions. Existing Linux distributions are not deleted. WinGet, Chocolatey, transcript logs, and unrelated files under `%USERPROFILE%\.setupvibe` are preserved.
+The uninstall mode removes OpenSSH Client and Server, Python and Node.js through their official uninstallers, the SetupVibe-managed files from `%USERPROFILE%\.setupvibe\bin` and their user `PATH` entry, restores the previous WSL optional-feature and firewall states, removes the SetupVibe WSL configuration, removes every WinGet and Chocolatey utility managed by SetupVibe, and removes the runtime machine `PATH` entries and legacy SetupVibe Starship/zoxide profile configuration. It also removes legacy framework tools, runtime-manager paths, and npm packages installed by earlier Windows Beta versions. Existing Linux distributions are not deleted. WinGet, Chocolatey, transcript logs, and unrelated files under `%USERPROFILE%\.setupvibe` are preserved.
 
 **Uninstall warning:** the current Beta does not track whether OpenSSH Client and Server or a managed package existed before SetupVibe. `-Uninstall` therefore removes the OpenSSH MSI product and every package in its managed lists, including components that may have been installed separately before SetupVibe.
 
@@ -180,7 +181,8 @@ Combine `-Uninstall` with `-Restart` to restart automatically when Windows repor
 
 ## Scope and Limitations
 
-- Windows 10, Windows Server, Windows 11 builds older than 22621, and 32-bit Windows are rejected during preflight checks.
+- Windows 10, Windows Server, Windows 11 builds older than 22621, 32-bit Windows, and Windows on ARM are rejected; only x64 is supported.
 - WSL is installed and configured for WSL 2, mirrored VPN/LAN networking, and common development optimizations, but no Linux distribution is installed.
 - Python 3.14 and Node.js LTS are installed for local automation, Claude, and Codex; other programming languages, frameworks, runtime managers, and AI CLI tools are not installed.
+- Starship and ZSH are not installed on Windows, PowerShell profiles are not customized, and the persistent execution policy is not changed.
 - Docker Desktop and a local Docker engine are not installed.

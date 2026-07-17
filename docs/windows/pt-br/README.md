@@ -7,27 +7,27 @@ A Edição Windows (Beta) configura utilitários nativos do Windows, Python e No
 ## Requisitos
 
 - Windows 11 versão 22H2 (build 22621) ou posterior
-- Uma edição desktop de 64 bits do Windows; não há suporte para Windows 10 nem Windows Server
+- Uma edição desktop x64 (AMD64) do Windows; não há suporte para Windows de 32 bits, Windows em ARM, Windows 10 nem Windows Server
 - Windows PowerShell 5.1 ou posterior
 - Uma conta de administrador
 - Acesso à internet
 
 ## O Que É Instalado
 
-- Cliente e Servidor Microsoft Win32-OpenSSH oficiais mais recentes pelo MSI oficial
+- Cliente e Servidor Microsoft Win32-OpenSSH oficiais mais recentes pelo MSI Win64 x64 assinado
 - WinGet pelo fluxo oficial de reparo `Microsoft.WinGet.Client`, quando ausente
 - Chocolatey pelo script oficial de bootstrap, quando ausente
 - Python 3.14 diretamente pelo instalador oficial do `python.org` e Node.js LTS diretamente pelo MSI oficial do `nodejs.org`, com `python`, `pip`, `node`, `npm` e `npx` no `PATH` da máquina para Claude e Codex
 - Sistema base do WSL sem uma distribuição Linux, com WSL 2 como padrão
 - Rede espelhada do WSL com acesso por VPN/LAN, tunelamento de DNS, integração com o proxy do Windows, entrada liberada no firewall Hyper-V, recuperação automática de memória e discos virtuais esparsos
-- Git, 7-Zip, Wget, FFmpeg, ImageMagick e GitHub CLI
+- Git, 7-Zip, Wget, FFmpeg, ImageMagick e GitHub CLI (`gh`)
 - bat, eza, zoxide, fzf, ripgrep, fd, lazygit, Neovim, Glow, tldr, Fastfetch, duf e jq
 - Nmap, Speedtest CLI, Tailscale, gping, btop4win, trippy e RustScan
-- PowerShell 7, Windows Terminal, Starship, FiraCode Nerd Font e JetBrains Mono Nerd Font
+- PowerShell 7, Windows Terminal, FiraCode Nerd Font e JetBrains Mono Nerd Font
 
 O instalador é idempotente: pacotes WinGet instalados são detectados e ignorados, o Chocolatey garante seus pacotes com segurança e os instaladores oficiais do Python e Node.js são reaplicados com segurança. Falhas são registradas por pacote para que as demais instalações continuem. Um log completo é salvo em `C:\ProgramData\SetupVibe\Logs`.
 
-Starship e zoxide são inicializados nos perfis do Windows PowerShell e do PowerShell 7.
+Os perfis do Windows PowerShell e PowerShell 7 permanecem originais. Starship e ZSH não são instalados, a política de execução não é alterada e o zoxide permanece somente como utilitário CLI sem inicialização automática.
 
 Python e Node.js são os únicos runtimes de programação instalados por este script. Ele não instala uma distribuição Linux, frameworks, gerenciadores de runtime, ferramentas CLI de IA nem outros ecossistemas de linguagens. Depois de instalar uma distribuição separadamente, use o `desktop.sh` dentro dela para configurar um ambiente completo de desenvolvimento.
 
@@ -79,18 +79,18 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1
 
 Durante a execução, o instalador:
 
-1. Valida o Windows 11 22H2 ou posterior e a arquitetura de 64 bits.
+1. Valida o Windows 11 22H2 ou posterior e a arquitetura x64.
 2. Solicita privilégios de administrador pelo UAC.
 3. Lista processos de instalação concorrentes e pergunta se deve encerrá-los. Se aceito, tenta normalmente, força os que permanecerem e executa `sfc.exe /scannow`; se recusado, aguarda ENTER e encerra.
 4. Recusa reinicializações pendentes, inicia os serviços necessários, executa `sfc.exe /scannow` caso ainda não tenha sido executado, verifica a política WSUS e valida o armazenamento de componentes do Windows.
-5. Instala à força o Cliente e o Servidor Microsoft Win32-OpenSSH oficiais mais recentes pelo MSI oficial, configura o `PATH` da máquina, valida `ssh.exe -V`, inicia `sshd` automaticamente e libera a entrada TCP/22.
+5. Resolve o MSI x64 oficial mais recente do Microsoft Win32-OpenSSH sem usar a API de releases do GitHub, valida sua assinatura, instala Cliente e Servidor à força, configura o `PATH` da máquina, valida `ssh.exe -V`, inicia `sshd` automaticamente e libera a entrada TCP/22.
 6. Copia os scripts auxiliares Windows do SetupVibe para `%USERPROFILE%\.setupvibe\bin` e adiciona esse diretório ao `PATH` do usuário.
 7. Instala o sistema base do WSL sem uma distribuição Linux e torna o WSL 2 o padrão.
 8. Aplica ao WSL rede espelhada, acesso por VPN/LAN, DNS, proxy, firewall, recuperação de memória e discos VHD esparsos.
 9. Instala WinGet e Chocolatey quando necessário.
 10. Baixa Python 3.14 do `python.org` e Node.js LTS do `nodejs.org` sem WinGet ou Chocolatey, valida suas assinaturas Authenticode e o SHA-256 oficial do Node.js, coloca seus diretórios no início do `PATH` da máquina e valida os comandos para Claude e Codex.
 11. Instala cada utilitário restante do Windows de forma independente e continua após falhas isoladas.
-12. Configura Starship e zoxide no Windows PowerShell e no PowerShell 7.
+12. Remove blocos legados do Starship/zoxide e o próprio Starship instalados pelo SetupVibe, preservando os perfis e a política de execução originais do Windows PowerShell.
 13. Exibe um resumo final e o local do log completo.
 
 O processo pode demorar porque os gerenciadores de pacotes baixam e instalam cada utilitário separadamente.
@@ -98,7 +98,7 @@ O processo pode demorar porque os gerenciadores de pacotes baixam e instalam cad
 ## Depois da Instalação
 
 1. Reinicie o Windows quando solicitado para concluir alterações pendentes de componentes ou pacotes.
-2. Abra o Windows Terminal ou PowerShell 7 para carregar o novo `PATH`, Starship e zoxide.
+2. Abra o Windows Terminal ou PowerShell 7 para carregar o novo `PATH`.
 3. Conclua as autenticações iniciais exigidas pelo GitHub CLI ou Tailscale.
 
 Os scripts auxiliares do SetupVibe ficam em `%USERPROFILE%\.setupvibe\bin`. O núcleo `ssh_copy_id.ps1` e seu lançador mínimo `ssh_copy_id.cmd` podem ser iniciados como `ssh_copy_id` em qualquer nova sessão do PowerShell, Windows Terminal ou Prompt de Comando.
@@ -109,6 +109,7 @@ Verifique os principais componentes em um novo terminal:
 winget --version
 choco --version
 git --version
+gh --version
 rg --version
 fzf --version
 pwsh --version
@@ -146,7 +147,7 @@ Os detalhes do Verificador de Arquivos do Sistema são registrados em `C:\Window
 
 Se um processo permanecer ativo depois das tentativas de encerramento normal e forçado, o SetupVibe conclui a verificação do SFC, aguarda ENTER e encerra recomendando reiniciar o PC.
 
-O OpenSSH não usa os Recursos sob Demanda do Windows. O SetupVibe baixa o MSI oficial mais recente da Microsoft, instala `ADDLOCAL=Client,Server`, força o reparo dos arquivos instalados, coloca o diretório de instalação no início do `PATH` da máquina, configura `sshd` para inicialização automática, inicia o serviço, habilita a regra de firewall `OpenSSH-Server-In-TCP` para entrada TCP/22 e registra `openssh-client-msi-*.log` e `openssh-client-repair-*.log` em `C:\ProgramData\SetupVibe\Logs`.
+O OpenSSH não usa os Recursos sob Demanda do Windows nem a API de releases do GitHub. O SetupVibe resolve a página oficial `releases/latest` e seus assets expandidos, aceita somente o MSI x64 `OpenSSH-Win64-*.msi`, valida sua assinatura Authenticode, instala `ADDLOCAL=Client,Server`, força o reparo dos arquivos instalados, coloca o diretório de instalação no início do `PATH` da máquina, configura `sshd` para inicialização automática, inicia o serviço, habilita a regra de firewall `OpenSSH-Server-In-TCP` para entrada TCP/22 e registra `openssh-client-msi-*.log` e `openssh-client-repair-*.log` em `C:\ProgramData\SetupVibe\Logs`.
 
 ## Opções
 
@@ -172,7 +173,7 @@ Ou execute o desinstalador pela branch `windows`:
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
 ```
 
-O modo de desinstalação remove o Cliente e o Servidor OpenSSH, Python e Node.js por seus desinstaladores oficiais, os arquivos gerenciados pelo SetupVibe em `%USERPROFILE%\.setupvibe\bin` e a entrada correspondente do `PATH` do usuário, restaura os estados anteriores dos recursos opcionais e do firewall do WSL, remove a configuração do WSL aplicada pelo SetupVibe, remove todos os utilitários WinGet e Chocolatey gerenciados pelo SetupVibe e remove as entradas dos runtimes no `PATH` da máquina e a configuração do Starship e zoxide. Ele também remove ferramentas de frameworks, caminhos de gerenciadores de runtime e pacotes npm legados instalados por versões Beta anteriores do Windows. Distribuições Linux existentes não são apagadas. WinGet, Chocolatey, logs e arquivos não relacionados dentro de `%USERPROFILE%\.setupvibe` são preservados.
+O modo de desinstalação remove o Cliente e o Servidor OpenSSH, Python e Node.js por seus desinstaladores oficiais, os arquivos gerenciados pelo SetupVibe em `%USERPROFILE%\.setupvibe\bin` e a entrada correspondente do `PATH` do usuário, restaura os estados anteriores dos recursos opcionais e do firewall do WSL, remove a configuração do WSL aplicada pelo SetupVibe, remove todos os utilitários WinGet e Chocolatey gerenciados pelo SetupVibe e remove as entradas dos runtimes no `PATH` da máquina e configurações legadas do perfil Starship/zoxide criadas pelo SetupVibe. Ele também remove ferramentas de frameworks, caminhos de gerenciadores de runtime e pacotes npm legados instalados por versões Beta anteriores do Windows. Distribuições Linux existentes não são apagadas. WinGet, Chocolatey, logs e arquivos não relacionados dentro de `%USERPROFILE%\.setupvibe` são preservados.
 
 **Aviso sobre a desinstalação:** a versão Beta atual não registra se o Cliente e o Servidor OpenSSH ou um pacote gerenciado já existiam antes do SetupVibe. Portanto, `-Uninstall` remove o produto MSI do OpenSSH e todos os pacotes de suas listas gerenciadas, inclusive componentes que possam ter sido instalados separadamente antes do SetupVibe.
 
@@ -180,7 +181,8 @@ Combine `-Uninstall` com `-Restart` para reiniciar automaticamente quando o Wind
 
 ## Escopo e Limitações
 
-- Windows 10, Windows Server, builds do Windows 11 anteriores a 22621 e versões de 32 bits do Windows são recusados durante as verificações iniciais.
+- Windows 10, Windows Server, builds do Windows 11 anteriores a 22621, Windows de 32 bits e Windows em ARM são recusados; somente x64 é compatível.
 - O WSL é instalado e configurado para WSL 2, rede espelhada por VPN/LAN e otimizações comuns de desenvolvimento, mas nenhuma distribuição Linux é instalada.
 - Python 3.14 e Node.js LTS são instalados para automações locais, Claude e Codex; outras linguagens de programação, frameworks, gerenciadores de runtime e ferramentas CLI de IA não são instalados.
+- Starship e ZSH não são instalados no Windows, os perfis do PowerShell não são personalizados e a política de execução persistente não é alterada.
 - O Docker Desktop e um mecanismo Docker local não são instalados.

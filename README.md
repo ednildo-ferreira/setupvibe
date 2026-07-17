@@ -8,9 +8,9 @@ Installs and configures a development environment in one command, supporting Win
 
 - **Administrator Setup:** Requests standard UAC elevation on Windows without changing the UAC policy; uses `sudo` only where required on macOS and Linux.
 - **Safe Windows Servicing:** Asks before stopping competing installers, tries a normal stop before forcing remaining processes, runs `sfc.exe /scannow` afterward, rejects pending restarts, and validates the component store.
-- **Reliable OpenSSH Installation:** Force-installs the client and server from Microsoft's latest official Win32-OpenSSH MSI, configures `sshd` and TCP/22, and operates independently of DISM, Features on Demand, WSUS, or Windows Update.
+- **Reliable OpenSSH Installation:** Resolves the latest official x64 Win32-OpenSSH MSI directly from its GitHub release page without the releases API, force-installs the client and server, and configures `sshd` and TCP/22 independently of DISM, Features on Demand, WSUS, or Windows Update.
 - **Native Package Management:** Uses WinGet and Chocolatey on Windows, with Homebrew or APT on Unix systems.
-- **Modern Shell:** PowerShell 7 + Starship + zoxide on Windows, and ZSH + Oh My Zsh + Starship on Unix systems.
+- **Native Windows Shell:** Keeps Windows PowerShell and PowerShell 7 profiles unchanged, without Starship, ZSH, automatic zoxide initialization, or persistent execution-policy changes; Unix editions retain ZSH, Oh My Zsh, and Starship.
 - **Optimized Terminals:** Installs Windows Terminal on Windows and configures Tmux + TPM on Unix systems.
 - **Global Helper Scripts:** Installs Windows helper scripts in `%USERPROFILE%\.setupvibe\bin` and adds the directory to the user's `PATH`.
 - **AI Runtime Foundation:** Installs Python 3.14 directly from `python.org` and Node.js LTS directly from `nodejs.org`, then exposes `python`, `pip`, `node`, `npm`, and `npx` in the Windows machine `PATH` for Claude and Codex.

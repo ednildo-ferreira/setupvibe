@@ -19,6 +19,7 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ### Changed
 
+- Added explicit post-install validation for the Windows GitHub CLI package so SetupVibe confirms that `gh.exe` is available as `gh` in the refreshed Windows `PATH`.
 - Pointed all Windows-specific SetupVibe repository URLs, including the elevated-process handoff and `ssh_copy_id`, to the `windows` development branch until the Windows work is merged.
 - Expanded the Windows Edition (Beta) guides with one-command remote installation, local installation, execution stages, verification commands, logs, rerun behavior, restart options, and scope limitations.
 - Focused the Windows Edition on native utilities plus Python and Node.js as its only programming runtimes; complete language ecosystems and AI CLI tools remain available through `desktop.sh` on macOS, Linux, and WSL.
@@ -32,8 +33,10 @@ All notable changes to **SetupVibe** are documented in this file.
 ### Fixed
 
 - Replaced the unreliable OpenSSH Feature on Demand operation with the latest official Microsoft Win32-OpenSSH MSI, installing and force-repairing the Client and Server features, prioritizing the binaries in the machine `PATH`, validating `ssh.exe -V`, starting `sshd` automatically, and enabling inbound TCP/22.
+- Fixed OpenSSH release resolution by removing the GitHub releases-list API dependency, resolving `releases/latest` and its expanded assets directly, accepting only the x64 `OpenSSH-Win64-*.msi`, and validating its Authenticode signature.
+- Fixed Windows Terminal startup errors caused by a restricted PowerShell execution policy by removing SetupVibe's PowerShell profile initialization instead of weakening the policy.
 - Fixed `desktop.ps1` UAC elevation for remote `irm ... | iex` execution by handing off a temporary script to the elevated process.
-- Added Windows Server, 32-bit Windows, and minimum-build preflight checks to avoid unsupported WinGet installations.
+- Added Windows Server, non-x64 Windows, and minimum-build preflight checks to avoid unsupported installations; Windows on ARM and 32-bit editions are rejected.
 - Corrected broken contribution, license, Tmux, and PM2 links in the existing documentation indexes and localized guides.
 
 ### Removed
@@ -42,6 +45,7 @@ All notable changes to **SetupVibe** are documented in this file.
 - Removed Gemini CLI from AI tool installation, shell aliases, Spec-Kit aliases, and current documentation.
 - Removed all UAC policy management from `desktop.ps1`; the Windows Edition now uses only the standard elevation prompt and never changes `EnableLUA` during installation or removal.
 - Removed the Batch implementation of `ssh_copy_id`; PowerShell now contains all SSH logic and the CMD file only launches it.
+- Removed Starship and all automatic PowerShell profile customization from the Windows Edition; ZSH remains Unix-only, zoxide stays available as an uninitialized CLI utility, and the original Windows shell policy and profile are preserved.
 - Removed PHP, Composer, Laravel Installer, Ruby, Bundler, Rails, uv, Spec-Kit, Go, Rustup, Cargo, Bun, PNPM, PM2, n8n, AI CLI tools, and mise from Windows installation.
 
 ---

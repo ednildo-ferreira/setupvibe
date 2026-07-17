@@ -40,7 +40,7 @@ $script:WinGetPackages = @(
     @{ Id = 'JernejSimoncic.Wget'; Name = 'Wget' }
     @{ Id = 'Gyan.FFmpeg'; Name = 'FFmpeg' }
     @{ Id = 'ImageMagick.ImageMagick'; Name = 'ImageMagick' }
-    @{ Id = 'GitHub.cli'; Name = 'GitHub CLI' }
+    @{ Id = 'GitHub.cli'; Name = 'GitHub CLI (gh)' }
     @{ Id = 'sharkdp.bat'; Name = 'bat' }
     @{ Id = 'eza-community.eza'; Name = 'eza' }
     @{ Id = 'ajeetdsouza.zoxide'; Name = 'zoxide' }
@@ -61,7 +61,6 @@ $script:WinGetPackages = @(
     @{ Id = 'aristocratos.btop4win'; Name = 'btop4win' }
     @{ Id = 'Microsoft.PowerShell'; Name = 'PowerShell 7' }
     @{ Id = 'Microsoft.WindowsTerminal'; Name = 'Windows Terminal' }
-    @{ Id = 'Starship.Starship'; Name = 'Starship' }
     @{ Id = 'DEVCOM.JetBrainsMonoNerdFont'; Name = 'JetBrains Mono Nerd Font' }
 )
 
@@ -78,6 +77,7 @@ $script:LegacyWinGetPackages = @(
     @{ Id = 'astral-sh.uv'; Name = 'uv' }
     @{ Id = 'GoLang.Go'; Name = 'Go' }
     @{ Id = 'Rustlang.Rustup'; Name = 'Rustup' }
+    @{ Id = 'Starship.Starship'; Name = 'Starship' }
     @{ Id = 'Oven-sh.Bun'; Name = 'Bun' }
     @{ Id = 'jdx.mise'; Name = 'mise' }
 )
@@ -392,31 +392,35 @@ function Find-Executable {
 }
 
 function Install-OpenSsh {
-    $nativeArchitecture = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
-    $architecture = if ($nativeArchitecture -eq 'ARM64') { 'ARM64' } else { 'Win64' }
-    $assetPattern = "^OpenSSH-$architecture-v.*\.msi$"
     $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("SetupVibe-OpenSSH-{0}" -f $PID)
     $msiLogPath = Join-Path $script:LogDirectory ("openssh-client-msi-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
     $msiRepairLogPath = Join-Path $script:LogDirectory ("openssh-client-repair-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
 
     New-Item -Path $temporaryDirectory -ItemType Directory -Force | Out-Null
     try {
-        Write-Host '[RUN] Finding the latest official Microsoft Win32-OpenSSH release...'
+        Write-Host '[RUN] Resolving the latest official Microsoft Win32-OpenSSH x64 MSI...'
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-        $releases = @(Invoke-RestMethod -Uri 'https://api.github.com/repos/PowerShell/Win32-OpenSSH/releases?per_page=30' -Headers @{ 'User-Agent' = 'SetupVibe-Windows' })
-        $release = @($releases | Where-Object { -not $_.draft } | Select-Object -First 1)
-        if ($release.Count -eq 0) {
-            throw 'No Win32-OpenSSH release was returned by GitHub.'
+        $githubHeaders = @{ 'User-Agent' = 'SetupVibe-Windows' }
+        $latestReleasePage = Invoke-WebRequest -Uri 'https://github.com/PowerShell/Win32-OpenSSH/releases/latest' -Headers $githubHeaders -UseBasicParsing
+        $tagMatch = [regex]::Match($latestReleasePage.Content, '/PowerShell/Win32-OpenSSH/releases/tag/([^"&<]+)')
+        if (-not $tagMatch.Success) {
+            throw 'The latest Win32-OpenSSH release tag could not be resolved from the official GitHub release page.'
         }
 
-        $asset = @($release[0].assets | Where-Object { $_.name -match $assetPattern } | Select-Object -First 1)
-        if ($asset.Count -eq 0) {
-            throw "The Win32-OpenSSH release does not contain an $architecture MSI."
+        $releaseTag = [Uri]::UnescapeDataString($tagMatch.Groups[1].Value)
+        $expandedAssetsUrl = "https://github.com/PowerShell/Win32-OpenSSH/releases/expanded_assets/$releaseTag"
+        $expandedAssetsPage = Invoke-WebRequest -Uri $expandedAssetsUrl -Headers $githubHeaders -UseBasicParsing
+        $assetMatch = [regex]::Match($expandedAssetsPage.Content, '/PowerShell/Win32-OpenSSH/releases/download/[^"?]+/OpenSSH-Win64-v[^"?]+\.msi')
+        if (-not $assetMatch.Success) {
+            throw "The official Win32-OpenSSH release '$releaseTag' does not contain an x64 Win64 MSI."
         }
 
-        $msiPath = Join-Path $temporaryDirectory $asset[0].name
-        Write-Host ("[RUN] Downloading OpenSSH Client {0}: {1}" -f $release[0].tag_name, $asset[0].name)
-        Invoke-WebRequest -Uri $asset[0].browser_download_url -OutFile $msiPath -UseBasicParsing
+        $assetUrl = "https://github.com$($assetMatch.Value)"
+        $assetName = [IO.Path]::GetFileName($assetMatch.Value)
+        $msiPath = Join-Path $temporaryDirectory $assetName
+        Write-Host ("[RUN] Downloading OpenSSH {0}: {1}" -f $releaseTag, $assetName)
+        Invoke-WebRequest -Uri $assetUrl -Headers $githubHeaders -OutFile $msiPath -UseBasicParsing
+        Assert-ValidAuthenticodeSignature -Path $msiPath -Name "Microsoft Win32-OpenSSH $releaseTag x64 MSI"
 
         Write-Host '[RUN] Installing the OpenSSH Client and Server components from the official Microsoft MSI...'
         $msiArguments = @(
@@ -720,6 +724,12 @@ function Uninstall-WinGetPackage {
     Write-Success ("{0} removed." -f $Name)
 }
 
+function Test-GitHubCli {
+    $ghPath = Find-Executable -Name 'gh.exe'
+    Invoke-NativeCommand -FilePath $ghPath -ArgumentList @('--version')
+    Write-Success 'GitHub CLI is available as gh in the Windows PATH.'
+}
+
 function Find-Chocolatey {
     $chocoCommand = Get-Command 'choco.exe' -ErrorAction SilentlyContinue
     if ($chocoCommand) {
@@ -788,38 +798,6 @@ function Uninstall-ChocolateyPackage {
 
     Invoke-NativeCommand -FilePath $script:ChocolateyPath -ArgumentList @('uninstall', $Id, '--yes', '--no-progress') -SuccessExitCode @(0, 1605, 1614, 1641, 3010)
     Write-Success ("{0} is removed." -f $Name)
-}
-
-function Install-PowerShellProfile {
-    $starshipPath = Find-Executable -Name 'starship.exe'
-    $zoxidePath = Find-Executable -Name 'zoxide.exe'
-    $configDirectory = Join-Path $env:USERPROFILE '.config'
-    $starshipConfig = Join-Path $configDirectory 'starship.toml'
-    New-Item -Path $configDirectory -ItemType Directory -Force | Out-Null
-    Invoke-NativeCommand -FilePath $starshipPath -ArgumentList @('preset', 'gruvbox-rainbow', '-o', $starshipConfig)
-
-    $documentsDirectory = [Environment]::GetFolderPath('MyDocuments')
-    $profilePaths = @(
-        (Join-Path $documentsDirectory 'WindowsPowerShell\Microsoft.PowerShell_profile.ps1')
-        (Join-Path $documentsDirectory 'PowerShell\Microsoft.PowerShell_profile.ps1')
-    )
-    $profileMarker = '# SetupVibe shell initialization'
-    $profileEndMarker = '# End SetupVibe shell initialization'
-    $profileContent = @(
-        $profileMarker
-        "Invoke-Expression (& { (& '$starshipPath' init powershell | Out-String) })"
-        "Invoke-Expression (& { (& '$zoxidePath' init powershell | Out-String) })"
-        $profileEndMarker
-    ) -join "`r`n"
-
-    foreach ($profilePath in $profilePaths) {
-        $profileDirectory = Split-Path -Parent $profilePath
-        New-Item -Path $profileDirectory -ItemType Directory -Force | Out-Null
-        if (-not (Test-Path $profilePath) -or -not (Select-String -Path $profilePath -SimpleMatch $profileMarker -Quiet)) {
-            Add-Content -Path $profilePath -Value "`r`n$profileContent`r`n" -Encoding UTF8
-        }
-    }
-    Write-Success 'Starship and zoxide configured for Windows PowerShell and PowerShell 7.'
 }
 
 function Uninstall-PowerShellProfile {
@@ -948,10 +926,8 @@ function Assert-ValidAuthenticodeSignature {
 }
 
 function Install-Python {
-    $nativeArchitecture = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
-    $pythonArchitecture = if ($nativeArchitecture -eq 'ARM64') { 'arm64' } else { 'amd64' }
-    $pythonDirectoryName = if ($nativeArchitecture -eq 'ARM64') { 'Python314-arm64' } else { 'Python314' }
-    $pythonDirectory = Join-Path $env:ProgramFiles $pythonDirectoryName
+    $pythonArchitecture = 'amd64'
+    $pythonDirectory = Join-Path $env:ProgramFiles 'Python314'
     $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("SetupVibe-Python-{0}" -f $PID)
     $installerLogPath = Join-Path $script:LogDirectory ("python-installer-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
 
@@ -1022,8 +998,7 @@ function Uninstall-NodeJs {
 }
 
 function Install-NodeJs {
-    $nativeArchitecture = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
-    $nodeArchitecture = if ($nativeArchitecture -eq 'ARM64') { 'arm64' } else { 'x64' }
+    $nodeArchitecture = 'x64'
     $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("SetupVibe-NodeJS-{0}" -f $PID)
     $installerLogPath = Join-Path $script:LogDirectory ("nodejs-installer-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
 
@@ -1079,7 +1054,7 @@ function Uninstall-Python {
                 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
                 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
             ) -ErrorAction SilentlyContinue | Where-Object {
-            $_.DisplayName -match '^Python 3\.14\.\d+ \((64-bit|ARM64)\)$'
+            $_.DisplayName -match '^Python 3\.14\.\d+ \(64-bit\)$'
         })
     if ($products.Count -eq 0) {
         Write-Success 'Python 3.14 is already absent.'
@@ -1348,8 +1323,9 @@ if ([string]$currentVersion.ProductName -match 'Server') {
 if (-not $Uninstall -and $currentBuild -lt 22621) {
     throw 'SetupVibe Windows requires Windows 11 version 22H2 (build 22621) or later.'
 }
-if (-not [Environment]::Is64BitOperatingSystem) {
-    throw 'SetupVibe Windows requires a 64-bit edition of Windows.'
+$nativeArchitecture = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+if ($nativeArchitecture -ne 'AMD64') {
+    throw "SetupVibe Windows requires an x64 (AMD64) edition of Windows. Detected architecture: $nativeArchitecture."
 }
 
 if (-not (Test-Administrator)) {
@@ -1381,7 +1357,7 @@ if ($Uninstall) {
     Write-Host 'Removing all utilities and configurations managed by SetupVibe Windows.'
 
     Invoke-SetupStep -Name 'Legacy ecosystem tools' -Action { Uninstall-LegacyEcosystemTools }
-    Invoke-SetupStep -Name 'PowerShell profile: Starship and zoxide' -Action { Uninstall-PowerShellProfile }
+    Invoke-SetupStep -Name 'Legacy SetupVibe PowerShell profile blocks' -Action { Uninstall-PowerShellProfile }
     Invoke-SetupStep -Name 'Node.js LTS official MSI' -Action { Uninstall-NodeJs }
     Invoke-SetupStep -Name 'Python 3.14 official installer' -Action { Uninstall-Python }
     Invoke-SetupStep -Name 'Python and Node.js machine PATH' -Action { Uninstall-DevelopmentRuntimePaths }
@@ -1434,6 +1410,7 @@ else {
                 Install-WinGetPackage -Id $package.Id -Name $package.Name
             }
         }
+        Invoke-SetupStep -Name 'GitHub CLI command (gh)' -Action { Test-GitHubCli }
     }
     Invoke-SetupStep -Name 'Python and Node.js PATH for Claude and Codex' -Action { Install-DevelopmentRuntimePaths }
 
@@ -1446,7 +1423,13 @@ else {
     }
 
     Import-EnvironmentPath
-    Invoke-SetupStep -Name 'PowerShell profile: Starship and zoxide' -Action { Install-PowerShellProfile }
+    Invoke-SetupStep -Name 'Original Windows PowerShell profile' -Action {
+        Uninstall-PowerShellProfile
+        if ($script:WinGetPath -and (Test-WinGetPackageInstalled -Id 'Starship.Starship')) {
+            Uninstall-WinGetPackage -Id 'Starship.Starship' -Name 'Starship'
+        }
+        Write-Success 'The original Windows PowerShell profile is preserved without Starship, zoxide initialization, or ZSH.'
+    }
 }
 
 Stop-SetupIfFailed -LogPath $logPath
