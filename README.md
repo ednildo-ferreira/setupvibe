@@ -2,16 +2,18 @@
 
 > The ultimate cross-platform development environment setup script — v0.41.6
 
-Installs and configures a development environment in one command, supporting Windows 11, macOS, and major Linux distributions. The Windows Edition focuses on native utilities and the WSL 2 base system, while the Unix editions include language ecosystems and AI CLI tools.
+Installs and configures a development environment in one command, supporting Windows 11, macOS, and major Linux distributions. The Windows Edition focuses on native utilities, Python, Node.js, and the WSL 2 base system, while the Unix editions include complete language ecosystems and AI CLI tools.
 
 ## Key Features
 
 - **Administrator Setup:** Requests standard UAC elevation on Windows without changing the UAC policy; uses `sudo` only where required on macOS and Linux.
-- **Safe Windows Servicing:** Stops immediately when another installer or servicing operation is active, recommends restarting the PC, rejects pending restarts, validates the component store, and records dedicated DISM logs without forcibly terminating system processes.
+- **Safe Windows Servicing:** Asks before stopping competing installers, tries a normal stop before forcing remaining processes, runs `sfc.exe /scannow` afterward, rejects pending restarts, and validates the component store.
+- **Reliable OpenSSH Installation:** Force-installs the client and server from Microsoft's latest official Win32-OpenSSH MSI, configures `sshd` and TCP/22, and operates independently of DISM, Features on Demand, WSUS, or Windows Update.
 - **Native Package Management:** Uses WinGet and Chocolatey on Windows, with Homebrew or APT on Unix systems.
 - **Modern Shell:** PowerShell 7 + Starship + zoxide on Windows, and ZSH + Oh My Zsh + Starship on Unix systems.
 - **Optimized Terminals:** Installs Windows Terminal on Windows and configures Tmux + TPM on Unix systems.
 - **Global Helper Scripts:** Installs Windows helper scripts in `%USERPROFILE%\.setupvibe\bin` and adds the directory to the user's `PATH`.
+- **AI Runtime Foundation:** Installs Python 3.14 directly from `python.org` and Node.js LTS directly from `nodejs.org`, then exposes `python`, `pip`, `node`, `npm`, and `npx` in the Windows machine `PATH` for Claude and Codex.
 - **WSL 2 Ready:** Installs the WSL base without a Linux distribution and configures mirrored VPN/LAN networking and development optimizations on Windows 11.
 - **AI-Ready Unix Editions:** Includes the latest AI CLI tools for developers on macOS, Linux, and WSL.
 

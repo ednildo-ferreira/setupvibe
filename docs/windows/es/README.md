@@ -2,7 +2,7 @@
 
 > Configuración de utilidades nativas de Windows — v0.41.6
 
-La Edición Windows (Beta) configura un conjunto enfocado de utilidades nativas de Windows, con WinGet como fuente principal y Chocolatey para los paquetes que no están disponibles mediante WinGet.
+La Edición Windows (Beta) configura utilidades nativas de Windows, Python y Node.js, con WinGet como fuente principal y Chocolatey para los paquetes que no están disponibles mediante WinGet.
 
 ## Requisitos
 
@@ -14,9 +14,10 @@ La Edición Windows (Beta) configura un conjunto enfocado de utilidades nativas 
 
 ## Qué Instala
 
-- Cliente OpenSSH
+- Cliente y Servidor Microsoft Win32-OpenSSH oficiales más recientes mediante el MSI oficial
 - WinGet mediante el proceso oficial de reparación `Microsoft.WinGet.Client` cuando no está disponible
 - Chocolatey mediante su script oficial de arranque cuando no está disponible
+- Python 3.14 directamente mediante el instalador oficial de `python.org` y Node.js LTS directamente mediante el MSI oficial de `nodejs.org`, con `python`, `pip`, `node`, `npm` y `npx` en el `PATH` de la máquina para Claude y Codex
 - Sistema base de WSL sin una distribución Linux, con WSL 2 como valor predeterminado
 - Red reflejada de WSL con acceso por VPN/LAN, túnel DNS, integración con el proxy de Windows, entrada permitida en el firewall de Hyper-V, recuperación automática de memoria y discos virtuales dispersos
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick y GitHub CLI
@@ -24,11 +25,11 @@ La Edición Windows (Beta) configura un conjunto enfocado de utilidades nativas 
 - Nmap, Speedtest CLI, Tailscale, gping, btop4win, trippy y RustScan
 - PowerShell 7, Windows Terminal, Starship, FiraCode Nerd Font y JetBrains Mono Nerd Font
 
-El instalador es idempotente: detecta y omite los paquetes WinGet instalados, mientras Chocolatey garantiza la presencia de sus paquetes. Los errores se registran por paquete para que las demás instalaciones puedan continuar. Se guarda un registro completo en `C:\ProgramData\SetupVibe\Logs`.
+El instalador es idempotente: detecta y omite los paquetes WinGet instalados, Chocolatey garantiza la presencia de sus paquetes y los instaladores oficiales de Python y Node.js se vuelven a aplicar de forma segura. Los errores se registran por paquete para que las demás instalaciones puedan continuar. Se guarda un registro completo en `C:\ProgramData\SetupVibe\Logs`.
 
 Starship y zoxide se inicializan en los perfiles de Windows PowerShell y PowerShell 7.
 
-Este script es exclusivo para utilidades nativas de Windows y el sistema base de WSL. No instala una distribución Linux, lenguajes de programación, frameworks, administradores de runtimes ni herramientas CLI de IA. Después de instalar una distribución por separado, use `desktop.sh` dentro de ella para configurar un entorno de desarrollo completo.
+Python y Node.js son los únicos runtimes de programación instalados por este script. No instala una distribución Linux, frameworks, administradores de runtimes, herramientas CLI de IA ni otros ecosistemas de lenguajes. Después de instalar una distribución por separado, use `desktop.sh` dentro de ella para configurar un entorno de desarrollo completo.
 
 Si `%USERPROFILE%\.wslconfig` ya existe, SetupVibe crea una copia de seguridad antes de aplicar los valores predeterminados de desarrollo. `-Uninstall` restaura la copia de seguridad y los estados anteriores de las características y el firewall de WSL.
 
@@ -80,15 +81,17 @@ Durante la ejecución, el instalador:
 
 1. Valida Windows 11 22H2 o posterior y la arquitectura de 64 bits.
 2. Solicita privilegios de administrador mediante UAC.
-3. Se detiene con una alerta si hay una operación concurrente de mantenimiento o instalación, recomienda reiniciar el PC, rechaza reinicios pendientes, inicia los servicios necesarios, comprueba la directiva WSUS y valida el almacén de componentes de Windows.
-4. Instala el Cliente OpenSSH cuando sea necesario.
-5. Copia los scripts auxiliares de Windows de SetupVibe a `%USERPROFILE%\.setupvibe\bin` y agrega ese directorio al `PATH` del usuario.
-6. Instala el sistema base de WSL sin una distribución Linux y establece WSL 2 como valor predeterminado.
-7. Aplica a WSL red reflejada, acceso por VPN/LAN, DNS, proxy, firewall, recuperación de memoria y discos VHD dispersos.
-8. Instala WinGet y Chocolatey cuando sea necesario.
-9. Instala cada utilidad de Windows de forma independiente y continúa después de errores aislados.
-10. Configura Starship y zoxide para Windows PowerShell y PowerShell 7.
-11. Muestra un resumen final y la ubicación del registro completo.
+3. Enumera los procesos de instalación concurrentes y pregunta si debe finalizarlos. Si se acepta, lo intenta normalmente, fuerza los que permanezcan y ejecuta `sfc.exe /scannow`; si se rechaza, espera ENTER y se cierra.
+4. Rechaza reinicios pendientes, inicia los servicios necesarios, ejecuta `sfc.exe /scannow` si aún no se ejecutó, comprueba la directiva WSUS y valida el almacén de componentes de Windows.
+5. Instala por la fuerza el Cliente y el Servidor Microsoft Win32-OpenSSH oficiales más recientes mediante el MSI oficial, configura el `PATH` de la máquina, valida `ssh.exe -V`, inicia `sshd` automáticamente y habilita la entrada TCP/22.
+6. Copia los scripts auxiliares de Windows de SetupVibe a `%USERPROFILE%\.setupvibe\bin` y agrega ese directorio al `PATH` del usuario.
+7. Instala el sistema base de WSL sin una distribución Linux y establece WSL 2 como valor predeterminado.
+8. Aplica a WSL red reflejada, acceso por VPN/LAN, DNS, proxy, firewall, recuperación de memoria y discos VHD dispersos.
+9. Instala WinGet y Chocolatey cuando sea necesario.
+10. Descarga Python 3.14 desde `python.org` y Node.js LTS desde `nodejs.org` sin WinGet ni Chocolatey, valida sus firmas Authenticode y el SHA-256 oficial de Node.js, antepone sus directorios al `PATH` de la máquina y valida sus comandos para Claude y Codex.
+11. Instala cada utilidad restante de Windows de forma independiente y continúa después de errores aislados.
+12. Configura Starship y zoxide para Windows PowerShell y PowerShell 7.
+13. Muestra un resumen final y la ubicación del registro completo.
 
 El proceso puede tardar porque los administradores de paquetes descargan e instalan cada utilidad por separado.
 
@@ -109,6 +112,11 @@ git --version
 rg --version
 fzf --version
 pwsh --version
+python --version
+pip --version
+node --version
+npm --version
+npx --version
 Get-Command ssh_copy_id
 wsl --status
 wsl --list --verbose
@@ -132,11 +140,13 @@ Si un paquete falla, revise el resumen final y el registro, resuelva el problema
 
 ## Seguridad De Windows Servicing
 
-Antes de instalar o eliminar componentes, SetupVibe comprueba los procesos activos de `DISM`, `dismhost`, `TiWorker`, Windows Installer, instaladores de Windows Update, WinGet, Chocolatey y otros procesos de mantenimiento conocidos. También comprueba la transacción de Windows Installer en el Registro y el mutex global de ejecución de MSI. Después rechaza reinicios pendientes de Component Based Servicing o Windows Update, inicia `TrustedInstaller` y, durante la instalación, inicia `wuauserv` y `bits`, y ejecuta `DISM /Online /Cleanup-Image /CheckHealth`.
+Antes de instalar o eliminar componentes, SetupVibe comprueba los procesos activos de `DISM`, `dismhost`, `TiWorker`, Windows Installer, instaladores de Windows Update, WinGet, Chocolatey y otros procesos de instalación conocidos. Enumera sus nombres y PID y solicita permiso antes de finalizarlos. Cuando se acepta, primero utiliza `Stop-Process`, fuerza los procesos que permanezcan y después ejecuta `sfc.exe /scannow`. Cuando se rechaza, espera ENTER y se cierra sin iniciar otra operación de mantenimiento. Después rechaza reinicios pendientes de Component Based Servicing o Windows Update, inicia los servicios necesarios y ejecuta `DISM /Online /Cleanup-Image /CheckHealth`.
 
-SetupVibe nunca espera ni finaliza por la fuerza un instalador concurrente. Si detecta uno, muestra una alerta con los nombres y PID de los procesos o la transacción activa, se cierra antes de realizar cambios y recomienda reiniciar el PC antes de volver a ejecutar SetupVibe. Esto protege el almacén de componentes frente a operaciones parciales de paquetes o características opcionales.
+Los detalles del Comprobador de archivos de sistema se registran en `C:\Windows\Logs\CBS\CBS.log`.
 
-En equipos administrados por WSUS, las características bajo demanda como OpenSSH aún pueden fallar cuando el origen corporativo no proporciona contenido opcional. El error de OpenSSH indica su archivo dedicado `dism-OpenSSH-Client-*.log`.
+Si un proceso permanece activo después de los intentos de finalización normal y forzada, SetupVibe completa la comprobación de SFC, espera ENTER y se cierra recomendando reiniciar el PC.
+
+OpenSSH no utiliza Características bajo demanda de Windows. SetupVibe descarga el MSI oficial más reciente de Microsoft, instala `ADDLOCAL=Client,Server`, fuerza la reparación de los archivos instalados, antepone el directorio de instalación al `PATH` de la máquina, configura `sshd` para el inicio automático, inicia el servicio, habilita la regla de firewall `OpenSSH-Server-In-TCP` para la entrada TCP/22 y registra `openssh-client-msi-*.log` y `openssh-client-repair-*.log` en `C:\ProgramData\SetupVibe\Logs`.
 
 ## Opciones
 
@@ -162,9 +172,9 @@ O ejecute el desinstalador desde la rama `windows`:
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
 ```
 
-El modo de desinstalación elimina el Cliente OpenSSH, los archivos administrados por SetupVibe de `%USERPROFILE%\.setupvibe\bin` y su entrada del `PATH` del usuario, restaura los estados anteriores de las características opcionales y el firewall de WSL, elimina la configuración de WSL aplicada por SetupVibe, elimina todas las utilidades WinGet y Chocolatey administradas por SetupVibe y elimina el bloque de perfil de Starship y zoxide y la configuración generada de Starship. También elimina runtimes de lenguajes, herramientas de frameworks, rutas de administradores de runtimes y paquetes npm instalados por versiones Beta anteriores de Windows. Las distribuciones Linux existentes no se eliminan. WinGet, Chocolatey, los registros y los archivos no relacionados dentro de `%USERPROFILE%\.setupvibe` se conservan.
+El modo de desinstalación elimina el Cliente y el Servidor OpenSSH, Python y Node.js mediante sus desinstaladores oficiales, los archivos administrados por SetupVibe de `%USERPROFILE%\.setupvibe\bin` y su entrada del `PATH` del usuario, restaura los estados anteriores de las características opcionales y el firewall de WSL, elimina la configuración de WSL aplicada por SetupVibe, elimina todas las utilidades WinGet y Chocolatey administradas por SetupVibe y elimina las entradas de los runtimes del `PATH` de la máquina y la configuración de Starship y zoxide. También elimina herramientas de frameworks, rutas de administradores de runtimes y paquetes npm heredados instalados por versiones Beta anteriores de Windows. Las distribuciones Linux existentes no se eliminan. WinGet, Chocolatey, los registros y los archivos no relacionados dentro de `%USERPROFILE%\.setupvibe` se conservan.
 
-**Advertencia de desinstalación:** la versión Beta actual no registra si el Cliente OpenSSH o un paquete administrado ya existía antes de SetupVibe. Por lo tanto, `-Uninstall` elimina el Cliente OpenSSH y todos los paquetes de sus listas administradas, incluidos los componentes que puedan haber sido instalados por separado antes de SetupVibe.
+**Advertencia de desinstalación:** la versión Beta actual no registra si el Cliente y el Servidor OpenSSH o un paquete administrado ya existían antes de SetupVibe. Por lo tanto, `-Uninstall` elimina el producto MSI de OpenSSH y todos los paquetes de sus listas administradas, incluidos los componentes que puedan haber sido instalados por separado antes de SetupVibe.
 
 Combine `-Uninstall` con `-Restart` para reiniciar automáticamente cuando Windows indique que se requiere un reinicio.
 
@@ -172,5 +182,5 @@ Combine `-Uninstall` con `-Restart` para reiniciar automáticamente cuando Windo
 
 - Windows 10, Windows Server, las compilaciones de Windows 11 anteriores a 22621 y las ediciones de 32 bits se rechazan durante las comprobaciones iniciales.
 - WSL se instala y configura para WSL 2, red reflejada por VPN/LAN y optimizaciones comunes de desarrollo, pero no se instala ninguna distribución Linux.
-- No se instalan lenguajes de programación, frameworks, administradores de runtimes ni herramientas CLI de IA.
+- Python 3.14 y Node.js LTS se instalan para automatización local, Claude y Codex; no se instalan otros lenguajes de programación, frameworks, administradores de runtimes ni herramientas CLI de IA.
 - Docker Desktop y un motor Docker local no se instalan.

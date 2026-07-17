@@ -14,6 +14,7 @@ $script:Version = '0.41.6'
 $script:InstallUrl = 'https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1'
 $script:RestartRequired = $false
 $script:RestartBeforeRetryRequired = $false
+$script:SystemFileCheckerCompleted = $false
 $script:Failures = New-Object System.Collections.Generic.List[string]
 $script:LogDirectory = Join-Path $env:ProgramData 'SetupVibe\Logs'
 $script:TranscriptStarted = $false
@@ -22,6 +23,7 @@ $script:ChocolateyPath = $null
 $script:WslVmCreatorId = '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'
 $script:WslFeatureStatePath = Join-Path $env:ProgramData 'SetupVibe\wsl-feature-state.json'
 $script:WslFirewallStatePath = Join-Path $env:ProgramData 'SetupVibe\wsl-firewall-inbound.txt'
+$script:RuntimePathStatePath = Join-Path $env:ProgramData 'SetupVibe\windows-runtime-paths.json'
 $script:SetupVibeUserDirectory = Join-Path $env:USERPROFILE '.setupvibe'
 $script:WindowsUtilitiesDirectory = Join-Path $script:SetupVibeUserDirectory 'bin'
 $script:WindowsUtilitiesStatePath = Join-Path $script:SetupVibeUserDirectory 'windows-utilities.json'
@@ -76,7 +78,6 @@ $script:LegacyWinGetPackages = @(
     @{ Id = 'astral-sh.uv'; Name = 'uv' }
     @{ Id = 'GoLang.Go'; Name = 'Go' }
     @{ Id = 'Rustlang.Rustup'; Name = 'Rustup' }
-    @{ Id = 'OpenJS.NodeJS.LTS'; Name = 'Node.js LTS' }
     @{ Id = 'Oven-sh.Bun'; Name = 'Bun' }
     @{ Id = 'jdx.mise'; Name = 'mise' }
 )
@@ -214,8 +215,7 @@ function Stop-SetupIfFailed {
     exit 1
 }
 
-function Get-ActiveWindowsInstallerOperations {
-    $operations = New-Object System.Collections.Generic.List[string]
+function Get-ActiveWindowsInstallerProcesses {
     $installerProcessNames = @(
         'AppInstallerCLI'
         'choco'
@@ -232,39 +232,12 @@ function Get-ActiveWindowsInstallerOperations {
         'wusa'
     )
 
-    $activeProcesses = @(Get-Process -Name $installerProcessNames -ErrorAction SilentlyContinue | Sort-Object ProcessName, Id)
-    foreach ($process in $activeProcesses) {
-        $operations.Add(("Process {0} (PID {1})" -f $process.ProcessName, $process.Id))
-    }
-
-    $installerRegistryPath = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\InProgress'
-    if (Test-Path $installerRegistryPath) {
-        $operations.Add("Windows Installer registry transaction: $installerRegistryPath")
-    }
-
-    $windowsInstallerMutex = $null
-    try {
-        $windowsInstallerMutex = [Threading.Mutex]::OpenExisting('Global\_MSIExecute')
-        $operations.Add('Windows Installer transaction mutex: Global\_MSIExecute')
-    }
-    catch [Threading.WaitHandleCannotBeOpenedException] {
-        # The mutex does not exist when Windows Installer is idle.
-    }
-    catch [UnauthorizedAccessException] {
-        $operations.Add('Windows Installer transaction mutex is active but could not be inspected')
-    }
-    finally {
-        if ($windowsInstallerMutex) {
-            $windowsInstallerMutex.Dispose()
-        }
-    }
-
-    return @($operations | Sort-Object -Unique)
+    return @(Get-Process -Name $installerProcessNames -ErrorAction SilentlyContinue | Sort-Object ProcessName, Id)
 }
 
-function Assert-NoActiveWindowsInstaller {
-    $activeOperations = @(Get-ActiveWindowsInstallerOperations)
-    if ($activeOperations.Count -eq 0) {
+function Resolve-ActiveWindowsInstallerOperations {
+    $activeProcesses = @(Get-ActiveWindowsInstallerProcesses)
+    if ($activeProcesses.Count -eq 0) {
         Write-Success 'No competing Windows servicing or package-installer operation is active.'
         return
     }
@@ -272,11 +245,50 @@ function Assert-NoActiveWindowsInstaller {
     $script:RestartBeforeRetryRequired = $true
     Write-Host ''
     Write-Host '[ALERT] Another Windows installation or servicing operation is in progress:' -ForegroundColor Red
-    foreach ($operation in $activeOperations) {
-        Write-Host ("  - {0}" -f $operation) -ForegroundColor Red
+    foreach ($process in $activeProcesses) {
+        Write-Host ("  - {0} (PID {1})" -f $process.ProcessName, $process.Id) -ForegroundColor Red
     }
-    Write-Host '[ACTION] SetupVibe will now exit. Restart the PC, then run the installer again.' -ForegroundColor Yellow
-    throw 'SetupVibe stopped because another installation or servicing operation is in progress. Restart the PC before trying again.'
+
+    $confirmation = [string](Read-Host '[CONFIRM] Terminate these installer processes? SetupVibe will try normally first and force remaining processes if needed. [y/N]')
+    if ($confirmation.Trim().ToLowerInvariant() -notin @('y', 'yes', 's', 'sim')) {
+        Write-Host '[ACTION] No process was terminated. Restart the PC, then run SetupVibe again.' -ForegroundColor Yellow
+        [void](Read-Host '[PAUSE] Press ENTER to close SetupVibe')
+        throw 'SetupVibe stopped because the user declined to terminate active installer processes.'
+    }
+
+    foreach ($process in $activeProcesses) {
+        Write-Host ("[RUN] Stopping {0} (PID {1})..." -f $process.ProcessName, $process.Id)
+        try {
+            Stop-Process -Id $process.Id -ErrorAction Stop
+        }
+        catch {
+            Write-WarningMessage ("Normal stop failed for {0} (PID {1})." -f $process.ProcessName, $process.Id)
+        }
+
+        Start-Sleep -Seconds 1
+        if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
+            Write-WarningMessage ("Forcing {0} (PID {1}) to stop." -f $process.ProcessName, $process.Id)
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    Write-Section 'System integrity verification after installer termination'
+    Ensure-WindowsServiceReady -Name 'TrustedInstaller'
+    Invoke-SystemFileChecker
+
+    $remainingProcesses = @(Get-ActiveWindowsInstallerProcesses)
+    if ($remainingProcesses.Count -gt 0) {
+        Write-Host '[ALERT] Installer processes remain active after the termination attempts:' -ForegroundColor Red
+        foreach ($process in $remainingProcesses) {
+            Write-Host ("  - {0} (PID {1})" -f $process.ProcessName, $process.Id) -ForegroundColor Red
+        }
+        Write-Host '[ACTION] Restart the PC, then run SetupVibe again.' -ForegroundColor Yellow
+        [void](Read-Host '[PAUSE] Press ENTER to close SetupVibe')
+        throw 'SetupVibe stopped because installer processes remain active after normal and forced termination attempts.'
+    }
+
+    $script:RestartBeforeRetryRequired = $false
+    Write-Success 'Competing installer processes were terminated and system integrity was verified.'
 }
 
 function Get-PendingWindowsRestartReasons {
@@ -316,10 +328,19 @@ function Ensure-WindowsServiceReady {
     Write-Success ("Required Windows service is ready: {0}" -f $Name)
 }
 
+function Invoke-SystemFileChecker {
+    $sfcPath = Join-Path $env:SystemRoot 'System32\sfc.exe'
+    Write-Host '[RUN] Running System File Checker before SetupVibe makes changes.'
+    Write-WarningMessage 'sfc.exe /scannow can take several minutes. Keep this window open until verification reaches 100%.'
+    Invoke-NativeCommand -FilePath $sfcPath -ArgumentList @('/scannow')
+    $script:SystemFileCheckerCompleted = $true
+    Write-Success 'System File Checker completed. Details are available in C:\Windows\Logs\CBS\CBS.log.'
+}
+
 function Invoke-WindowsInstallerPreflight {
     param([Parameter()][switch]$RequireWindowsUpdate)
 
-    Assert-NoActiveWindowsInstaller
+    Resolve-ActiveWindowsInstallerOperations
 
     $restartReasons = @(Get-PendingWindowsRestartReasons)
     if ($restartReasons.Count -gt 0) {
@@ -328,6 +349,9 @@ function Invoke-WindowsInstallerPreflight {
     }
 
     Ensure-WindowsServiceReady -Name 'TrustedInstaller'
+    if (-not $script:SystemFileCheckerCompleted) {
+        Invoke-SystemFileChecker
+    }
     if ($RequireWindowsUpdate) {
         Ensure-WindowsServiceReady -Name 'wuauserv'
         Ensure-WindowsServiceReady -Name 'bits'
@@ -335,7 +359,7 @@ function Invoke-WindowsInstallerPreflight {
         $useWsus = Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -Name 'UseWUServer' -ErrorAction SilentlyContinue
         $blockPublicWindowsUpdate = Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -Name 'DoNotConnectToWindowsUpdateInternetLocations' -ErrorAction SilentlyContinue
         if ([int]$useWsus -eq 1 -or [int]$blockPublicWindowsUpdate -eq 1) {
-            Write-WarningMessage 'Windows Update is controlled by WSUS or domain policy. Features on Demand such as OpenSSH can fail if the corporate update source does not provide optional content.'
+            Write-WarningMessage 'Windows Update is controlled by WSUS or domain policy. Windows optional features may fail if the corporate update source does not provide the required content.'
         }
     }
 
@@ -367,94 +391,118 @@ function Find-Executable {
     return $command.Source
 }
 
-function Invoke-WindowsCapabilityDismOperation {
-    param(
-        [Parameter(Mandatory = $true)][ValidateSet('Add', 'Remove')][string]$Action,
-        [Parameter(Mandatory = $true)][string]$CapabilityName,
-        [Parameter(Mandatory = $true)][string]$DisplayName
-    )
+function Install-OpenSsh {
+    $nativeArchitecture = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+    $architecture = if ($nativeArchitecture -eq 'ARM64') { 'ARM64' } else { 'Win64' }
+    $assetPattern = "^OpenSSH-$architecture-v.*\.msi$"
+    $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("SetupVibe-OpenSSH-{0}" -f $PID)
+    $msiLogPath = Join-Path $script:LogDirectory ("openssh-client-msi-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+    $msiRepairLogPath = Join-Path $script:LogDirectory ("openssh-client-repair-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
 
-    $dismPath = Join-Path $env:SystemRoot 'System32\dism.exe'
-    $safeDisplayName = $DisplayName -replace '[^A-Za-z0-9.-]', '-'
-    $dismLogPath = Join-Path $script:LogDirectory ("dism-{0}-{1:yyyyMMdd-HHmmss}.log" -f $safeDisplayName, (Get-Date))
-    $arguments = @(
-        '/Online'
-        ("/{0}-Capability" -f $Action)
-        ("/CapabilityName:{0}" -f $CapabilityName)
-        '/NoRestart'
-        ("/LogPath:{0}" -f $dismLogPath)
-    )
-    $operation = if ($Action -eq 'Add') { 'installation' } else { 'removal' }
+    New-Item -Path $temporaryDirectory -ItemType Directory -Force | Out-Null
+    try {
+        Write-Host '[RUN] Finding the latest official Microsoft Win32-OpenSSH release...'
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $releases = @(Invoke-RestMethod -Uri 'https://api.github.com/repos/PowerShell/Win32-OpenSSH/releases?per_page=30' -Headers @{ 'User-Agent' = 'SetupVibe-Windows' })
+        $release = @($releases | Where-Object { -not $_.draft } | Select-Object -First 1)
+        if ($release.Count -eq 0) {
+            throw 'No Win32-OpenSSH release was returned by GitHub.'
+        }
 
-    Write-Host ("[RUN] Starting {0} for {1}. DISM will display its native percentage below." -f $operation, $DisplayName)
-    Write-Host ("[INFO] DISM log: {0}" -f $dismLogPath) -ForegroundColor DarkGray
-    Write-WarningMessage 'Windows Update may take several minutes to locate the capability. Keep this window open.'
+        $asset = @($release[0].assets | Where-Object { $_.name -match $assetPattern } | Select-Object -First 1)
+        if ($asset.Count -eq 0) {
+            throw "The Win32-OpenSSH release does not contain an $architecture MSI."
+        }
 
-    $process = Start-Process -FilePath $dismPath -ArgumentList $arguments -NoNewWindow -PassThru
-    $stopwatch = [Diagnostics.Stopwatch]::StartNew()
-    $nextHeartbeat = 15
-    while (-not $process.HasExited) {
-        Start-Sleep -Seconds 2
-        $process.Refresh()
-        if ($stopwatch.Elapsed.TotalSeconds -ge $nextHeartbeat) {
-            Write-Host ("[WAIT] {0} {1} is still running ({2:N0}s elapsed)." -f $DisplayName, $operation, $stopwatch.Elapsed.TotalSeconds) -ForegroundColor DarkGray
-            $nextHeartbeat += 15
+        $msiPath = Join-Path $temporaryDirectory $asset[0].name
+        Write-Host ("[RUN] Downloading OpenSSH Client {0}: {1}" -f $release[0].tag_name, $asset[0].name)
+        Invoke-WebRequest -Uri $asset[0].browser_download_url -OutFile $msiPath -UseBasicParsing
+
+        Write-Host '[RUN] Installing the OpenSSH Client and Server components from the official Microsoft MSI...'
+        $msiArguments = @(
+            '/i'
+            $msiPath
+            'ADDLOCAL=Client,Server'
+            'REINSTALLMODE=amus'
+            '/qn'
+            '/norestart'
+            '/L*v'
+            $msiLogPath
+        )
+        Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList $msiArguments -SuccessExitCode @(0, 1641, 3010)
+
+        $installedProduct = @(Get-ItemProperty -Path @(
+                    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+                    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+                ) -ErrorAction SilentlyContinue | Where-Object {
+                $_.DisplayName -match '^OpenSSH' -and $_.PSChildName -match '^\{[0-9A-Fa-f-]+\}$'
+            } | Select-Object -First 1)
+        if ($installedProduct.Count -gt 0) {
+            Write-Host '[RUN] Forcing repair of all installed OpenSSH Client and Server files...'
+            Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/fa', $installedProduct[0].PSChildName, '/qn', '/norestart', '/L*v', $msiRepairLogPath) -SuccessExitCode @(0, 1641, 3010)
         }
     }
-    $process.WaitForExit()
-    $stopwatch.Stop()
+    finally {
+        Remove-Item -Path $temporaryDirectory -Recurse -Force -ErrorAction SilentlyContinue
+    }
 
-    if ($process.ExitCode -notin @(0, 3010)) {
-        throw "DISM failed to complete the $DisplayName $operation with exit code $($process.ExitCode). Review $dismLogPath. If this is a Features on Demand error, verify Windows Update or WSUS optional-content policy."
+    $openSshDirectories = @(
+        (Join-Path $env:ProgramFiles 'OpenSSH')
+        (Join-Path $env:ProgramFiles 'OpenSSH-Win64')
+    )
+    $openSshDirectory = @($openSshDirectories | Where-Object { Test-Path (Join-Path $_ 'ssh.exe') } | Select-Object -First 1)
+    if ($openSshDirectory.Count -eq 0) {
+        throw "OpenSSH Client MSI completed, but ssh.exe was not found. Review $msiLogPath."
     }
-    if ($process.ExitCode -eq 3010) {
-        $script:RestartRequired = $true
+
+    Add-PathEntry -Path $openSshDirectory[0] -Scope 'Machine' -Prepend
+    New-Item -Path (Join-Path $env:USERPROFILE '.ssh') -ItemType Directory -Force | Out-Null
+    Import-EnvironmentPath
+    $sshVersion = & (Join-Path $openSshDirectory[0] 'ssh.exe') -V 2>&1
+
+    $sshdService = Get-Service -Name 'sshd' -ErrorAction Stop
+    Set-Service -Name 'sshd' -StartupType Automatic
+    if ($sshdService.Status -ne [System.ServiceProcess.ServiceControllerStatus]::Running) {
+        Start-Service -Name 'sshd'
+        $sshdService.WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Running, [TimeSpan]::FromSeconds(30))
+        $sshdService.Refresh()
     }
+    if ($sshdService.Status -ne [System.ServiceProcess.ServiceControllerStatus]::Running) {
+        throw 'OpenSSH Server was installed, but the sshd service did not reach the Running state.'
+    }
+
+    $firewallRule = Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -ErrorAction SilentlyContinue
+    if ($firewallRule) {
+        Set-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -Enabled True -Action Allow
+    }
+    else {
+        New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 | Out-Null
+    }
+
+    Write-Success ("OpenSSH Client installed: {0}" -f ($sshVersion -join ' '))
+    Write-Success 'OpenSSH Server is running automatically and the inbound TCP/22 firewall rule is enabled.'
 }
 
-function Install-OpenSshClient {
-    $capabilityName = 'OpenSSH.Client~~~~0.0.1.0'
-    Write-Host '[RUN] Checking the current OpenSSH Client capability state...'
-    $capability = Get-WindowsCapability -Online -Name $capabilityName
-    Write-Host ("[INFO] OpenSSH Client state: {0}" -f $capability.State) -ForegroundColor DarkGray
-    if ($capability.State -in @('Installed', 'InstallPending')) {
-        if ($capability.State -eq 'InstallPending') {
-            $script:RestartRequired = $true
+function Uninstall-OpenSsh {
+    $uninstallRegistryPaths = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+    $openSshProducts = @(Get-ItemProperty -Path $uninstallRegistryPaths -ErrorAction SilentlyContinue | Where-Object {
+            $_.DisplayName -match '^OpenSSH'
+        })
+
+    foreach ($product in $openSshProducts) {
+        if ($product.PSChildName -match '^\{[0-9A-Fa-f-]+\}$') {
+            Write-Host ("[RUN] Removing Microsoft OpenSSH MSI product: {0}" -f $product.DisplayName)
+            Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/x', $product.PSChildName, '/qn', '/norestart') -SuccessExitCode @(0, 1605, 1641, 3010)
         }
-        Write-Success 'OpenSSH Client is already installed.'
-        return
     }
 
-    Invoke-WindowsCapabilityDismOperation -Action 'Add' -CapabilityName $capabilityName -DisplayName 'OpenSSH Client'
-    $capability = Get-WindowsCapability -Online -Name $capabilityName
-    if ($capability.State -notin @('Installed', 'InstallPending')) {
-        throw "OpenSSH Client installation returned without reaching an installed state. Current state: $($capability.State)."
+    foreach ($openSshDirectory in @((Join-Path $env:ProgramFiles 'OpenSSH'), (Join-Path $env:ProgramFiles 'OpenSSH-Win64'))) {
+        Remove-PathEntry -Path $openSshDirectory -Scope 'Machine'
     }
-    if ($capability.State -eq 'InstallPending') {
-        $script:RestartRequired = $true
-    }
-    Write-Success 'OpenSSH Client installed.'
-}
-
-function Uninstall-OpenSshClient {
-    $capabilityName = 'OpenSSH.Client~~~~0.0.1.0'
-    Write-Host '[RUN] Checking the current OpenSSH Client capability state...'
-    $capability = Get-WindowsCapability -Online -Name $capabilityName
-    Write-Host ("[INFO] OpenSSH Client state: {0}" -f $capability.State) -ForegroundColor DarkGray
-    if ($capability.State -notin @('Installed', 'InstallPending')) {
-        Write-Success 'OpenSSH Client is already absent.'
-        return
-    }
-
-    Invoke-WindowsCapabilityDismOperation -Action 'Remove' -CapabilityName $capabilityName -DisplayName 'OpenSSH Client'
-    $capability = Get-WindowsCapability -Online -Name $capabilityName
-    if ($capability.State -in @('Installed', 'InstallPending')) {
-        throw "OpenSSH Client removal returned without leaving the installed state. Current state: $($capability.State)."
-    }
-    if ($capability.State -eq 'UninstallPending') {
-        $script:RestartRequired = $true
-    }
-    Write-Success 'OpenSSH Client removed.'
+    Write-Success 'SetupVibe-managed Microsoft OpenSSH Client and Server MSI installation removed.'
 }
 
 function Install-WindowsSubsystemForLinux {
@@ -865,20 +913,295 @@ function Remove-PathEntry {
 function Add-PathEntry {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][ValidateSet('User', 'Machine')][string]$Scope
+        [Parameter(Mandatory = $true)][ValidateSet('User', 'Machine')][string]$Scope,
+        [Parameter()][switch]$Prepend
     )
 
     $currentPath = [Environment]::GetEnvironmentVariable('Path', $Scope)
     $normalizedPath = $Path.TrimEnd('\')
-    $pathExists = @($currentPath -split ';' | Where-Object {
-        $_ -and ([Environment]::ExpandEnvironmentVariables($_)).TrimEnd('\') -eq $normalizedPath
-    }).Count -gt 0
-    if ($pathExists) {
+    $existingEntries = @($currentPath -split ';' | Where-Object { $_ })
+    $pathExists = @($existingEntries | Where-Object {
+            ([Environment]::ExpandEnvironmentVariables($_)).TrimEnd('\') -eq $normalizedPath
+        }).Count -gt 0
+    if ($pathExists -and -not $Prepend) {
         return
     }
 
-    $updatedPath = @($currentPath -split ';' | Where-Object { $_ }) + $Path
+    $remainingEntries = @($existingEntries | Where-Object {
+            ([Environment]::ExpandEnvironmentVariables($_)).TrimEnd('\') -ne $normalizedPath
+        })
+    $updatedPath = if ($Prepend) { @($Path) + $remainingEntries } else { $remainingEntries + $Path }
     [Environment]::SetEnvironmentVariable('Path', ($updatedPath -join ';'), $Scope)
+}
+
+function Assert-ValidAuthenticodeSignature {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+
+    $signature = Get-AuthenticodeSignature -FilePath $Path
+    if ($signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
+        throw "$Name does not have a valid Authenticode signature. Status: $($signature.Status)."
+    }
+    Write-Success ("Valid Authenticode signature: {0}" -f $Name)
+}
+
+function Install-Python {
+    $nativeArchitecture = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+    $pythonArchitecture = if ($nativeArchitecture -eq 'ARM64') { 'arm64' } else { 'amd64' }
+    $pythonDirectoryName = if ($nativeArchitecture -eq 'ARM64') { 'Python314-arm64' } else { 'Python314' }
+    $pythonDirectory = Join-Path $env:ProgramFiles $pythonDirectoryName
+    $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("SetupVibe-Python-{0}" -f $PID)
+    $installerLogPath = Join-Path $script:LogDirectory ("python-installer-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+
+    New-Item -Path $temporaryDirectory -ItemType Directory -Force | Out-Null
+    try {
+        Write-Host '[RUN] Finding the latest official Python 3.14 standalone installer...'
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $pythonIndex = Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/' -UseBasicParsing
+        $versions = @([regex]::Matches($pythonIndex.Content, 'href="(3\.14\.\d+)/"') | ForEach-Object {
+                [version]$_.Groups[1].Value
+            } | Sort-Object -Descending -Unique)
+        if ($versions.Count -eq 0) {
+            throw 'Python.org did not return an official Python 3.14 release.'
+        }
+
+        $pythonVersion = $versions[0].ToString()
+        $installerName = "python-$pythonVersion-$pythonArchitecture.exe"
+        $installerUrl = "https://www.python.org/ftp/python/$pythonVersion/$installerName"
+        $installerPath = Join-Path $temporaryDirectory $installerName
+        Write-Host ("[RUN] Downloading Python {0} from python.org..." -f $pythonVersion)
+        Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath -UseBasicParsing
+        Assert-ValidAuthenticodeSignature -Path $installerPath -Name "Python $pythonVersion installer"
+
+        Write-Host '[RUN] Installing Python for all users with pip and the Python launcher...'
+        Invoke-NativeCommand -FilePath $installerPath -ArgumentList @(
+            '/quiet'
+            'InstallAllUsers=1'
+            "TargetDir=$pythonDirectory"
+            'PrependPath=0'
+            'Include_pip=1'
+            'Include_launcher=1'
+            'InstallLauncherAllUsers=1'
+            'Include_test=0'
+            '/log'
+            $installerLogPath
+        ) -SuccessExitCode @(0, 1641, 3010)
+        Write-Success ("Python {0} installed from the official python.org installer." -f $pythonVersion)
+    }
+    finally {
+        Remove-Item -Path $temporaryDirectory -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Get-NodeJsMsiProducts {
+    return @(Get-ItemProperty -Path @(
+                'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+                'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+            ) -ErrorAction SilentlyContinue | Where-Object {
+            $_.DisplayName -match '^Node\.js'
+        })
+}
+
+function Uninstall-NodeJs {
+    $products = @(Get-NodeJsMsiProducts)
+    if ($products.Count -eq 0) {
+        Write-Success 'Node.js is already absent.'
+        return
+    }
+
+    foreach ($product in $products) {
+        if ($product.PSChildName -notmatch '^\{[0-9A-Fa-f-]+\}$') {
+            continue
+        }
+        Write-Host ("[RUN] Removing Node.js MSI product: {0}" -f $product.DisplayName)
+        Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/x', $product.PSChildName, '/qn', '/norestart') -SuccessExitCode @(0, 1605, 1641, 3010)
+    }
+    Write-Success 'Node.js MSI installation removed.'
+}
+
+function Install-NodeJs {
+    $nativeArchitecture = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+    $nodeArchitecture = if ($nativeArchitecture -eq 'ARM64') { 'arm64' } else { 'x64' }
+    $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("SetupVibe-NodeJS-{0}" -f $PID)
+    $installerLogPath = Join-Path $script:LogDirectory ("nodejs-installer-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+
+    New-Item -Path $temporaryDirectory -ItemType Directory -Force | Out-Null
+    try {
+        Write-Host '[RUN] Finding the latest official Node.js LTS release...'
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $nodeReleases = @(Invoke-RestMethod -Uri 'https://nodejs.org/dist/index.json')
+        $nodeRelease = @($nodeReleases | Where-Object {
+                $_.lts -and ($_.files -contains 'win-x64-msi')
+            } | Select-Object -First 1)
+        if ($nodeRelease.Count -eq 0) {
+            throw 'Node.js did not return an LTS release with Windows MSI installers.'
+        }
+
+        $nodeVersion = [string]$nodeRelease[0].version
+        $installerName = "node-$nodeVersion-$nodeArchitecture.msi"
+        $releaseUrl = "https://nodejs.org/dist/$nodeVersion"
+        $installerPath = Join-Path $temporaryDirectory $installerName
+        Write-Host ("[RUN] Downloading Node.js {0} LTS from nodejs.org..." -f $nodeVersion)
+        Invoke-WebRequest -Uri "$releaseUrl/$installerName" -OutFile $installerPath -UseBasicParsing
+
+        $checksums = (Invoke-WebRequest -Uri "$releaseUrl/SHASUMS256.txt" -UseBasicParsing).Content
+        $checksumLine = @($checksums -split "`n" | Where-Object { $_ -match ("\s{0}\s*$" -f [regex]::Escape($installerName)) } | Select-Object -First 1)
+        if ($checksumLine.Count -eq 0) {
+            throw "The official Node.js checksum file does not contain $installerName."
+        }
+        $expectedChecksum = ($checksumLine[0].Trim() -split '\s+')[0]
+        $actualChecksum = (Get-FileHash -Path $installerPath -Algorithm SHA256).Hash
+        if ($actualChecksum -ne $expectedChecksum) {
+            throw "Node.js MSI SHA-256 mismatch. Expected $expectedChecksum, received $actualChecksum."
+        }
+        Write-Success 'Node.js MSI matches the official SHASUMS256.txt checksum.'
+        Assert-ValidAuthenticodeSignature -Path $installerPath -Name "Node.js $nodeVersion MSI"
+
+        Write-Host '[RUN] Installing the official Node.js LTS MSI...'
+        Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/i', $installerPath, 'REINSTALLMODE=amus', '/qn', '/norestart', '/L*v', $installerLogPath) -SuccessExitCode @(0, 1638, 1641, 3010)
+        if ($LASTEXITCODE -eq 1638) {
+            Write-WarningMessage 'Another Node.js MSI version is installed. Removing it before the forced LTS installation.'
+            Uninstall-NodeJs
+            Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/i', $installerPath, '/qn', '/norestart', '/L*v', $installerLogPath) -SuccessExitCode @(0, 1641, 3010)
+        }
+        Write-Success ("Node.js {0} installed from the official nodejs.org MSI." -f $nodeVersion)
+    }
+    finally {
+        Remove-Item -Path $temporaryDirectory -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Uninstall-Python {
+    $products = @(Get-ItemProperty -Path @(
+                'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+                'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+                'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+            ) -ErrorAction SilentlyContinue | Where-Object {
+            $_.DisplayName -match '^Python 3\.14\.\d+ \((64-bit|ARM64)\)$'
+        })
+    if ($products.Count -eq 0) {
+        Write-Success 'Python 3.14 is already absent.'
+        return
+    }
+
+    foreach ($product in $products) {
+        $quietUninstallProperty = $product.PSObject.Properties['QuietUninstallString']
+        $uninstallProperty = $product.PSObject.Properties['UninstallString']
+        $commandLine = if ($quietUninstallProperty) { [string]$quietUninstallProperty.Value } elseif ($uninstallProperty) { [string]$uninstallProperty.Value } else { $null }
+        if ([string]::IsNullOrWhiteSpace($commandLine)) {
+            Write-WarningMessage ("Python uninstaller command was not found for {0}." -f $product.DisplayName)
+            continue
+        }
+        if ($commandLine -notmatch '^\s*"([^"]+)"\s*(.*)$') {
+            throw "Python uninstaller command has an unsupported format: $commandLine"
+        }
+
+        $uninstallerPath = $matches[1]
+        $uninstallerArguments = $matches[2]
+        if ($uninstallerArguments -notmatch '(?i)/quiet') {
+            $uninstallerArguments = "$uninstallerArguments /quiet"
+        }
+        Write-Host ("[RUN] Removing {0}..." -f $product.DisplayName)
+        $process = Start-Process -FilePath $uninstallerPath -ArgumentList $uninstallerArguments -Wait -PassThru
+        if ($process.ExitCode -notin @(0, 1641, 3010)) {
+            throw "Python uninstaller failed with exit code $($process.ExitCode)."
+        }
+        if ($process.ExitCode -in @(1641, 3010)) {
+            $script:RestartRequired = $true
+        }
+    }
+    Write-Success 'Python 3.14 installation removed.'
+}
+
+function Find-RuntimeExecutable {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter()][string[]]$PreferredPaths = @()
+    )
+
+    $commandPaths = @(Get-Command $Name -All -ErrorAction SilentlyContinue | ForEach-Object { $_.Source })
+    $candidates = @($PreferredPaths) + $commandPaths
+    foreach ($candidate in $candidates) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) {
+            continue
+        }
+        if ($candidate -like '*\Microsoft\WindowsApps\*') {
+            continue
+        }
+        if (Test-Path $candidate -PathType Leaf) {
+            return (Resolve-Path $candidate).Path
+        }
+    }
+
+    throw "Required runtime executable '$Name' was not found after package installation."
+}
+
+function Install-DevelopmentRuntimePaths {
+    Import-EnvironmentPath
+
+    $pythonPath = Find-RuntimeExecutable -Name 'python.exe' -PreferredPaths @(
+        (Join-Path $env:ProgramFiles 'Python314\python.exe')
+        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python314\python.exe')
+    )
+    $nodePath = Find-RuntimeExecutable -Name 'node.exe' -PreferredPaths @(
+        (Join-Path $env:ProgramFiles 'nodejs\node.exe')
+    )
+
+    $pythonDirectory = Split-Path -Parent $pythonPath
+    $pythonScriptsDirectory = Join-Path $pythonDirectory 'Scripts'
+    $nodeDirectory = Split-Path -Parent $nodePath
+    $pipPath = Join-Path $pythonScriptsDirectory 'pip.exe'
+    $npmPath = Join-Path $nodeDirectory 'npm.cmd'
+    $npxPath = Join-Path $nodeDirectory 'npx.cmd'
+
+    foreach ($requiredFile in @($pipPath, $npmPath, $npxPath)) {
+        if (-not (Test-Path $requiredFile -PathType Leaf)) {
+            throw "Required runtime command was not found: $requiredFile"
+        }
+    }
+
+    $runtimePaths = @($pythonDirectory, $pythonScriptsDirectory, $nodeDirectory)
+    foreach ($runtimePath in $runtimePaths) {
+        Remove-PathEntry -Path $runtimePath -Scope 'User'
+        Add-PathEntry -Path $runtimePath -Scope 'Machine' -Prepend
+    }
+    @{ Paths = $runtimePaths } | ConvertTo-Json | Set-Content -Path $script:RuntimePathStatePath -Encoding ASCII
+    Import-EnvironmentPath
+
+    Invoke-NativeCommand -FilePath $pythonPath -ArgumentList @('--version')
+    Invoke-NativeCommand -FilePath $pipPath -ArgumentList @('--version')
+    Invoke-NativeCommand -FilePath $nodePath -ArgumentList @('--version')
+    Invoke-NativeCommand -FilePath $npmPath -ArgumentList @('--version')
+    Invoke-NativeCommand -FilePath $npxPath -ArgumentList @('--version')
+    Write-Success 'Python, pip, Node.js, npm, and npx are available in the machine PATH for Claude and Codex.'
+}
+
+function Uninstall-DevelopmentRuntimePaths {
+    $runtimePaths = @(
+        (Join-Path $env:ProgramFiles 'Python314')
+        (Join-Path $env:ProgramFiles 'Python314\Scripts')
+        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python314')
+        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python314\Scripts')
+        (Join-Path $env:ProgramFiles 'nodejs')
+    )
+    if (Test-Path $script:RuntimePathStatePath -PathType Leaf) {
+        try {
+            $state = Get-Content -Path $script:RuntimePathStatePath -Raw | ConvertFrom-Json
+            $runtimePaths += @($state.Paths)
+        }
+        catch {
+            Write-WarningMessage ("Could not read the runtime PATH state; removing known paths: {0}" -f $_.Exception.Message)
+        }
+    }
+
+    foreach ($runtimePath in @($runtimePaths | Where-Object { $_ } | Select-Object -Unique)) {
+        Remove-PathEntry -Path ([string]$runtimePath) -Scope 'Machine'
+    }
+    Remove-Item -Path $script:RuntimePathStatePath -Force -ErrorAction SilentlyContinue
+    Import-EnvironmentPath
+    Write-Success 'SetupVibe-managed Python and Node.js machine PATH entries were removed.'
 }
 
 function Install-WindowsUtilities {
@@ -1059,6 +1382,9 @@ if ($Uninstall) {
 
     Invoke-SetupStep -Name 'Legacy ecosystem tools' -Action { Uninstall-LegacyEcosystemTools }
     Invoke-SetupStep -Name 'PowerShell profile: Starship and zoxide' -Action { Uninstall-PowerShellProfile }
+    Invoke-SetupStep -Name 'Node.js LTS official MSI' -Action { Uninstall-NodeJs }
+    Invoke-SetupStep -Name 'Python 3.14 official installer' -Action { Uninstall-Python }
+    Invoke-SetupStep -Name 'Python and Node.js machine PATH' -Action { Uninstall-DevelopmentRuntimePaths }
 
     $script:WinGetPath = Find-WinGet
     if ($script:WinGetPath) {
@@ -1085,7 +1411,7 @@ if ($Uninstall) {
         Write-WarningMessage 'Chocolatey was not found; Chocolatey-managed packages could not be checked.'
     }
 
-    Invoke-SetupStep -Name 'OpenSSH Client' -Action { Uninstall-OpenSshClient }
+    Invoke-SetupStep -Name 'OpenSSH Client and Server' -Action { Uninstall-OpenSsh }
     Invoke-SetupStep -Name 'SetupVibe Windows utilities' -Action { Uninstall-WindowsUtilities }
     if ($currentBuild -ge 22621) {
         Invoke-SetupStep -Name 'Windows Subsystem for Linux' -Action { Uninstall-WindowsSubsystemForLinux }
@@ -1093,12 +1419,14 @@ if ($Uninstall) {
     Invoke-SetupStep -Name 'Legacy toolchain PATH entries' -Action { Remove-LegacyToolchainPaths }
 }
 else {
-    Invoke-SetupStep -Name 'OpenSSH Client' -Action { Install-OpenSshClient }
+    Invoke-SetupStep -Name 'OpenSSH Client and Server' -Action { Install-OpenSsh }
     Invoke-SetupStep -Name 'SetupVibe Windows utilities' -Action { Install-WindowsUtilities }
     Invoke-SetupStep -Name 'Windows Subsystem for Linux base' -Action { Install-WindowsSubsystemForLinux }
     Invoke-SetupStep -Name 'WSL development networking and optimization' -Action { Install-WslDevelopmentConfiguration }
     Invoke-SetupStep -Name 'WinGet' -Action { Install-WinGet }
     Invoke-SetupStep -Name 'Chocolatey' -Action { Install-Chocolatey }
+    Invoke-SetupStep -Name 'Python 3.14 official installer' -Action { Install-Python }
+    Invoke-SetupStep -Name 'Node.js LTS official MSI' -Action { Install-NodeJs }
 
     if ($script:WinGetPath) {
         foreach ($package in $script:WinGetPackages) {
@@ -1107,6 +1435,7 @@ else {
             }
         }
     }
+    Invoke-SetupStep -Name 'Python and Node.js PATH for Claude and Codex' -Action { Install-DevelopmentRuntimePaths }
 
     if ($script:ChocolateyPath) {
         foreach ($package in $script:ChocolateyPackages) {
@@ -1126,7 +1455,7 @@ if ($Uninstall) {
     Write-Success 'SetupVibe-managed Windows utilities and configurations were removed.'
 }
 else {
-    Write-Success 'The native Windows utility environment is configured.'
+    Write-Success 'The native Windows utility environment with Python and Node.js is configured.'
 }
 
 if ($script:RestartRequired) {
