@@ -15,7 +15,7 @@ All notable changes to **SetupVibe** are documented in this file.
 - Added the WSL base without a Linux distribution, set WSL 2 as the default, and configured mirrored VPN/LAN networking, DNS tunneling, Windows proxy integration, Hyper-V firewall inbound access, automatic memory reclaim, and sparse VHDs for software development.
 - Added Windows Edition (Beta) documentation in English, Portuguese, French, and Spanish.
 - Added `utils/windows/ssh_copy_id/ssh_copy_id.ps1`, a minimal `ssh_copy_id.cmd` compatibility launcher, and their usage guide for creating or detecting an SSH key, copying it to a remote server, selecting a port, and optionally opening the SSH session.
-- Added Python 3.14 from the official signed `python.org` standalone installer and Node.js LTS from the official signed `nodejs.org` MSI, with Node.js SHA-256 verification, machine `PATH` normalization, and validation of `python`, `pip`, `node`, `npm`, and `npx` for Claude and Codex.
+- Added Python 3.14 from the official signed `python.org` standalone installer and Node.js 24 LTS from the official signed `nodejs.org` MSI, with Node.js SHA-256 verification, machine `PATH` normalization, and validation of `python`, `pip`, `node`, `npm`, and `npx` for Claude and Codex.
 - Added Claude Code through Anthropic's checksum-verifying native Windows installer, Codex CLI through the official `@openai/codex` npm package with an execution-policy-safe CMD launcher, and Google Antigravity CLI through its checksum-verifying native installer as `agy`.
 
 ### Changed
@@ -36,6 +36,7 @@ All notable changes to **SetupVibe** are documented in this file.
 - Replaced the unreliable OpenSSH Feature on Demand operation with the latest official Microsoft Win32-OpenSSH MSI, installing and force-repairing the Client and Server features, prioritizing the binaries in the machine `PATH`, validating `ssh.exe -V`, starting `sshd` automatically, and enabling inbound TCP/22.
 - Fixed OpenSSH release resolution by removing the GitHub releases-list API dependency, resolving `releases/latest` and its expanded assets directly, accepting only the x64 `OpenSSH-Win64-*.msi`, and validating its Authenticode signature.
 - Fixed Windows Terminal startup errors caused by a restricted PowerShell execution policy by removing SetupVibe's PowerShell profile initialization instead of weakening the policy.
+- Fixed HTTP 400 responses from the Node.js release-index request by resolving the x64 MSI directly through the official `latest-v24.x` channel and downloading `SHASUMS256.txt` and the MSI with Windows `curl.exe`, HTTPS-only redirects, retries, SHA-256 validation, and Authenticode validation.
 - Fixed `desktop.ps1` UAC elevation for remote `irm ... | iex` execution by handing off a temporary script to the elevated process.
 - Added Windows Server, non-x64 Windows, and minimum-build preflight checks to avoid unsupported installations; Windows on ARM and 32-bit editions are rejected.
 - Corrected broken contribution, license, Tmux, and PM2 links in the existing documentation indexes and localized guides.

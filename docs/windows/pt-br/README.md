@@ -17,7 +17,7 @@ A Edição Windows (Beta) configura utilitários nativos do Windows, Python, Nod
 - Cliente e Servidor Microsoft Win32-OpenSSH oficiais mais recentes pelo MSI Win64 x64 assinado
 - WinGet pelo fluxo oficial de reparo `Microsoft.WinGet.Client`, quando ausente
 - Chocolatey pelo script oficial de bootstrap, quando ausente
-- Python 3.14 diretamente pelo instalador oficial do `python.org` e Node.js LTS diretamente pelo MSI oficial do `nodejs.org`, com `python`, `pip`, `node`, `npm` e `npx` no `PATH` da máquina para Claude e Codex
+- Python 3.14 diretamente pelo instalador oficial do `python.org` e Node.js 24 LTS pelo canal oficial `latest-v24.x` do `nodejs.org`, com `python`, `pip`, `node`, `npm` e `npx` no `PATH` da máquina para Claude e Codex
 - Claude Code pelo instalador nativo oficial da Anthropic, Codex CLI pelo pacote npm oficial `@openai/codex` e Google Antigravity CLI como `agy` pelo seu instalador nativo oficial
 - Sistema base do WSL sem uma distribuição Linux, com WSL 2 como padrão
 - Rede espelhada do WSL com acesso por VPN/LAN, tunelamento de DNS, integração com o proxy do Windows, entrada liberada no firewall Hyper-V, recuperação automática de memória e discos virtuais esparsos
@@ -89,7 +89,7 @@ Durante a execução, o instalador:
 7. Instala o sistema base do WSL sem uma distribuição Linux e torna o WSL 2 o padrão.
 8. Aplica ao WSL rede espelhada, acesso por VPN/LAN, DNS, proxy, firewall, recuperação de memória e discos VHD esparsos.
 9. Instala WinGet e Chocolatey quando necessário.
-10. Baixa Python 3.14 do `python.org` e Node.js LTS do `nodejs.org` sem WinGet ou Chocolatey, valida suas assinaturas Authenticode e o SHA-256 oficial do Node.js, coloca seus diretórios no início do `PATH` da máquina e valida os comandos para Claude e Codex.
+10. Baixa Python 3.14 do `python.org` e resolve o Node.js 24 LTS diretamente pelo canal oficial `latest-v24.x` do `nodejs.org`, sem a API do índice de releases, WinGet ou Chocolatey. Usa o `curl.exe` do Windows com redirecionamentos somente HTTPS e novas tentativas, valida o Authenticode e o SHA-256 oficial do Node.js, coloca os diretórios dos runtimes no início do `PATH` da máquina e valida seus comandos para Claude e Codex.
 11. Instala cada utilitário restante do Windows de forma independente, valida `gh.exe` e o alias `wt.exe` do Windows Terminal e continua após falhas isoladas.
 12. Instala e valida Claude Code, Codex CLI e Antigravity CLI por suas fontes oficiais, preservando todos os arquivos de perfil PowerShell do usuário.
 13. Remove blocos legados do Starship/zoxide e o próprio Starship instalados pelo SetupVibe, preservando os perfis e a política de execução originais do Windows PowerShell.
@@ -189,6 +189,6 @@ Combine `-Uninstall` com `-Restart` para reiniciar automaticamente quando o Wind
 
 - Windows 10, Windows Server, builds do Windows 11 anteriores a 22621, Windows de 32 bits e Windows em ARM são recusados; somente x64 é compatível.
 - O WSL é instalado e configurado para WSL 2, rede espelhada por VPN/LAN e otimizações comuns de desenvolvimento, mas nenhuma distribuição Linux é instalada.
-- Python 3.14 e Node.js LTS são instalados para automações locais; Claude Code, Codex CLI e Antigravity CLI são as únicas CLIs de IA instaladas. Outras linguagens de programação, frameworks, gerenciadores de runtime e CLIs de IA são excluídos.
+- Python 3.14 e Node.js 24 LTS são instalados para automações locais; Claude Code, Codex CLI e Antigravity CLI são as únicas CLIs de IA instaladas. Outras linguagens de programação, frameworks, gerenciadores de runtime e CLIs de IA são excluídos.
 - Starship e ZSH não são instalados no Windows, os perfis do PowerShell não são personalizados e a política de execução persistente não é alterada.
 - O Docker Desktop e um mecanismo Docker local não são instalados.

@@ -48,7 +48,7 @@ curl -sSL server.setupvibe.dev | bash -s -- --manager
 | PHP 8.4 + Composer + Laravel          | ✔              | ✗               | ✗       |
 | Ruby + rbenv + Rails                  | ✔              | ✗               | ✗       |
 | Go, Rust, Python + uv                 | ✔              | ✗               | ✗       |
-| Node.js 24 + Bun + PNPM               | ✔              | Node.js LTS only | ✔ (APT) |
+| Node.js 24 + Bun + PNPM               | ✔              | Node.js 24 LTS   | ✔ (APT) |
 | n8n                                   | ✔              | ✗               | ✗       |
 | Docker + Ansible + GitHub CLI         | ✔              | GitHub CLI only | ✔       |
 | Modern Unix tools (bat, eza, fzf…)    | ✔ via Homebrew | ✔               | ✗       |

@@ -1110,35 +1110,61 @@ function Uninstall-NodeJs {
 }
 
 function Install-NodeJs {
-    $nodeArchitecture = 'x64'
     $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("SetupVibe-NodeJS-{0}" -f $PID)
     $installerLogPath = Join-Path $script:LogDirectory ("nodejs-installer-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+    $releaseUrl = 'https://nodejs.org/dist/latest-v24.x'
+    $curlPath = Join-Path $env:SystemRoot 'System32\curl.exe'
 
     New-Item -Path $temporaryDirectory -ItemType Directory -Force | Out-Null
     try {
-        Write-Host '[RUN] Finding the latest official Node.js LTS release...'
-        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-        $nodeReleases = @(Invoke-RestMethod -Uri 'https://nodejs.org/dist/index.json')
-        $nodeRelease = @($nodeReleases | Where-Object {
-                $_.lts -and ($_.files -contains 'win-x64-msi')
-            } | Select-Object -First 1)
-        if ($nodeRelease.Count -eq 0) {
-            throw 'Node.js did not return an LTS release with Windows MSI installers.'
+        if (-not (Test-Path $curlPath -PathType Leaf)) {
+            throw "The Windows curl.exe executable was not found at $curlPath."
         }
 
-        $nodeVersion = [string]$nodeRelease[0].version
-        $installerName = "node-$nodeVersion-$nodeArchitecture.msi"
-        $releaseUrl = "https://nodejs.org/dist/$nodeVersion"
+        Write-Host '[RUN] Resolving Node.js 24 LTS from the official latest-v24.x channel...'
+        $checksumsPath = Join-Path $temporaryDirectory 'SHASUMS256.txt'
+        Invoke-NativeCommand -FilePath $curlPath -ArgumentList @(
+            '--fail'
+            '--location'
+            '--retry', '3'
+            '--connect-timeout', '30'
+            '--proto', '=https'
+            '--tlsv1.2'
+            '--user-agent', ("SetupVibe-Windows/{0}" -f $script:Version)
+            '--output', $checksumsPath
+            "$releaseUrl/SHASUMS256.txt"
+        )
+        if (-not (Test-Path $checksumsPath -PathType Leaf) -or (Get-Item $checksumsPath).Length -eq 0) {
+            throw 'The official Node.js SHASUMS256.txt file was empty or missing.'
+        }
+
+        $checksumMatch = @(Get-Content -Path $checksumsPath | Where-Object {
+                $_ -match '^([0-9a-fA-F]{64})\s{2}(node-(v24\.\d+\.\d+)-x64\.msi)$'
+            } | Select-Object -First 1)
+        if ($checksumMatch.Count -eq 0 -or $checksumMatch[0] -notmatch '^([0-9a-fA-F]{64})\s{2}(node-(v24\.\d+\.\d+)-x64\.msi)$') {
+            throw 'The official Node.js 24 LTS checksum file does not contain an x64 MSI.'
+        }
+
+        $expectedChecksum = $matches[1]
+        $installerName = $matches[2]
+        $nodeVersion = $matches[3]
         $installerPath = Join-Path $temporaryDirectory $installerName
         Write-Host ("[RUN] Downloading Node.js {0} LTS from nodejs.org..." -f $nodeVersion)
-        Invoke-WebRequest -Uri "$releaseUrl/$installerName" -OutFile $installerPath -UseBasicParsing
-
-        $checksums = (Invoke-WebRequest -Uri "$releaseUrl/SHASUMS256.txt" -UseBasicParsing).Content
-        $checksumLine = @($checksums -split "`n" | Where-Object { $_ -match ("\s{0}\s*$" -f [regex]::Escape($installerName)) } | Select-Object -First 1)
-        if ($checksumLine.Count -eq 0) {
-            throw "The official Node.js checksum file does not contain $installerName."
+        Invoke-NativeCommand -FilePath $curlPath -ArgumentList @(
+            '--fail'
+            '--location'
+            '--retry', '3'
+            '--connect-timeout', '30'
+            '--proto', '=https'
+            '--tlsv1.2'
+            '--user-agent', ("SetupVibe-Windows/{0}" -f $script:Version)
+            '--output', $installerPath
+            "$releaseUrl/$installerName"
+        )
+        if (-not (Test-Path $installerPath -PathType Leaf) -or (Get-Item $installerPath).Length -eq 0) {
+            throw "The official Node.js MSI was empty or missing: $installerName"
         }
-        $expectedChecksum = ($checksumLine[0].Trim() -split '\s+')[0]
+
         $actualChecksum = (Get-FileHash -Path $installerPath -Algorithm SHA256).Hash
         if ($actualChecksum -ne $expectedChecksum) {
             throw "Node.js MSI SHA-256 mismatch. Expected $expectedChecksum, received $actualChecksum."
@@ -1618,7 +1644,7 @@ if ($Uninstall) {
     Invoke-SetupStep -Name 'Antigravity CLI' -Action { Uninstall-AntigravityCli }
     Invoke-SetupStep -Name 'AI CLI PATH entries' -Action { Uninstall-AiCliPaths }
     Invoke-SetupStep -Name 'Legacy ecosystem tools' -Action { Uninstall-LegacyEcosystemTools }
-    Invoke-SetupStep -Name 'Node.js LTS official MSI' -Action { Uninstall-NodeJs }
+    Invoke-SetupStep -Name 'Node.js 24 LTS official MSI' -Action { Uninstall-NodeJs }
     Invoke-SetupStep -Name 'Python 3.14 official installer' -Action { Uninstall-Python }
     Invoke-SetupStep -Name 'Python and Node.js machine PATH' -Action { Uninstall-DevelopmentRuntimePaths }
 
@@ -1662,7 +1688,7 @@ else {
     Invoke-SetupStep -Name 'WinGet' -Action { Install-WinGet }
     Invoke-SetupStep -Name 'Chocolatey' -Action { Install-Chocolatey }
     Invoke-SetupStep -Name 'Python 3.14 official installer' -Action { Install-Python }
-    Invoke-SetupStep -Name 'Node.js LTS official MSI' -Action { Install-NodeJs }
+    Invoke-SetupStep -Name 'Node.js 24 LTS official MSI' -Action { Install-NodeJs }
 
     if ($script:WinGetPath) {
         foreach ($package in $script:WinGetPackages) {
