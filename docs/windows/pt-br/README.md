@@ -18,7 +18,7 @@ A Edição Windows (Beta) configura utilitários nativos do Windows, Python, Nod
 - WinGet pelo fluxo oficial de reparo `Microsoft.WinGet.Client`, quando ausente
 - Chocolatey pelo script oficial de bootstrap, quando ausente
 - Python 3.14 diretamente pelo instalador oficial do `python.org` e Node.js 24 LTS pelo canal oficial `latest-v24.x` do `nodejs.org`, com `python`, `pip`, `node`, `npm` e `npx` no `PATH` da máquina para Claude e Codex
-- Claude Code pelo instalador nativo oficial da Anthropic, Codex CLI pelo pacote npm oficial `@openai/codex` e Google Antigravity CLI como `agy` pelo seu instalador nativo oficial
+- Claude Code pelo instalador nativo recomendado da Anthropic, com seu pacote npm oficial como recuperação, Codex CLI pelo pacote npm oficial `@openai/codex` e Google Antigravity CLI como `agy` pelo seu instalador nativo oficial
 - Sistema base do WSL sem uma distribuição Linux, com WSL 2 como padrão
 - Rede espelhada do WSL com acesso por VPN/LAN, tunelamento de DNS, integração com o proxy do Windows, entrada liberada no firewall Hyper-V, recuperação automática de memória e discos virtuais esparsos
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick e GitHub CLI (`gh`)
@@ -80,7 +80,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1
 
 Durante a execução, o instalador:
 
-1. Valida o Windows 11 22H2 ou posterior e a arquitetura x64.
+1. Valida o Windows 11 22H2 ou posterior e a arquitetura x64, reiniciando o próprio script pelo Windows PowerShell x64 nativo se ele tiver sido iniciado em um processo de 32 bits.
 2. Solicita privilégios de administrador pelo UAC.
 3. Lista processos de instalação concorrentes e pergunta se deve encerrá-los. Se aceito, tenta normalmente, força os que permanecerem e executa `sfc.exe /scannow`; se recusado, aguarda ENTER e encerra.
 4. Recusa reinicializações pendentes, inicia os serviços necessários, executa `sfc.exe /scannow` caso ainda não tenha sido executado, verifica a política WSUS e valida o armazenamento de componentes do Windows.
@@ -89,9 +89,9 @@ Durante a execução, o instalador:
 7. Instala o sistema base do WSL sem uma distribuição Linux e torna o WSL 2 o padrão.
 8. Aplica ao WSL rede espelhada, acesso por VPN/LAN, DNS, proxy, firewall, recuperação de memória e discos VHD esparsos.
 9. Instala WinGet e Chocolatey quando necessário.
-10. Baixa Python 3.14 do `python.org` e resolve o Node.js 24 LTS diretamente pelo canal oficial `latest-v24.x` do `nodejs.org`, sem a API do índice de releases, WinGet ou Chocolatey. Usa o `curl.exe` do Windows com redirecionamentos somente HTTPS e novas tentativas, valida o Authenticode e o SHA-256 oficial do Node.js, coloca os diretórios dos runtimes no início do `PATH` da máquina e valida seus comandos para Claude e Codex.
+10. Baixa Python 3.14 do `python.org` e resolve o Node.js 24 LTS diretamente pelo canal oficial `latest-v24.x` do `nodejs.org`, sem a API do índice de releases, WinGet ou Chocolatey. Usa o `curl.exe` do Windows com redirecionamentos somente HTTPS e novas tentativas, valida o Authenticode e o SHA-256 oficial do Node.js, repara recursos ausentes do Python ou do MSI do Node.js, coloca os diretórios x64 nativos dos runtimes no início do `PATH` da máquina e valida `python`, `pip`, `node`, `npm` e `npx`.
 11. Instala cada utilitário restante do Windows de forma independente, valida `gh.exe` e o alias `wt.exe` do Windows Terminal e continua após falhas isoladas.
-12. Instala e valida Claude Code, Codex CLI e Antigravity CLI por suas fontes oficiais, preservando todos os arquivos de perfil PowerShell do usuário.
+12. Instala e valida Claude Code, Codex CLI e Antigravity CLI por suas fontes oficiais, preservando todos os arquivos de perfil PowerShell do usuário. O Claude usa o instalador nativo recomendado independentemente do npm e recorre ao pacote npm oficial da Anthropic somente quando necessário.
 13. Remove blocos legados do Starship/zoxide e o próprio Starship instalados pelo SetupVibe, preservando os perfis e a política de execução originais do Windows PowerShell.
 14. Exibe um resumo final e o local do log completo.
 

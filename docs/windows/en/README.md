@@ -18,7 +18,7 @@ The Windows Edition (Beta) configures native Windows utilities, Python, Node.js,
 - WinGet through the official `Microsoft.WinGet.Client` repair workflow when missing
 - Chocolatey through its official bootstrap script when missing
 - Python 3.14 directly from the official `python.org` installer and Node.js 24 LTS from the official `latest-v24.x` channel on `nodejs.org`, with `python`, `pip`, `node`, `npm`, and `npx` in the machine `PATH` for Claude and Codex
-- Claude Code through Anthropic's official native Windows installer, Codex CLI through the official `@openai/codex` npm package, and Google Antigravity CLI as `agy` through its official native installer
+- Claude Code through Anthropic's recommended native Windows installer with its official npm package as a recovery path, Codex CLI through the official `@openai/codex` npm package, and Google Antigravity CLI as `agy` through its official native installer
 - WSL base without a Linux distribution, with WSL 2 as the default
 - Mirrored WSL networking with VPN/LAN access, DNS tunneling, Windows proxy integration, Hyper-V firewall inbound access, automatic memory reclaim, and sparse virtual disks
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick, and GitHub CLI (`gh`)
@@ -80,7 +80,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1
 
 During execution, the installer:
 
-1. Validates Windows 11 22H2 or later and the x64 architecture.
+1. Validates Windows 11 22H2 or later and the x64 architecture, relaunching itself through native x64 Windows PowerShell if it started in a 32-bit process.
 2. Requests administrator privileges through UAC.
 3. Lists competing installer processes and asks whether to stop them. If accepted, it tries normally, forces those that remain, and runs `sfc.exe /scannow`; if declined, it waits for ENTER and exits.
 4. Rejects pending restarts, starts required services, runs `sfc.exe /scannow` if it has not already run, checks WSUS policy, and validates the Windows component store.
@@ -89,9 +89,9 @@ During execution, the installer:
 7. Installs the WSL base without a Linux distribution and makes WSL 2 the default.
 8. Applies mirrored networking, VPN/LAN access, DNS, proxy, firewall, memory reclaim, and sparse VHD settings to WSL.
 9. Installs WinGet and Chocolatey when needed.
-10. Downloads Python 3.14 from `python.org` and resolves Node.js 24 LTS directly through the official `latest-v24.x` channel on `nodejs.org` without the release-index API, WinGet, or Chocolatey. It uses Windows `curl.exe` with HTTPS-only redirects and retries, validates Authenticode and the official Node.js SHA-256, prepends the runtime directories to the machine `PATH`, and verifies their commands for Claude and Codex.
+10. Downloads Python 3.14 from `python.org` and resolves Node.js 24 LTS directly through the official `latest-v24.x` channel on `nodejs.org` without the release-index API, WinGet, or Chocolatey. It uses Windows `curl.exe` with HTTPS-only redirects and retries, validates Authenticode and the official Node.js SHA-256, repairs missing Python or Node.js MSI features, prepends the native x64 runtime directories to the machine `PATH`, and verifies `python`, `pip`, `node`, `npm`, and `npx`.
 11. Installs each remaining Windows utility independently, validates `gh.exe` and the Windows Terminal `wt.exe` alias, and continues after isolated package failures.
-12. Installs and validates Claude Code, Codex CLI, and Antigravity CLI from their official sources while preserving every user PowerShell profile file.
+12. Installs and validates Claude Code, Codex CLI, and Antigravity CLI from their official sources while preserving every user PowerShell profile file. Claude uses the recommended native installer independently of npm and falls back to Anthropic's official npm package only when necessary.
 13. Removes legacy SetupVibe Starship/zoxide profile blocks and Starship itself, preserving the original Windows PowerShell profiles and execution policy.
 14. Displays a final summary and the transcript log location.
 

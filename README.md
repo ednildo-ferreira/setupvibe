@@ -13,8 +13,8 @@ Installs and configures a development environment in one command, supporting Win
 - **Native Windows Shell:** Keeps Windows PowerShell and PowerShell 7 profiles unchanged, without Starship, ZSH, automatic zoxide initialization, or persistent execution-policy changes; Unix editions retain ZSH, Oh My Zsh, and Starship.
 - **Optimized Terminals:** Installs Windows Terminal on Windows and configures Tmux + TPM on Unix systems.
 - **Global Helper Scripts:** Installs Windows helper scripts in `%USERPROFILE%\.setupvibe\bin` and adds the directory to the user's `PATH`.
-- **AI Runtime Foundation:** Installs Python 3.14 directly from `python.org` and Node.js 24 LTS from the official `latest-v24.x` channel on `nodejs.org`, then exposes `python`, `pip`, `node`, `npm`, and `npx` in the Windows machine `PATH` for Claude and Codex.
-- **Native Windows AI CLIs:** Installs Claude Code through Anthropic's native installer, Codex CLI from `@openai/codex`, and Google Antigravity CLI as `agy`, while preserving PowerShell profiles and restricted execution policies.
+- **AI Runtime Foundation:** Installs and validates Python 3.14 directly from `python.org` and Node.js 24 LTS from the official `latest-v24.x` channel on `nodejs.org`, automatically repairs missing runtime files, and exposes `python`, `pip`, `node`, `npm`, and `npx` in the Windows machine `PATH` for Claude and Codex.
+- **Native Windows AI CLIs:** Installs Claude Code through Anthropic's recommended native installer with its official npm package as a recovery path, Codex CLI from `@openai/codex`, and Google Antigravity CLI as `agy`, while preserving PowerShell profiles and restricted execution policies.
 - **WSL 2 Ready:** Installs the WSL base without a Linux distribution and configures mirrored VPN/LAN networking and development optimizations on Windows 11.
 - **AI-Ready Unix Editions:** Includes the latest AI CLI tools for developers on macOS, Linux, and WSL.
 

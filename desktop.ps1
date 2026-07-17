@@ -111,7 +111,16 @@ function Test-Administrator {
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-function Request-Elevation {
+function Get-NativeWindowsPowerShellPath {
+    if ([Environment]::Is64BitProcess) {
+        return (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe')
+    }
+    return (Join-Path $env:SystemRoot 'Sysnative\WindowsPowerShell\v1.0\powershell.exe')
+}
+
+function Invoke-PowerShellHandoff {
+    param([Parameter()][switch]$Elevate)
+
     $scriptPath = $PSCommandPath
     $temporaryScript = $null
 
@@ -136,7 +145,6 @@ function Request-Elevation {
         '-File'
         ('"{0}"' -f $scriptPath)
     )
-
     if ($Restart) {
         $powerShellArguments += '-Restart'
     }
@@ -144,9 +152,19 @@ function Request-Elevation {
         $powerShellArguments += '-Uninstall'
     }
 
-    Write-Host 'Administrator privileges are required. Opening the UAC prompt...' -ForegroundColor Yellow
+    $powerShellPath = Get-NativeWindowsPowerShellPath
+    $startProcessArguments = @{
+        FilePath = $powerShellPath
+        ArgumentList = $powerShellArguments
+        Wait = $true
+        PassThru = $true
+    }
+    if ($Elevate) {
+        $startProcessArguments.Verb = 'RunAs'
+    }
+
     try {
-        $process = Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $powerShellArguments -Wait -PassThru
+        $process = Start-Process @startProcessArguments
         exit $process.ExitCode
     }
     finally {
@@ -154,6 +172,16 @@ function Request-Elevation {
             Remove-Item -Path $temporaryScript -Force -ErrorAction SilentlyContinue
         }
     }
+}
+
+function Request-Elevation {
+    Write-Host 'Administrator privileges are required. Opening the UAC prompt...' -ForegroundColor Yellow
+    Invoke-PowerShellHandoff -Elevate
+}
+
+function Request-64BitPowerShell {
+    Write-Host 'SetupVibe requires a 64-bit PowerShell process. Restarting with native x64 Windows PowerShell...' -ForegroundColor Yellow
+    Invoke-PowerShellHandoff -Elevate:(-not (Test-Administrator))
 }
 
 function Invoke-NativeCommand {
@@ -395,6 +423,17 @@ function Import-EnvironmentPath {
     $env:Path = (@($machinePath, $userPath) + $additionalPaths | Where-Object { $_ }) -join ';'
 }
 
+function Get-NativeProgramFilesDirectory {
+    $programFilesDirectory = [Environment]::GetEnvironmentVariable('ProgramW6432', 'Process')
+    if ([string]::IsNullOrWhiteSpace($programFilesDirectory)) {
+        $programFilesDirectory = [Environment]::GetEnvironmentVariable('ProgramFiles', 'Process')
+    }
+    if ([string]::IsNullOrWhiteSpace($programFilesDirectory)) {
+        throw 'The native x64 Program Files directory could not be resolved.'
+    }
+    return $programFilesDirectory.TrimEnd('\')
+}
+
 function Find-Executable {
     param([Parameter(Mandatory = $true)][string]$Name)
 
@@ -427,10 +466,7 @@ function Get-OpenSshCandidateDirectories {
         }
     }
 
-    $nativeProgramFiles = [Environment]::GetEnvironmentVariable('ProgramW6432', 'Process')
-    if ([string]::IsNullOrWhiteSpace($nativeProgramFiles)) {
-        $nativeProgramFiles = [Environment]::GetEnvironmentVariable('ProgramFiles', 'Process')
-    }
+    $nativeProgramFiles = Get-NativeProgramFilesDirectory
     foreach ($programFilesDirectory in @($nativeProgramFiles, $env:ProgramFiles)) {
         if ([string]::IsNullOrWhiteSpace($programFilesDirectory)) {
             continue
@@ -1115,9 +1151,10 @@ function Assert-ValidAuthenticodeSignature {
 
 function Install-Python {
     $pythonArchitecture = 'amd64'
-    $pythonDirectory = Join-Path $env:ProgramFiles 'Python314'
+    $pythonDirectory = Join-Path (Get-NativeProgramFilesDirectory) 'Python314'
     $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("SetupVibe-Python-{0}" -f $PID)
     $installerLogPath = Join-Path $script:LogDirectory ("python-installer-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+    $repairLogPath = Join-Path $script:LogDirectory ("python-repair-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
 
     New-Item -Path $temporaryDirectory -ItemType Directory -Force | Out-Null
     try {
@@ -1140,18 +1177,59 @@ function Install-Python {
         Assert-ValidAuthenticodeSignature -Path $installerPath -Name "Python $pythonVersion installer"
 
         Write-Host '[RUN] Installing Python for all users with pip and the Python launcher...'
-        Invoke-NativeCommand -FilePath $installerPath -ArgumentList @(
+        $pythonInstallerArguments = @(
             '/quiet'
             'InstallAllUsers=1'
             "TargetDir=$pythonDirectory"
-            'PrependPath=0'
+            'PrependPath=1'
+            'Include_exe=1'
+            'Include_lib=1'
             'Include_pip=1'
+            'Include_tools=1'
             'Include_launcher=1'
             'InstallLauncherAllUsers=1'
             'Include_test=0'
             '/log'
             $installerLogPath
-        ) -SuccessExitCode @(0, 1641, 3010)
+        )
+        Invoke-NativeCommand -FilePath $installerPath -ArgumentList $pythonInstallerArguments -SuccessExitCode @(0, 1641, 3010)
+
+        $pythonPath = Join-Path $pythonDirectory 'python.exe'
+        if (-not (Test-Path $pythonPath -PathType Leaf)) {
+            Write-WarningMessage 'Python installer completed without python.exe. Forcing a repair of the x64 installation...'
+            $repairArguments = @(
+                '/repair'
+                '/quiet'
+                'InstallAllUsers=1'
+                "TargetDir=$pythonDirectory"
+                'PrependPath=1'
+                'Include_exe=1'
+                'Include_lib=1'
+                'Include_pip=1'
+                'Include_tools=1'
+                'Include_launcher=1'
+                'InstallLauncherAllUsers=1'
+                'Include_test=0'
+                '/log'
+                $repairLogPath
+            )
+            Invoke-NativeCommand -FilePath $installerPath -ArgumentList $repairArguments -SuccessExitCode @(0, 1641, 3010)
+        }
+        if (-not (Test-Path $pythonPath -PathType Leaf)) {
+            throw "Python installer completed, but python.exe was not found at $pythonPath. Review $installerLogPath and $repairLogPath."
+        }
+
+        $pipPath = Join-Path $pythonDirectory 'Scripts\pip.exe'
+        if (-not (Test-Path $pipPath -PathType Leaf)) {
+            Write-WarningMessage 'pip.exe was not created by the installer. Recovering pip through the bundled ensurepip module...'
+            Invoke-NativeCommand -FilePath $pythonPath -ArgumentList @('-m', 'ensurepip', '--upgrade')
+        }
+        if (-not (Test-Path $pipPath -PathType Leaf)) {
+            throw "Python was installed, but pip.exe was not found at $pipPath."
+        }
+
+        Invoke-NativeCommand -FilePath $pythonPath -ArgumentList @('--version')
+        Invoke-NativeCommand -FilePath $pipPath -ArgumentList @('--version')
         Write-Success ("Python {0} installed from the official python.org installer." -f $pythonVersion)
     }
     finally {
@@ -1167,6 +1245,34 @@ function Get-NodeJsMsiProducts {
             $displayName = [string](Get-ObjectPropertyValue -InputObject $_ -Name 'DisplayName')
             $displayName -match '^Node\.js'
         })
+}
+
+function Get-NodeJsCandidateDirectories {
+    param([Parameter()][object[]]$Products = @())
+
+    $candidateDirectories = @()
+    foreach ($product in $Products) {
+        $installLocation = [string](Get-ObjectPropertyValue -InputObject $product -Name 'InstallLocation')
+        if (-not [string]::IsNullOrWhiteSpace($installLocation)) {
+            $candidateDirectories += $installLocation.TrimEnd('\')
+        }
+    }
+    $candidateDirectories += Join-Path (Get-NativeProgramFilesDirectory) 'nodejs'
+    if (-not [string]::IsNullOrWhiteSpace($env:ProgramFiles)) {
+        $candidateDirectories += Join-Path $env:ProgramFiles 'nodejs'
+    }
+
+    return @($candidateDirectories | Where-Object {
+            -not [string]::IsNullOrWhiteSpace($_)
+        } | Sort-Object -Unique)
+}
+
+function Find-NodeJsInstallDirectory {
+    param([Parameter()][object[]]$Products = @())
+
+    return @(Get-NodeJsCandidateDirectories -Products $Products | Where-Object {
+            Test-Path (Join-Path $_ 'node.exe') -PathType Leaf
+        } | Select-Object -First 1)
 }
 
 function Uninstall-NodeJs {
@@ -1191,6 +1297,7 @@ function Uninstall-NodeJs {
 function Install-NodeJs {
     $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("SetupVibe-NodeJS-{0}" -f $PID)
     $installerLogPath = Join-Path $script:LogDirectory ("nodejs-installer-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+    $reconfigureLogPath = Join-Path $script:LogDirectory ("nodejs-reconfigure-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
     $releaseUrl = 'https://nodejs.org/dist/latest-v24.x'
     $curlPath = Join-Path $env:SystemRoot 'System32\curl.exe'
 
@@ -1252,12 +1359,54 @@ function Install-NodeJs {
         Assert-ValidAuthenticodeSignature -Path $installerPath -Name "Node.js $nodeVersion MSI"
 
         Write-Host '[RUN] Installing the official Node.js LTS MSI...'
-        Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/i', $installerPath, 'REINSTALLMODE=amus', '/qn', '/norestart', '/L*v', $installerLogPath) -SuccessExitCode @(0, 1638, 1641, 3010)
+        Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/i', $installerPath, '/qn', '/norestart', '/L*v', $installerLogPath) -SuccessExitCode @(0, 1638, 1641, 3010)
         if ($LASTEXITCODE -eq 1638) {
             Write-WarningMessage 'Another Node.js MSI version is installed. Removing it before the forced LTS installation.'
             Uninstall-NodeJs
             Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/i', $installerPath, '/qn', '/norestart', '/L*v', $installerLogPath) -SuccessExitCode @(0, 1641, 3010)
         }
+
+        $nodeProducts = @(Get-NodeJsMsiProducts)
+        $nodeDirectory = @(Find-NodeJsInstallDirectory -Products $nodeProducts)
+        $runtimeFilesMissing = $nodeDirectory.Count -eq 0
+        if (-not $runtimeFilesMissing) {
+            $requiredNodeFiles = @('node.exe', 'npm.cmd', 'npx.cmd')
+            $runtimeFilesMissing = @($requiredNodeFiles | Where-Object {
+                    -not (Test-Path (Join-Path $nodeDirectory[0] $_) -PathType Leaf)
+                }).Count -gt 0
+        }
+        if ($runtimeFilesMissing) {
+            Write-WarningMessage 'Node.js MSI completed without all Node.js, npm, and npx commands. Reconfiguring every MSI feature...'
+            Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @(
+                '/i'
+                $installerPath
+                'ADDLOCAL=ALL'
+                'REMOVE='
+                'REINSTALL=ALL'
+                'REINSTALLMODE=amus'
+                '/qn'
+                '/norestart'
+                '/L*v'
+                $reconfigureLogPath
+            ) -SuccessExitCode @(0, 1641, 3010)
+            $nodeProducts = @(Get-NodeJsMsiProducts)
+            $nodeDirectory = @(Find-NodeJsInstallDirectory -Products $nodeProducts)
+        }
+        if ($nodeDirectory.Count -eq 0) {
+            throw "Node.js MSI completed, but node.exe was not found. Review $installerLogPath and $reconfigureLogPath."
+        }
+
+        $nodePath = Join-Path $nodeDirectory[0] 'node.exe'
+        $npmPath = Join-Path $nodeDirectory[0] 'npm.cmd'
+        $npxPath = Join-Path $nodeDirectory[0] 'npx.cmd'
+        foreach ($runtimeFile in @($nodePath, $npmPath, $npxPath)) {
+            if (-not (Test-Path $runtimeFile -PathType Leaf)) {
+                throw "Node.js MSI completed, but a required command was not found: $runtimeFile. Review $installerLogPath and $reconfigureLogPath."
+            }
+        }
+        Invoke-NativeCommand -FilePath $nodePath -ArgumentList @('--version')
+        Invoke-NativeCommand -FilePath $npmPath -ArgumentList @('--version')
+        Invoke-NativeCommand -FilePath $npxPath -ArgumentList @('--version')
         Write-Success ("Node.js {0} installed from the official nodejs.org MSI." -f $nodeVersion)
     }
     finally {
@@ -1335,12 +1484,13 @@ function Find-RuntimeExecutable {
 function Install-DevelopmentRuntimePaths {
     Import-EnvironmentPath
 
+    $nativeProgramFiles = Get-NativeProgramFilesDirectory
     $pythonPath = Find-RuntimeExecutable -Name 'python.exe' -PreferredPaths @(
-        (Join-Path $env:ProgramFiles 'Python314\python.exe')
+        (Join-Path $nativeProgramFiles 'Python314\python.exe')
         (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python314\python.exe')
     )
     $nodePath = Find-RuntimeExecutable -Name 'node.exe' -PreferredPaths @(
-        (Join-Path $env:ProgramFiles 'nodejs\node.exe')
+        (Join-Path $nativeProgramFiles 'nodejs\node.exe')
     )
 
     $pythonDirectory = Split-Path -Parent $pythonPath
@@ -1373,12 +1523,13 @@ function Install-DevelopmentRuntimePaths {
 }
 
 function Uninstall-DevelopmentRuntimePaths {
+    $nativeProgramFiles = Get-NativeProgramFilesDirectory
     $runtimePaths = @(
-        (Join-Path $env:ProgramFiles 'Python314')
-        (Join-Path $env:ProgramFiles 'Python314\Scripts')
+        (Join-Path $nativeProgramFiles 'Python314')
+        (Join-Path $nativeProgramFiles 'Python314\Scripts')
         (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python314')
         (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python314\Scripts')
-        (Join-Path $env:ProgramFiles 'nodejs')
+        (Join-Path $nativeProgramFiles 'nodejs')
     )
     if (Test-Path $script:RuntimePathStatePath -PathType Leaf) {
         try {
@@ -1419,7 +1570,7 @@ function Invoke-OfficialPowerShellInstaller {
             throw "The official $Name installer was empty or missing."
         }
 
-        $windowsPowerShell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+        $windowsPowerShell = Get-NativeWindowsPowerShellPath
         $arguments = @('-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $installerPath) + $ScriptArguments
         Invoke-NativeCommand -FilePath $windowsPowerShell -ArgumentList $arguments
     }
@@ -1430,33 +1581,70 @@ function Invoke-OfficialPowerShellInstaller {
 
 function Get-NpmCommandPath {
     return Find-RuntimeExecutable -Name 'npm.cmd' -PreferredPaths @(
-        (Join-Path $env:ProgramFiles 'nodejs\npm.cmd')
+        (Join-Path (Get-NativeProgramFilesDirectory) 'nodejs\npm.cmd')
     )
 }
 
 function Install-ClaudeCode {
-    $npmPath = Get-NpmCommandPath
+    $npmPath = $null
     try {
-        Invoke-NativeCommand -FilePath $npmPath -ArgumentList @('uninstall', '--global', '@anthropic-ai/claude-code')
+        $npmPath = Get-NpmCommandPath
+        try {
+            Invoke-NativeCommand -FilePath $npmPath -ArgumentList @('uninstall', '--global', '@anthropic-ai/claude-code')
+        }
+        catch {
+            Write-WarningMessage ("Could not remove a legacy npm Claude Code installation: {0}" -f $_.Exception.Message)
+        }
     }
     catch {
-        Write-WarningMessage ("Could not remove a legacy npm Claude Code installation: {0}" -f $_.Exception.Message)
+        Write-WarningMessage 'npm is not available yet. Continuing with the independent native Claude Code installer.'
     }
 
     $claudeDirectory = Join-Path $env:USERPROFILE '.local\bin'
     $pathWasPresent = Test-PathEntry -Path $claudeDirectory -Scope 'User'
-    Invoke-WithUserPowerShellProfilesPreserved -Action {
-        Invoke-OfficialPowerShellInstaller -Uri 'https://claude.ai/install.ps1' -Name 'Claude Code' -ScriptArguments @('latest')
+    $nativeInstallFailure = $null
+    try {
+        Invoke-WithUserPowerShellProfilesPreserved -Action {
+            Invoke-OfficialPowerShellInstaller -Uri 'https://claude.ai/install.ps1' -Name 'Claude Code' -ScriptArguments @('latest')
+        }
     }
-    Add-PathEntry -Path $claudeDirectory -Scope 'User'
-    Register-AiCliPath -Path $claudeDirectory -WasPresent $pathWasPresent
-    Import-EnvironmentPath
+    catch {
+        $nativeInstallFailure = $_.Exception.Message
+        Write-WarningMessage ("The recommended native Claude Code installer failed: {0}" -f $nativeInstallFailure)
+    }
 
-    $claudePath = Find-RuntimeExecutable -Name 'claude.exe' -PreferredPaths @(
-        (Join-Path $claudeDirectory 'claude.exe')
-    )
+    $claudePath = $null
+    $nativeClaudePath = Join-Path $claudeDirectory 'claude.exe'
+    if (Test-Path $nativeClaudePath -PathType Leaf) {
+        Add-PathEntry -Path $claudeDirectory -Scope 'User'
+        Register-AiCliPath -Path $claudeDirectory -WasPresent $pathWasPresent
+        $claudePath = $nativeClaudePath
+    }
+    elseif ($npmPath) {
+        Write-WarningMessage 'Falling back to the official Claude Code npm package, which installs the same native Windows binary.'
+        Invoke-NativeCommand -FilePath $npmPath -ArgumentList @('install', '--global', '@anthropic-ai/claude-code@latest', '--no-audit', '--no-fund')
+        $prefixOutput = @(& $npmPath 'config' 'get' 'prefix')
+        if ($LASTEXITCODE -ne 0 -or $prefixOutput.Count -eq 0) {
+            throw 'npm did not return its global prefix after installing Claude Code.'
+        }
+        $npmPrefix = ([string]$prefixOutput[0]).Trim()
+        $npmPrefixWasPresent = Test-PathEntry -Path $npmPrefix -Scope 'User'
+        Add-PathEntry -Path $npmPrefix -Scope 'User'
+        Register-AiCliPath -Path $npmPrefix -WasPresent $npmPrefixWasPresent
+        foreach ($candidate in @((Join-Path $npmPrefix 'claude.exe'), (Join-Path $npmPrefix 'claude.cmd'))) {
+            if (Test-Path $candidate -PathType Leaf) {
+                $claudePath = $candidate
+                break
+            }
+        }
+    }
+    if (-not $claudePath) {
+        throw "Claude Code was not installed by the native installer, and the npm fallback was unavailable. Native installer error: $nativeInstallFailure"
+    }
+
+    Import-EnvironmentPath
     Invoke-NativeCommand -FilePath $claudePath -ArgumentList @('--version')
-    Write-Success 'Claude Code was installed with the official native Windows installer.'
+    Write-Success 'Claude Code is installed and available from the user PATH.'
 }
 
 function Install-CodexCli {
@@ -1689,6 +1877,9 @@ if (-not $Uninstall -and $currentBuild -lt 22621) {
 $nativeArchitecture = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
 if ($nativeArchitecture -ne 'AMD64') {
     throw "SetupVibe Windows requires an x64 (AMD64) edition of Windows. Detected architecture: $nativeArchitecture."
+}
+if (-not [Environment]::Is64BitProcess) {
+    Request-64BitPowerShell
 }
 
 if (-not (Test-Administrator)) {

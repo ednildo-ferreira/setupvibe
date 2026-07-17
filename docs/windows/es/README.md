@@ -18,7 +18,7 @@ La Edición Windows (Beta) configura utilidades nativas de Windows, Python, Node
 - WinGet mediante el proceso oficial de reparación `Microsoft.WinGet.Client` cuando no está disponible
 - Chocolatey mediante su script oficial de arranque cuando no está disponible
 - Python 3.14 directamente mediante el instalador oficial de `python.org` y Node.js 24 LTS mediante el canal oficial `latest-v24.x` de `nodejs.org`, con `python`, `pip`, `node`, `npm` y `npx` en el `PATH` de la máquina para Claude y Codex
-- Claude Code mediante el instalador nativo oficial de Anthropic, Codex CLI mediante el paquete npm oficial `@openai/codex` y Google Antigravity CLI como `agy` mediante su instalador nativo oficial
+- Claude Code mediante el instalador nativo recomendado de Anthropic, con su paquete npm oficial como vía de recuperación, Codex CLI mediante el paquete npm oficial `@openai/codex` y Google Antigravity CLI como `agy` mediante su instalador nativo oficial
 - Sistema base de WSL sin una distribución Linux, con WSL 2 como valor predeterminado
 - Red reflejada de WSL con acceso por VPN/LAN, túnel DNS, integración con el proxy de Windows, entrada permitida en el firewall de Hyper-V, recuperación automática de memoria y discos virtuales dispersos
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick y GitHub CLI (`gh`)
@@ -80,7 +80,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1
 
 Durante la ejecución, el instalador:
 
-1. Valida Windows 11 22H2 o posterior y la arquitectura x64.
+1. Valida Windows 11 22H2 o posterior y la arquitectura x64, reiniciándose mediante Windows PowerShell x64 nativo si comenzó en un proceso de 32 bits.
 2. Solicita privilegios de administrador mediante UAC.
 3. Enumera los procesos de instalación concurrentes y pregunta si debe finalizarlos. Si se acepta, lo intenta normalmente, fuerza los que permanezcan y ejecuta `sfc.exe /scannow`; si se rechaza, espera ENTER y se cierra.
 4. Rechaza reinicios pendientes, inicia los servicios necesarios, ejecuta `sfc.exe /scannow` si aún no se ejecutó, comprueba la directiva WSUS y valida el almacén de componentes de Windows.
@@ -89,9 +89,9 @@ Durante la ejecución, el instalador:
 7. Instala el sistema base de WSL sin una distribución Linux y establece WSL 2 como valor predeterminado.
 8. Aplica a WSL red reflejada, acceso por VPN/LAN, DNS, proxy, firewall, recuperación de memoria y discos VHD dispersos.
 9. Instala WinGet y Chocolatey cuando sea necesario.
-10. Descarga Python 3.14 desde `python.org` y resuelve Node.js 24 LTS directamente mediante el canal oficial `latest-v24.x` de `nodejs.org`, sin la API del índice de releases, WinGet ni Chocolatey. Usa `curl.exe` de Windows con redirecciones solo HTTPS y reintentos, valida Authenticode y el SHA-256 oficial de Node.js, antepone los directorios de los runtimes al `PATH` de la máquina y valida sus comandos para Claude y Codex.
+10. Descarga Python 3.14 desde `python.org` y resuelve Node.js 24 LTS directamente mediante el canal oficial `latest-v24.x` de `nodejs.org`, sin la API del índice de releases, WinGet ni Chocolatey. Usa `curl.exe` de Windows con redirecciones solo HTTPS y reintentos, valida Authenticode y el SHA-256 oficial de Node.js, repara características ausentes de Python o del MSI de Node.js, antepone los directorios x64 nativos de los runtimes al `PATH` de la máquina y valida `python`, `pip`, `node`, `npm` y `npx`.
 11. Instala cada utilidad restante de Windows de forma independiente, valida `gh.exe` y el alias `wt.exe` de Windows Terminal y continúa después de errores aislados.
-12. Instala y valida Claude Code, Codex CLI y Antigravity CLI desde sus fuentes oficiales, preservando todos los archivos de perfil PowerShell del usuario.
+12. Instala y valida Claude Code, Codex CLI y Antigravity CLI desde sus fuentes oficiales, preservando todos los archivos de perfil PowerShell del usuario. Claude usa el instalador nativo recomendado independientemente de npm y recurre al paquete npm oficial de Anthropic solo cuando es necesario.
 13. Elimina los bloques heredados de Starship y zoxide y el propio Starship instalados por versiones Beta anteriores, y conserva el perfil y la directiva de ejecución originales de PowerShell.
 14. Muestra un resumen final y la ubicación del registro completo.
 

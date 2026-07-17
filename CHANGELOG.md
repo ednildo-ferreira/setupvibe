@@ -33,6 +33,7 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ### Fixed
 
+- Fixed missing Python, npm, npx, and Claude Code commands by relaunching the complete installer in native x64 PowerShell, using the native x64 Program Files directory, validating and repairing Python and every Node.js MSI feature, allowing Claude's native installer to run without npm, and falling back to Anthropic's official npm package when necessary.
 - Fixed OpenSSH MSI installations that completed without a discoverable `ssh.exe` by using the MSI's documented default Client and Server selection, forcing all features only as a recovery pass, and resolving the installation directory from the native x64 Program Files directory, MSI `InstallLocation`, and the `sshd` service.
 - Fixed strict-mode failures while scanning Windows uninstall Registry entries that do not define `DisplayName`, including OpenSSH repair detection and the OpenSSH, Node.js, and Python removal paths.
 - Replaced the unreliable OpenSSH Feature on Demand operation with the latest official Microsoft Win32-OpenSSH MSI, installing and validating the Client and Server features, prioritizing the binaries in the machine `PATH`, validating `ssh.exe -V`, starting `sshd` automatically, and enabling inbound TCP/22.
