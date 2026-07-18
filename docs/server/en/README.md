@@ -11,7 +11,6 @@ A lean, focused setup script for Linux servers. No Homebrew, no language ecosyst
 | **Ubuntu**        | 24.04+                          |
 | **Debian**        | 12+                             |
 | **Zorin OS**      | 18+                             |
-| **Linux Mint**    | 21+                             |
 | **Architectures** | x86_64 (amd64), ARM64 (aarch64) |
 
 > Linux only. Exits immediately if run on macOS.
@@ -38,23 +37,28 @@ curl -sSL server.setupvibe.dev | bash -s -- --manager
 bash server.sh --manager
 ```
 
-The script waits for any running APT lock to clear (useful on fresh cloud VMs where `unattended-upgrades` runs at boot), shows an interactive roadmap, then asks for confirmation. It also prompts to configure Git identity if not already set. At the end of installation, if `--manager` was not passed, the script will interactively ask whether to configure the machine as a Docker Swarm Manager.
+For unattended installation, add `--yes`. To select the Swarm address or interface explicitly, use `--advertise-addr ADDRESS`; this option implies `--manager`.
+
+The script validates the operating system, version, architecture, target user, and arguments before changing the system. It then shows an interactive roadmap, asks for confirmation, waits up to five minutes for APT locks, and retries failed APT commands. Steps stop at the first error, the summary identifies steps that did not run, and the script exits with a non-zero status. If `--manager` was not passed, interactive installations ask whether to configure Docker Swarm at the end.
 
 ---
 
 ## What Gets Installed
 
-**9 steps fully automated, plus an optional Step 9 for Docker Swarm Manager setup.**
+**9 steps fully automated (Steps 0–8), plus an optional Step 9 for Docker Swarm Manager setup.**
 
-### Step 1 — Base System & Build Tools
+### Step 0 — Prerequisites & Architecture Check
+
+Reports the validated operating system, distribution repository base, CPU architecture, target user, and home directory before installation begins.
+
+### Step 1 — Base System Tools
 
 Installs via APT:
 
-- `build-essential`, `git`, `wget`, `unzip`, `curl`, `tmux`, `fontconfig`, `sshpass`
-- SSL/compression libs: `libssl-dev`, `zlib1g-dev`, `libbz2-dev`, `libreadline-dev`, `libsqlite3-dev`, `libncurses5-dev`, `xz-utils`, `libffi-dev`, `liblzma-dev`, `libyaml-dev`
-- Python: `python3`, `python3-pip`, `python3-venv`, `python-is-python3`
-- System daemons: `cron`, `logrotate`, `rsyslog`
-- [uv](https://github.com/astral-sh/uv) Python package manager (installed to `~/.local/bin`)
+- Core utilities: `curl`, `file`, `figlet`, `fontconfig`, `fzf`, `git`, `gnupg`, `iproute2`, `jq`, `nano`, `procps`, `psmisc`, `sshpass`, `tmux`, `unzip`, `wget`
+- System services: `cron`, `logrotate`, `rsyslog`
+- **zoxide** via its official installer
+- Enables `cron` without creating jobs and removes only the legacy demonstration jobs added by SetupVibe v0.41.4-v0.41.6
 
 ### Step 2 — Docker, Ansible & GitHub CLI
 
@@ -70,21 +74,22 @@ Installs via APT:
 
 **GitHub CLI (`gh`)** — via the official GitHub APT repo
 
+**Portainer CE** — runs on the `lts` image channel and exposes HTTPS on port `9443`; legacy HTTP port `9000` and optional Edge Agent port `8000` are not opened
+
 ### Step 3 — Network, Monitoring & Tailscale
 
 APT packages:
 `rsync`, `net-tools`, `dnsutils`, `mtr-tiny`, `nmap`, `tcpdump`, `iftop`, `nload`, `iotop`, `sysstat`, `whois`, `iputils-ping`, `speedtest-cli`, `glances`, `htop`, `btop`
 
-- **ctop** — binary downloaded to `~/.local/bin/ctop` (v0.7.7, architecture-aware)
+- **ctop** — binary downloaded to `~/.local/bin/ctop` (v0.7.7, architecture-aware, SHA-256 verified)
 - **Tailscale** — via official install script (`https://tailscale.com/install.sh`)
 
 ### Step 4 — SSH Server
 
 - Installs `openssh-server` and `openssh-client`
 - Enables and starts the `ssh` systemd service
-- Backs up original `/etc/ssh/sshd_config`
-- Configures `PermitRootLogin yes` and `PasswordAuthentication yes`
-- Validates config with `sshd -t` before restarting; restores backup if validation fails
+- Validates the effective configuration with `sshd -t`
+- Preserves the existing authentication policy; it does not enable root login or password authentication
 
 ### Step 5 — Shell (ZSH & Starship)
 
@@ -94,40 +99,42 @@ APT packages:
 - Installs Starship prompt to `~/.local/bin` and applies the **Gruvbox Rainbow** preset
 - Downloads helper scripts from [`bin/`](../../../bin) to `~/.setupvibe/bin`; see [Executables](../../en/EXECUTABLES.md)
 - Downloads [`conf/zshrc-server.zsh`](../../../conf/zshrc-server.zsh) to `~/.zshrc`
+- Preserves existing `.zshrc`, `.bashrc`, and `.tmux.conf` files once with the `.pre-setupvibe` suffix before replacing or appending
 - Sets ZSH as the default shell via `chsh`
 
 #### Shell Aliases
 
-| Alias          | Command                               |
-| -------------- | ------------------------------------- |
-| `reload`       | `source ~/.zshrc`                     |
-| `zconfig`      | `nano ~/.zshrc`                       |
-| `sshcopykey`   | `sshcopykey --host HOST --user USER [--pass PASS]` |
-| `update`       | `sudo apt update && sudo apt upgrade` |
+| Alias          | Command                                                        |
+| -------------- | -------------------------------------------------------------- |
+| `reload`       | `source ~/.zshrc`                                              |
+| `zconfig`      | `nano ~/.zshrc`                                                |
+| `sshcopykey`   | `sshcopykey --host HOST --user USER [--pass PASS]`             |
+| `update`       | `sudo apt update && sudo apt upgrade`                          |
 | `cc`           | `claude --permission-mode=auto --dangerously-skip-permissions` |
-| `skl`          | `npx skills list`                     |
-| `skf`          | `npx skills find`                     |
-| `ska`          | `npx skills add`                      |
-| `sku`          | `npx skills update`                   |
-| `d`            | `docker`                              |
-| `dc`           | `docker compose`                      |
-| `syslog`       | `sudo journalctl -f`                  |
-| `ports`        | `ss -tulnp`                           |
-| `meminfo`      | `free -h`                             |
-| `diskinfo`     | `df -h`                               |
-| `cpuinfo`      | `lscpu`                               |
-| `wholistening` | `ss -tulnp`                           |
+| `skl`          | `npx skills list`                                              |
+| `skf`          | `npx skills find`                                              |
+| `ska`          | `npx skills add`                                               |
+| `sku`          | `npx skills update`                                            |
+| `skun`         | `npx skills remove`                                            |
+| `d`            | `docker`                                                       |
+| `dc`           | `docker compose`                                               |
+| `syslog`       | `sudo journalctl -f`                                           |
+| `ports`        | `ss -tulnp`                                                    |
+| `meminfo`      | `free -h`                                                      |
+| `diskinfo`     | `df -h`                                                        |
+| `cpuinfo`      | `lscpu`                                                        |
+| `wholistening` | `ss -tulnp`                                                    |
 
 #### Oh My Zsh Plugins
 
-`git rsync nmap cp extract zoxide fzf zsh-autosuggestions zsh-syntax-highlighting tmux brew gh ansible docker docker-compose`
+`git rsync nmap cp extract zoxide fzf zsh-autosuggestions zsh-syntax-highlighting tmux gh ansible docker docker-compose`
 
 ### Step 6 — Tmux & Plugins
 
 - Clones [TPM](https://github.com/tmux-plugins/tpm) to `~/.tmux/plugins/tpm`
 - Downloads [`conf/tmux-server.conf`](../../../conf/tmux-server.conf) to `~/.tmux.conf`
 - If running as root with a non-root `REAL_HOME`, also installs to `/root/.tmux.conf`
-- Kills any running tmux session to apply the new config
+- Preserves running tmux sessions; the new configuration applies to new sessions
 
 Press `prefix + I` inside tmux to install all plugins. See the [Tmux Guide](../../desktop/en/tmux.md) for the full plugin and keybinding reference.
 
@@ -135,27 +142,26 @@ Press `prefix + I` inside tmux to install all plugins. See the [Tmux Guide](../.
 
 Installs **Node.js 24** via NodeSource APT repo, then installs globally via `npm install -g`:
 
-| Tool               | Package                          |
-| ------------------ | -------------------------------- |
-| Claude Code        | `@anthropic-ai/claude-code`      |
-| OpenAI Codex       | `@openai/codex`                  |
-| GitHub Copilot CLI | `@githubnext/github-copilot-cli` |
+| Tool               | Package                     |
+| ------------------ | --------------------------- |
+| Claude Code        | `@anthropic-ai/claude-code` |
+| OpenAI Codex       | `@openai/codex`             |
+| GitHub Copilot CLI | `@github/copilot`           |
 
-npm global packages are installed to `~/.npm-global` (configured with `npm config set prefix`) when not running as root.
+The deprecated `@githubnext/github-copilot-cli` package is removed. npm global packages are installed to `~/.npm-global` whenever the target user is non-root, including when the installer itself runs through `sudo`, and each command is validated after installation.
 
 ### Step 8 — Finalization & Cleanup
 
-- APT: `autoremove`, `autoclean`, `clean`, removes `/var/lib/apt/lists/*`
-- Removes temp files: `/tmp/ctop`, `/tmp/starship`
-- Vacuums journal logs older than 7 days
-- Clears user caches: `~/.cache/pip`, `~/.npm/_npx`, `~/.bundle/cache`, `~/.cache/composer`
+- Runs APT `autoclean` and `clean`
+- Removes downloaded APT package lists
+- Preserves installed packages, system journals, and user caches
 
 ### Step 9 — Docker Swarm Manager (optional)
 
 Activated by passing `--manager` or by answering **yes** to the interactive prompt shown at the end of setup.
 
-1. **Detects the public IP** of the server by querying external services (`api.ipify.org`, `ifconfig.me`, `icanhazip.com`, `checkip.amazonaws.com`, `ipecho.net/plain`) in sequence until a valid IPv4 is returned.
-2. **Initializes Docker Swarm** with `docker swarm init --advertise-addr <PUBLIC_IP>`. Idempotent — skips if Swarm is already active.
+1. **Detects the primary routable IPv4 address** from the local routing table without contacting external IP services. Use `--advertise-addr ADDRESS` to override it with a specific address or interface.
+2. **Initializes Docker Swarm** with `docker swarm init --advertise-addr <ADDRESS>`. Idempotent — skips initialization when the host is already a manager and fails clearly when it is already a worker.
 3. **Creates the overlay network** `network_swarm_public` with `--driver overlay --attachable`. Idempotent — skips if the network already exists.
 4. **Displays join tokens** for both worker and manager roles so additional nodes can be joined immediately.
 

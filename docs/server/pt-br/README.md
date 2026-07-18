@@ -6,13 +6,12 @@ Um script de configuração enxuto e focado para servidores Linux. Sem Homebrew,
 
 ## Requisitos do Sistema
 
-|                   | Suportado                       |
-| ----------------- | ------------------------------- |
-| **Ubuntu**         | 24.04+                          |
-| **Debian**         | 12+                             |
-| **Zorin OS**       | 18+                             |
-| **Linux Mint**     | 21+                             |
-| **Arquiteturas**   | x86_64 (amd64), ARM64 (aarch64) |
+|                  | Suportado                       |
+| ---------------- | ------------------------------- |
+| **Ubuntu**       | 24.04+                          |
+| **Debian**       | 12+                             |
+| **Zorin OS**     | 18+                             |
+| **Arquiteturas** | x86_64 (amd64), ARM64 (aarch64) |
 
 > Somente Linux. O script encerra imediatamente se executado no macOS.
 
@@ -38,23 +37,28 @@ curl -sSL server.setupvibe.dev | bash -s -- --manager
 bash server.sh --manager
 ```
 
-O script aguarda a liberação de qualquer bloqueio do APT (útil em VMs de nuvem recém-criadas onde o `unattended-upgrades` é executado no boot), exibe um roteiro interativo e solicita confirmação. Também solicita a configuração da identidade do Git, caso ainda não esteja definida. Ao final da instalação, se `--manager` não foi informado, o script perguntará interativamente se a máquina deve ser configurada como Manager do Docker Swarm.
+Para uma instalação não interativa, adicione `--yes`. Para escolher explicitamente o endereço ou a interface do Swarm, use `--advertise-addr ENDERECO`; essa opção implica `--manager`.
+
+O script valida o sistema operacional, a versão, a arquitetura, o usuário de destino e os argumentos antes de alterar o sistema. Em seguida, exibe um roteiro interativo, solicita confirmação, aguarda por até cinco minutos a liberação dos locks do APT e repete comandos APT que falharem. As etapas param no primeiro erro, o resumo identifica as etapas não executadas e o script retorna um status diferente de zero. Se `--manager` não for informado, instalações interativas perguntam ao final se o Docker Swarm deve ser configurado.
 
 ---
 
 ## O Que é Instalado
 
-**9 etapas totalmente automatizadas, mais uma Etapa 9 opcional para configuração do Docker Swarm Manager.**
+**9 etapas totalmente automatizadas (Etapas 0–8), mais uma Etapa 9 opcional para configuração do Docker Swarm Manager.**
 
-### Etapa 1 — Sistema Base e Ferramentas de Build
+### Etapa 0 — Pré-requisitos e Verificação de Arquitetura
+
+Informa o sistema operacional, a base de repositórios da distribuição, a arquitetura da CPU, o usuário de destino e o diretório inicial validados antes do início da instalação.
+
+### Etapa 1 — Ferramentas do Sistema Base
 
 Instala via APT:
 
-- `build-essential`, `git`, `wget`, `unzip`, `curl`, `tmux`, `fontconfig`, `sshpass`
-- Bibliotecas SSL/compressão: `libssl-dev`, `zlib1g-dev`, `libbz2-dev`, `libreadline-dev`, `libsqlite3-dev`, `libncurses5-dev`, `xz-utils`, `libffi-dev`, `liblzma-dev`, `libyaml-dev`
-- Python: `python3`, `python3-pip`, `python3-venv`, `python-is-python3`
-- Daemons de sistema: `cron`, `logrotate`, `rsyslog`
-- Gerenciador de pacotes Python [uv](https://github.com/astral-sh/uv) (instalado em `~/.local/bin`)
+- Utilitários principais: `curl`, `file`, `figlet`, `fontconfig`, `fzf`, `git`, `gnupg`, `iproute2`, `jq`, `nano`, `procps`, `psmisc`, `sshpass`, `tmux`, `unzip`, `wget`
+- Serviços do sistema: `cron`, `logrotate`, `rsyslog`
+- **zoxide** pelo instalador oficial
+- Habilita o `cron` sem criar tarefas e remove somente as tarefas de demonstração legadas adicionadas pelo SetupVibe v0.41.4-v0.41.6
 
 ### Etapa 2 — Docker, Ansible e GitHub CLI
 
@@ -70,21 +74,22 @@ Instala via APT:
 
 **GitHub CLI (`gh`)** — via repositório APT oficial do GitHub
 
+**Portainer CE** — usa o canal de imagem `lts` e expõe HTTPS na porta `9443`; a porta HTTP legada `9000` e a porta opcional `8000` para Edge Agent não são abertas
+
 ### Etapa 3 — Rede, Monitoramento e Tailscale
 
 Pacotes APT:
 `rsync`, `net-tools`, `dnsutils`, `mtr-tiny`, `nmap`, `tcpdump`, `iftop`, `nload`, `iotop`, `sysstat`, `whois`, `iputils-ping`, `speedtest-cli`, `glances`, `htop`, `btop`
 
-- **ctop** — binário baixado em `~/.local/bin/ctop` (v0.7.7, detecta arquitetura)
+- **ctop** — binário baixado em `~/.local/bin/ctop` (v0.7.7, detecta arquitetura, SHA-256 verificado)
 - **Tailscale** — via script oficial de instalação (`https://tailscale.com/install.sh`)
 
 ### Etapa 4 — Servidor SSH
 
 - Instala `openssh-server` e `openssh-client`
 - Habilita e inicia o serviço systemd `ssh`
-- Faz backup do `/etc/ssh/sshd_config` original
-- Configura `PermitRootLogin yes` e `PasswordAuthentication yes`
-- Valida a configuração com `sshd -t` antes de reiniciar; restaura o backup se a validação falhar
+- Valida a configuração efetiva com `sshd -t`
+- Preserva a política de autenticação existente; não habilita login de root nem autenticação por senha
 
 ### Etapa 5 — Shell (ZSH e Starship)
 
@@ -94,41 +99,42 @@ Pacotes APT:
 - Instala o prompt Starship em `~/.local/bin` e aplica o preset **Gruvbox Rainbow**
 - Baixa scripts auxiliares de [`bin/`](../../../bin) para `~/.setupvibe/bin`; veja [Executáveis](../../pt-br/EXECUTABLES.md)
 - Baixa [`conf/zshrc-server.zsh`](../../../conf/zshrc-server.zsh) para `~/.zshrc`
+- Preserva uma vez os arquivos `.zshrc`, `.bashrc` e `.tmux.conf` existentes com o sufixo `.pre-setupvibe` antes de substituir ou acrescentar conteúdo
 - Define o ZSH como shell padrão via `chsh`
 
 #### Aliases do Shell
 
-| Alias          | Comando                               |
-| -------------- | ------------------------------------- |
-| `reload`       | `source ~/.zshrc`                     |
-| `zconfig`      | `nano ~/.zshrc`                       |
-| `sshcopykey`   | `sshcopykey --host HOST --user USUARIO [--pass SENHA]` |
-| `update`       | `sudo apt update && sudo apt upgrade` |
+| Alias          | Comando                                                        |
+| -------------- | -------------------------------------------------------------- |
+| `reload`       | `source ~/.zshrc`                                              |
+| `zconfig`      | `nano ~/.zshrc`                                                |
+| `sshcopykey`   | `sshcopykey --host HOST --user USUARIO [--pass SENHA]`         |
+| `update`       | `sudo apt update && sudo apt upgrade`                          |
 | `cc`           | `claude --permission-mode=auto --dangerously-skip-permissions` |
 | `skl`          | `npx skills list`                                              |
 | `skf`          | `npx skills find`                                              |
 | `ska`          | `npx skills add`                                               |
 | `sku`          | `npx skills update`                                            |
+| `skun`         | `npx skills remove`                                            |
 | `d`            | `docker`                                                       |
-
-| `dc`           | `docker compose`                      |
-| `syslog`       | `sudo journalctl -f`                  |
-| `ports`        | `ss -tulnp`                           |
-| `meminfo`      | `free -h`                             |
-| `diskinfo`     | `df -h`                               |
-| `cpuinfo`      | `lscpu`                               |
-| `wholistening` | `ss -tulnp`                           |
+| `dc`           | `docker compose`                                               |
+| `syslog`       | `sudo journalctl -f`                                           |
+| `ports`        | `ss -tulnp`                                                    |
+| `meminfo`      | `free -h`                                                      |
+| `diskinfo`     | `df -h`                                                        |
+| `cpuinfo`      | `lscpu`                                                        |
+| `wholistening` | `ss -tulnp`                                                    |
 
 #### Plugins Oh My Zsh
 
-`git rsync nmap cp extract zoxide fzf zsh-autosuggestions zsh-syntax-highlighting tmux brew gh ansible docker docker-compose`
+`git rsync nmap cp extract zoxide fzf zsh-autosuggestions zsh-syntax-highlighting tmux gh ansible docker docker-compose`
 
 ### Etapa 6 — Tmux e Plugins
 
 - Clona o [TPM](https://github.com/tmux-plugins/tpm) em `~/.tmux/plugins/tpm`
 - Baixa [`conf/tmux-server.conf`](../../../conf/tmux-server.conf) para `~/.tmux.conf`
 - Se executado como root com um `REAL_HOME` não-root, também instala em `/root/.tmux.conf`
-- Encerra qualquer sessão tmux em execução para aplicar a nova configuração
+- Preserva as sessões tmux em execução; a nova configuração é aplicada às novas sessões
 
 Pressione `prefix + I` dentro do tmux para instalar todos os plugins. Consulte o [Guia do Tmux](../../desktop/pt-br/tmux.md) para a referência completa de plugins e atalhos.
 
@@ -136,27 +142,26 @@ Pressione `prefix + I` dentro do tmux para instalar todos os plugins. Consulte o
 
 Instala o **Node.js 24** via repositório NodeSource APT, e então instala globalmente via `npm install -g`:
 
-| Ferramenta         | Pacote                           |
-| ------------------ | -------------------------------- |
-| Claude Code        | `@anthropic-ai/claude-code`      |
-| OpenAI Codex       | `@openai/codex`                  |
-| GitHub Copilot CLI | `@githubnext/github-copilot-cli` |
+| Ferramenta         | Pacote                      |
+| ------------------ | --------------------------- |
+| Claude Code        | `@anthropic-ai/claude-code` |
+| OpenAI Codex       | `@openai/codex`             |
+| GitHub Copilot CLI | `@github/copilot`           |
 
-Os pacotes globais do npm são instalados em `~/.npm-global` (configurado com `npm config set prefix`) quando não está rodando como root.
+O pacote descontinuado `@githubnext/github-copilot-cli` é removido. Os pacotes globais do npm são instalados em `~/.npm-global` sempre que o usuário de destino não for root, inclusive quando o instalador for executado por `sudo`, e cada comando é validado após a instalação.
 
 ### Passo 8 — Finalização e Limpeza
 
-- APT: `autoremove`, `autoclean`, `clean`, remove `/var/lib/apt/lists/*`
-- Remove arquivos temporários: `/tmp/ctop`, `/tmp/starship`
-- Limpa logs do journal com mais de 7 dias
-- Limpa caches do usuário: `~/.cache/pip`, `~/.npm/_npx`, `~/.bundle/cache`, `~/.cache/composer`
+- Executa `autoclean` e `clean` do APT
+- Remove as listas de pacotes baixadas pelo APT
+- Preserva pacotes instalados, logs do sistema e caches do usuário
 
 ### Passo 9 — Docker Swarm Manager (opcional)
 
 Ativado passando `--manager` ou respondendo **sim** ao prompt interativo exibido ao final do setup.
 
-1. **Detecta o IP público** do servidor consultando serviços externos (`api.ipify.org`, `ifconfig.me`, `icanhazip.com`, `checkip.amazonaws.com`, `ipecho.net/plain`) em sequência até obter um IPv4 válido.
-2. **Inicializa o Docker Swarm** com `docker swarm init --advertise-addr <IP_PUBLICO>`. Idempotente — ignora se o Swarm já estiver ativo.
+1. **Detecta o IPv4 roteável principal** pela tabela de rotas local, sem consultar serviços externos de IP. Use `--advertise-addr ENDERECO` para informar um endereço ou uma interface específica.
+2. **Inicializa o Docker Swarm** com `docker swarm init --advertise-addr <ENDERECO>`. Idempotente — ignora a inicialização se a máquina já for manager e falha claramente se ela já for worker.
 3. **Cria a rede overlay** `network_swarm_public` com `--driver overlay --attachable`. Idempotente — ignora se a rede já existir.
 4. **Exibe os tokens de ingresso** para as roles worker e manager, permitindo adicionar novos nós imediatamente.
 

@@ -48,7 +48,11 @@ user_do() {
 # Run with elevated privileges (only use sudo if not already root)
 sys_do() {
     if [[ "$(id -u)" -ne 0 ]]; then
-        sudo "$@"
+        if [[ "$(uname -s)" == "Linux" ]]; then
+            sudo env DEBIAN_FRONTEND="${DEBIAN_FRONTEND:-noninteractive}" "$@"
+        else
+            sudo "$@"
+        fi
     else
         "$@"
     fi
@@ -117,7 +121,19 @@ if [[ "$(uname -s)" == "Linux" ]]; then
         /etc/apt/sources.list.d/ 2>/dev/null | xargs -I {} sys_do rm -f "{}" 2>/dev/null || true
 
     sys_do apt-get update -y -qq
-    sys_do apt-get install -y -q gnupg gnupg2 curl ca-certificates lsb-release software-properties-common apt-transport-https
+    APT_BOOTSTRAP_PACKAGES=(
+        gnupg
+        gnupg2
+        curl
+        ca-certificates
+        lsb-release
+        apt-transport-https
+    )
+    if grep -Eq '^ID=(ubuntu|zorin|linuxmint)$' /etc/os-release 2>/dev/null; then
+        APT_BOOTSTRAP_PACKAGES+=(software-properties-common)
+    fi
+    sys_do apt-get install -y -q "${APT_BOOTSTRAP_PACKAGES[@]}"
+    unset APT_BOOTSTRAP_PACKAGES
     
     # Robust GPG detection (try without sudo first for current user path)
     GPG_CMD=""
@@ -159,6 +175,7 @@ STEPS=(
 
 # Variable to track status
 declare -a STEP_STATUS
+INSTALL_FAILED=false
 
 
 # --- DETECT OS ---
@@ -400,14 +417,32 @@ configure_git_interactive() {
 run_section() {
     local index=$1
     local title="${STEPS[$index]}"
+    local status
+
     echo ""
     echo -e "${BLUE}========================================================${NC}"
     echo -e "${BOLD}▶ [$(($index+1))/${#STEPS[@]}] $title ${NC}"
     echo -e "${BLUE}========================================================${NC}"
-    if $2; then
+
+    # Keep all installer-managed user paths available across isolated steps.
+    export PATH="$BREW_PREFIX/bin:$BREW_PREFIX/sbin:$REAL_HOME/.local/bin:$REAL_HOME/.local/go/bin:$REAL_HOME/.cargo/bin:$REAL_HOME/.npm-global/bin:$REAL_HOME/.bun/bin:$PATH"
+
+    # A function called directly from an `if` condition inherits Bash's
+    # errexit suppression. Run it in an isolated strict shell so an
+    # intermediate failure cannot be hidden by a later successful command.
+    set +e
+    (
+        set -Eeuo pipefail
+        "$2"
+    )
+    status=$?
+    set -e
+
+    if ((status == 0)); then
         STEP_STATUS[$index]="${GREEN}✔ OK${NC}"
     else
         STEP_STATUS[$index]="${RED}✘ Error${NC}"
+        INSTALL_FAILED=true
     fi
 }
 
@@ -748,7 +783,7 @@ step_5() {
         
         echo "Setup Rust..."
         if ! user_do bash -c "command -v rustup" &> /dev/null; then
-            user_do sh -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+            user_do bash -o pipefail -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
             source "$REAL_HOME/.cargo/env" 2>/dev/null || true
         else
             user_do bash -c "export PATH=\$HOME/.cargo/bin:\$PATH; rustup update"
@@ -783,7 +818,7 @@ step_5() {
 
         echo "Setup Rust..."
         if [ ! -f "$REAL_HOME/.cargo/bin/rustup" ]; then
-            user_do sh -c "curl --proto \'=https\' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+            user_do bash -o pipefail -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
         else
             user_do bash -c "export PATH=\$HOME/.cargo/bin:\$PATH; rustup update"
         fi
@@ -912,7 +947,7 @@ step_7() {
     if command -v docker &>/dev/null && sys_do docker info &>/dev/null; then
         echo "Starting Portainer..."
         sys_do docker compose -f "$REAL_HOME/.setupvibe/portainer-compose.yml" up -d
-        echo -e "${GREEN}✔ Portainer is running at http://localhost:9000 and https://localhost:9443${NC}"
+        echo -e "${GREEN}✔ Portainer is running at https://localhost:9443${NC}"
     else
         echo -e "${YELLOW}⚠ Docker is not running. Portainer will be ready to start later with:${NC}"
         echo -e "${CYAN}  docker compose -f ~/.setupvibe/portainer-compose.yml up -d${NC}"
@@ -1269,6 +1304,12 @@ for i in "${!STEPS[@]}"; do
     echo -e "  [$(($i+1))] ${STEPS[$i]} ... ${STEP_STATUS[$i]}"
 done
 echo ""
+
+if $INSTALL_FAILED; then
+    echo -e "${RED}${BOLD}SetupVibe Desktop completed with errors.${NC}" >&2
+    exit 1
+fi
+
 echo -e "${GREEN}${BOLD}SetupVibe Desktop Completed Successfully! 🚀${NC}"
 echo ""
 if $IS_LINUX; then

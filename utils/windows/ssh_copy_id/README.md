@@ -2,14 +2,14 @@
 
 > Utilitário PowerShell para copiar uma chave SSH pública do Windows para um servidor remoto.
 
-O núcleo do utilitário fica em `ssh_copy_id.ps1`. O arquivo `ssh_copy_id.cmd` é apenas um lançador de compatibilidade que permite usar o mesmo comando no PowerShell, Windows Terminal e Prompt de Comando.
+O código-fonte do núcleo fica em `ssh_copy_id.ps1`. Durante a instalação, ele recebe o nome `ssh_copy_id_core.ps1`, evitando que o PowerShell escolha o núcleo no lugar do lançador seguro `ssh_copy_id.cmd` quando o comando é executado sem extensão.
 
 ## Instalação pelo SetupVibe
 
 O `desktop.ps1` instala os dois arquivos em `%USERPROFILE%\.setupvibe\bin` e adiciona esse diretório ao `PATH` do usuário:
 
 ```text
-%USERPROFILE%\.setupvibe\bin\ssh_copy_id.ps1
+%USERPROFILE%\.setupvibe\bin\ssh_copy_id_core.ps1
 %USERPROFILE%\.setupvibe\bin\ssh_copy_id.cmd
 ```
 
@@ -25,12 +25,12 @@ Uma nova execução do SetupVibe atualiza os arquivos. O parâmetro `-Uninstall`
 
 O PowerShell oferece tratamento nativo de parâmetros, caminhos, processos, códigos de saída, elevação pelo UAC e erros terminantes. Isso torna a implementação mais segura e testável que uma rotina extensa em Batch.
 
-O lançador `.cmd` não contém lógica SSH. Ele procura primeiro o PowerShell 7 (`pwsh.exe`), usa o Windows PowerShell (`powershell.exe`) como alternativa e chama `ssh_copy_id.ps1` com `-ExecutionPolicy Bypass` apenas para esse processo.
+O lançador `.cmd` não contém lógica SSH. Ele procura primeiro o PowerShell 7 (`pwsh.exe`), usa o Windows PowerShell (`powershell.exe`) como alternativa e chama `ssh_copy_id_core.ps1` com `-ExecutionPolicy Bypass` apenas para esse processo. Em uma instalação manual, também aceita o nome original `ssh_copy_id.ps1`.
 
 ## O Que O Utilitário Faz
 
 1. Verifica a disponibilidade de `ssh.exe` e `ssh-keygen.exe`.
-2. Instala o OpenSSH Client com elevação pelo UAC quando necessário, desde que nenhuma operação DISM ou Windows Servicing esteja ativa.
+2. Interrompe com uma orientação clara para executar o SetupVibe quando o OpenSSH assinado não está disponível.
 3. Procura uma chave pública válida em `%USERPROFILE%\.ssh`.
 4. Reconstrói a chave pública quando encontra uma chave privada padrão sem o arquivo `.pub` correspondente.
 5. Cria uma chave Ed25519 sem senha quando nenhuma chave válida é encontrada.
@@ -123,15 +123,9 @@ Set-Location $destino
 
 ## Solução De Problemas
 
-### Windows Servicing Já Está Em Execução
+### OpenSSH Não Está Disponível
 
-O utilitário não encerra `DISM`, `dismhost` ou `TiWorker`. Interromper esses processos pode danificar o armazenamento de componentes do Windows. Aguarde a operação atual ou reinicie o Windows e tente novamente.
-
-Para o diagnóstico completo de serviços, reinicialização pendente, WSUS e logs DISM, execute o instalador principal do SetupVibe.
-
-### OpenSSH Client Não Pôde Ser Instalado
-
-Confirme o acesso ao Windows Update e a permissão para autorizar o UAC. Em computadores corporativos, WSUS ou políticas de domínio podem não fornecer o conteúdo opcional do OpenSSH.
+Execute o instalador principal do SetupVibe. O helper não usa Recursos sob Demanda, DISM nem Windows Update: o SetupVibe baixa o MSI x64 oficial do Microsoft Win32-OpenSSH, valida sua assinatura Authenticode e instala Cliente e Servidor.
 
 ### Conexão Recusada
 

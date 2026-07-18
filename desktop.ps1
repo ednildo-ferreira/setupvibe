@@ -3,7 +3,8 @@
 [CmdletBinding()]
 param(
     [switch]$Restart,
-    [switch]$Uninstall
+    [switch]$Uninstall,
+    [Parameter(DontShow = $true)][string]$ExpectedUserSid
 )
 
 Set-StrictMode -Version Latest
@@ -23,18 +24,21 @@ $script:ChocolateyPath = $null
 $script:WslVmCreatorId = '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'
 $script:WslFeatureStatePath = Join-Path $env:ProgramData 'SetupVibe\wsl-feature-state.json'
 $script:WslFirewallStatePath = Join-Path $env:ProgramData 'SetupVibe\wsl-firewall-inbound.txt'
+$script:OpenSshFirewallStatePath = Join-Path $env:ProgramData 'SetupVibe\openssh-firewall-state.json'
 $script:RuntimePathStatePath = Join-Path $env:ProgramData 'SetupVibe\windows-runtime-paths.json'
 $script:AiCliPathStatePath = Join-Path $env:ProgramData 'SetupVibe\windows-ai-cli-paths.json'
+$script:PackagePathStatePath = Join-Path $env:ProgramData 'SetupVibe\windows-package-paths.json'
 $script:SetupVibeUserDirectory = Join-Path $env:USERPROFILE '.setupvibe'
 $script:WindowsUtilitiesDirectory = Join-Path $script:SetupVibeUserDirectory 'bin'
 $script:WindowsUtilitiesStatePath = Join-Path $script:SetupVibeUserDirectory 'windows-utilities.json'
+$script:CodexInstallDirectory = Join-Path $env:LOCALAPPDATA 'Programs\OpenAI\Codex\bin'
+$script:InvokerUserSid = $null
 
 $script:WindowsUtilities = @(
-    @{ Path = 'utils/windows/ssh_copy_id/ssh_copy_id.ps1'; Name = 'ssh_copy_id.ps1' }
+    @{ Path = 'utils/windows/ssh_copy_id/ssh_copy_id.ps1'; Name = 'ssh_copy_id_core.ps1' }
     @{ Path = 'utils/windows/ssh_copy_id/ssh_copy_id.cmd'; Name = 'ssh_copy_id.cmd' }
-    @{ Path = 'utils/windows/ai_cli/codex.cmd'; Name = 'codex.cmd' }
 )
-$script:LegacyWindowsUtilityFiles = @('ssh_copy_id.bat')
+$script:LegacyWindowsUtilityFiles = @('ssh_copy_id.bat', 'ssh_copy_id.ps1', 'codex.cmd')
 
 $script:WinGetPackages = @(
     @{ Id = 'Git.Git'; Name = 'Git' }
@@ -72,6 +76,38 @@ $script:ChocolateyPackages = @(
     @{ Id = 'firacodenf'; Name = 'FiraCode Nerd Font' }
 )
 
+$script:WinGetCommandChecks = @(
+    @{ Name = 'Git'; Command = 'git.exe'; Arguments = @('--version') }
+    @{ Name = '7-Zip'; Command = '7z.exe'; Arguments = @('i'); PreferredPaths = @((Join-Path $env:ProgramFiles '7-Zip\7z.exe')) }
+    @{ Name = 'Wget'; Command = 'wget.exe'; Arguments = @('--version') }
+    @{ Name = 'FFmpeg'; Command = 'ffmpeg.exe'; Arguments = @('-version') }
+    @{ Name = 'ImageMagick'; Command = 'magick.exe'; Arguments = @('-version') }
+    @{ Name = 'bat'; Command = 'bat.exe'; Arguments = @('--version') }
+    @{ Name = 'eza'; Command = 'eza.exe'; Arguments = @('--version') }
+    @{ Name = 'zoxide'; Command = 'zoxide.exe'; Arguments = @('--version') }
+    @{ Name = 'fzf'; Command = 'fzf.exe'; Arguments = @('--version') }
+    @{ Name = 'ripgrep'; Command = 'rg.exe'; Arguments = @('--version') }
+    @{ Name = 'fd'; Command = 'fd.exe'; Arguments = @('--version') }
+    @{ Name = 'lazygit'; Command = 'lazygit.exe'; Arguments = @('--version') }
+    @{ Name = 'Neovim'; Command = 'nvim.exe'; Arguments = @('--version') }
+    @{ Name = 'Glow'; Command = 'glow.exe'; Arguments = @('--version') }
+    @{ Name = 'tldr'; Command = 'tldr.exe'; Arguments = @('--version') }
+    @{ Name = 'Fastfetch'; Command = 'fastfetch.exe'; Arguments = @('--version') }
+    @{ Name = 'duf'; Command = 'duf.exe'; Arguments = @('--version') }
+    @{ Name = 'jq'; Command = 'jq.exe'; Arguments = @('--version') }
+    @{ Name = 'Nmap'; Command = 'nmap.exe'; Arguments = @('--version') }
+    @{ Name = 'Speedtest CLI'; Command = 'speedtest.exe'; Arguments = @('--version') }
+    @{ Name = 'Tailscale'; Command = 'tailscale.exe'; Arguments = @('version') }
+    @{ Name = 'gping'; Command = 'gping.exe'; Arguments = @('--version') }
+    @{ Name = 'btop4win'; Command = 'btop4win.exe'; Arguments = @('--version') }
+    @{ Name = 'PowerShell 7'; Command = 'pwsh.exe'; Arguments = @('--version') }
+)
+
+$script:ChocolateyCommandChecks = @(
+    @{ Name = 'trippy'; Command = 'trip.exe'; Arguments = @('--version') }
+    @{ Name = 'RustScan'; Command = 'rustscan.exe'; Arguments = @('--version') }
+)
+
 $script:LegacyWinGetPackages = @(
     @{ Id = 'PHP.PHP.8.4'; Name = 'PHP 8.4' }
     @{ Id = 'RubyInstallerTeam.RubyWithDevKit.3.3'; Name = 'Ruby 3.3 with DevKit' }
@@ -79,7 +115,6 @@ $script:LegacyWinGetPackages = @(
     @{ Id = 'astral-sh.uv'; Name = 'uv' }
     @{ Id = 'GoLang.Go'; Name = 'Go' }
     @{ Id = 'Rustlang.Rustup'; Name = 'Rustup' }
-    @{ Id = 'Starship.Starship'; Name = 'Starship' }
     @{ Id = 'Oven-sh.Bun'; Name = 'Bun' }
     @{ Id = 'jdx.mise'; Name = 'mise' }
 )
@@ -150,6 +185,10 @@ function Invoke-PowerShellHandoff {
     }
     if ($Uninstall) {
         $powerShellArguments += '-Uninstall'
+    }
+    if (-not [string]::IsNullOrWhiteSpace($script:InvokerUserSid)) {
+        $powerShellArguments += '-ExpectedUserSid'
+        $powerShellArguments += ('"{0}"' -f $script:InvokerUserSid)
     }
 
     $powerShellPath = Get-NativeWindowsPowerShellPath
@@ -413,14 +452,86 @@ function Invoke-WindowsInstallerPreflight {
     Write-Success 'Windows servicing and installer prerequisites are ready.'
 }
 
+function ConvertTo-NormalizedPathEntry {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $normalizedPath = [Environment]::ExpandEnvironmentVariables($Path.Trim().Trim('"'))
+    if ([string]::IsNullOrWhiteSpace($normalizedPath)) {
+        return ''
+    }
+    if ($normalizedPath -match '%[^%]+%') {
+        return $normalizedPath.TrimEnd('\', '/')
+    }
+    try {
+        $fullPath = [IO.Path]::GetFullPath($normalizedPath)
+        $pathRoot = [IO.Path]::GetPathRoot($fullPath)
+        if ($fullPath.Equals($pathRoot, [StringComparison]::OrdinalIgnoreCase)) {
+            return $pathRoot
+        }
+        return $fullPath.TrimEnd('\', '/')
+    }
+    catch {
+        return $normalizedPath.TrimEnd('\', '/')
+    }
+}
+
+function Send-EnvironmentChangeNotification {
+    try {
+        if (-not ('SetupVibe.NativeMethods' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+namespace SetupVibe {
+    public static class NativeMethods {
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        public static extern IntPtr SendMessageTimeout(
+            IntPtr hWnd,
+            uint message,
+            UIntPtr wParam,
+            string lParam,
+            uint flags,
+            uint timeout,
+            out UIntPtr result);
+    }
+}
+'@
+        }
+
+        $result = [UIntPtr]::Zero
+        [void][SetupVibe.NativeMethods]::SendMessageTimeout(
+            [IntPtr]0xFFFF,
+            0x001A,
+            [UIntPtr]::Zero,
+            'Environment',
+            0x0002,
+            5000,
+            [ref]$result
+        )
+    }
+    catch {
+        Write-WarningMessage ("The persistent PATH was updated, but Windows could not be notified immediately: {0}" -f $_.Exception.Message)
+    }
+}
+
 function Import-EnvironmentPath {
-    $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
-    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-    $additionalPaths = @(
+    $pathEntries = @(
+        ([Environment]::GetEnvironmentVariable('Path', 'Machine') -split ';')
+        ([Environment]::GetEnvironmentVariable('Path', 'User') -split ';')
         (Join-Path $env:ProgramData 'chocolatey\bin')
     )
-
-    $env:Path = (@($machinePath, $userPath) + $additionalPaths | Where-Object { $_ }) -join ';'
+    $uniquePaths = New-Object System.Collections.Generic.List[string]
+    $normalizedPaths = New-Object System.Collections.Generic.HashSet[string] ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($pathEntry in $pathEntries) {
+        if ([string]::IsNullOrWhiteSpace([string]$pathEntry)) {
+            continue
+        }
+        $normalizedPath = ConvertTo-NormalizedPathEntry -Path ([string]$pathEntry)
+        if ($normalizedPaths.Add($normalizedPath)) {
+            $uniquePaths.Add(([string]$pathEntry).Trim())
+        }
+    }
+    $env:Path = $uniquePaths -join ';'
 }
 
 function Get-NativeProgramFilesDirectory {
@@ -443,6 +554,25 @@ function Find-Executable {
         throw "Required command '$Name' was not found after package installation. Open a new terminal and run desktop.ps1 again."
     }
     return $command.Source
+}
+
+function Assert-CommandResolvesToPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$ExpectedPath
+    )
+
+    Import-EnvironmentPath
+    $resolvedCommand = Get-Command $Name -ErrorAction SilentlyContinue | Select-Object -First 1
+    $expectedFullPath = [IO.Path]::GetFullPath($ExpectedPath)
+    if (-not $resolvedCommand) {
+        throw "The '$Name' command was not found in the refreshed Windows PATH. Expected: $expectedFullPath"
+    }
+    $resolvedFullPath = [IO.Path]::GetFullPath($resolvedCommand.Source)
+    if (-not $resolvedFullPath.Equals($expectedFullPath, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "The '$Name' command is shadowed by another installation. Expected $expectedFullPath, resolved $resolvedFullPath."
+    }
+    Write-Success ("{0} resolves to the expected PATH executable: {1}" -f $Name, $expectedFullPath)
 }
 
 function Get-OpenSshMsiProducts {
@@ -502,9 +632,29 @@ function Find-OpenSshInstallDirectory {
 function Install-OpenSsh {
     $temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) ("SetupVibe-OpenSSH-{0}" -f $PID)
     $msiLogPath = Join-Path $script:LogDirectory ("openssh-msi-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
-    $msiReconfigureLogPath = Join-Path $script:LogDirectory ("openssh-reconfigure-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
     $installedProducts = @()
     $openSshDirectory = @()
+
+    if (-not (Test-Path $script:OpenSshFirewallStatePath -PathType Leaf)) {
+        $existingFirewallRule = Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -ErrorAction SilentlyContinue | Select-Object -First 1
+        $firewallState = if ($existingFirewallRule) {
+            $portFilter = $existingFirewallRule | Get-NetFirewallPortFilter -ErrorAction SilentlyContinue | Select-Object -First 1
+            @{
+                Existed = $true
+                DisplayName = [string]$existingFirewallRule.DisplayName
+                Enabled = [string]$existingFirewallRule.Enabled
+                Action = [string]$existingFirewallRule.Action
+                Direction = [string]$existingFirewallRule.Direction
+                Profile = [string]$existingFirewallRule.Profile
+                Protocol = if ($portFilter) { [string]$portFilter.Protocol } else { 'TCP' }
+                LocalPort = if ($portFilter) { [string]$portFilter.LocalPort } else { '22' }
+            }
+        }
+        else {
+            @{ Existed = $false }
+        }
+        $firewallState | ConvertTo-Json | Set-Content -Path $script:OpenSshFirewallStatePath -Encoding ASCII
+    }
 
     New-Item -Path $temporaryDirectory -ItemType Directory -Force | Out-Null
     try {
@@ -536,6 +686,10 @@ function Install-OpenSsh {
         $msiArguments = @(
             '/i'
             $msiPath
+            'ADDLOCAL=Client,Server'
+            'REMOVE='
+            'REINSTALL=ALL'
+            'REINSTALLMODE=amus'
             '/qn'
             '/norestart'
             '/L*v'
@@ -545,23 +699,6 @@ function Install-OpenSsh {
 
         $installedProducts = @(Get-OpenSshMsiProducts)
         $openSshDirectory = @(Find-OpenSshInstallDirectory -Products $installedProducts)
-        if ($openSshDirectory.Count -eq 0) {
-            Write-WarningMessage 'OpenSSH files were not found after the default MSI installation. Reconfiguring every MSI feature...'
-            Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @(
-                '/i'
-                $msiPath
-                'ADDLOCAL=ALL'
-                'REMOVE='
-                'REINSTALL=ALL'
-                'REINSTALLMODE=amus'
-                '/qn'
-                '/norestart'
-                '/L*v'
-                $msiReconfigureLogPath
-            ) -SuccessExitCode @(0, 1641, 3010)
-            $installedProducts = @(Get-OpenSshMsiProducts)
-            $openSshDirectory = @(Find-OpenSshInstallDirectory -Products $installedProducts)
-        }
     }
     finally {
         Remove-Item -Path $temporaryDirectory -Recurse -Force -ErrorAction SilentlyContinue
@@ -570,16 +707,20 @@ function Install-OpenSsh {
     if ($openSshDirectory.Count -eq 0) {
         $checkedDirectories = @(Get-OpenSshCandidateDirectories -Products $installedProducts)
         $checkedDirectoryText = if ($checkedDirectories.Count -gt 0) { $checkedDirectories -join ', ' } else { 'no MSI installation directory was registered' }
-        throw "OpenSSH MSI completed, but ssh.exe was not found. Checked: $checkedDirectoryText. Review $msiLogPath and $msiReconfigureLogPath."
+        throw "OpenSSH MSI completed, but ssh.exe was not found. Checked: $checkedDirectoryText. Review $msiLogPath."
     }
     if (-not (Test-Path (Join-Path $openSshDirectory[0] 'sshd.exe') -PathType Leaf)) {
-        throw "OpenSSH Client was installed at $($openSshDirectory[0]), but sshd.exe was not found. Review $msiLogPath and $msiReconfigureLogPath."
+        throw "OpenSSH Client was installed at $($openSshDirectory[0]), but sshd.exe was not found. Review $msiLogPath."
     }
 
     Add-PathEntry -Path $openSshDirectory[0] -Scope 'Machine' -Prepend
     New-Item -Path (Join-Path $env:USERPROFILE '.ssh') -ItemType Directory -Force | Out-Null
-    Import-EnvironmentPath
-    $sshVersion = & (Join-Path $openSshDirectory[0] 'ssh.exe') -V 2>&1
+    $sshPath = Join-Path $openSshDirectory[0] 'ssh.exe'
+    Assert-CommandResolvesToPath -Name 'ssh.exe' -ExpectedPath $sshPath
+    $sshVersion = @(& $sshPath -V 2>&1)
+    if ($LASTEXITCODE -ne 0 -or $sshVersion.Count -eq 0) {
+        throw "OpenSSH Client validation failed: $($openSshDirectory[0])\ssh.exe -V"
+    }
 
     $sshdService = Get-Service -Name 'sshd' -ErrorAction Stop
     Set-Service -Name 'sshd' -StartupType Automatic
@@ -592,12 +733,12 @@ function Install-OpenSsh {
         throw 'OpenSSH Server was installed, but the sshd service did not reach the Running state.'
     }
 
-    $firewallRule = Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -ErrorAction SilentlyContinue
+    $firewallRule = Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($firewallRule) {
         Set-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -Enabled True -Action Allow
     }
     else {
-        New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 | Out-Null
+        New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 -Profile Any | Out-Null
     }
 
     Write-Success ("OpenSSH Client installed: {0}" -f ($sshVersion -join ' '))
@@ -605,6 +746,27 @@ function Install-OpenSsh {
 }
 
 function Uninstall-OpenSsh {
+    $firewallState = $null
+    if (Test-Path $script:OpenSshFirewallStatePath -PathType Leaf) {
+        try {
+            $firewallState = Get-Content -Path $script:OpenSshFirewallStatePath -Raw | ConvertFrom-Json
+            $ruleExisted = Get-ObjectPropertyValue -InputObject $firewallState -Name 'Existed'
+            if ($ruleExisted -isnot [bool]) {
+                throw "The 'Existed' value is missing or is not Boolean."
+            }
+            if ($ruleExisted) {
+                foreach ($requiredProperty in @('DisplayName', 'Enabled', 'Action', 'Direction', 'Profile', 'Protocol', 'LocalPort')) {
+                    if ([string]::IsNullOrWhiteSpace([string](Get-ObjectPropertyValue -InputObject $firewallState -Name $requiredProperty))) {
+                        throw "The '$requiredProperty' value is missing."
+                    }
+                }
+            }
+        }
+        catch {
+            throw "The OpenSSH firewall state is invalid and was preserved before uninstalling OpenSSH: $($_.Exception.Message)"
+        }
+    }
+
     $openSshProducts = @(Get-OpenSshMsiProducts)
     $openSshDirectories = @(Get-OpenSshCandidateDirectories -Products $openSshProducts)
 
@@ -620,6 +782,36 @@ function Uninstall-OpenSsh {
     foreach ($openSshDirectory in $openSshDirectories) {
         Remove-PathEntry -Path $openSshDirectory -Scope 'Machine'
     }
+    if ($firewallState) {
+        $firewallRule = Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -ErrorAction SilentlyContinue
+        if ([bool]$firewallState.Existed) {
+            if (-not $firewallRule) {
+                $firewallRuleArguments = @{
+                    Name = 'OpenSSH-Server-In-TCP'
+                    DisplayName = [string]$firewallState.DisplayName
+                    Enabled = [string]$firewallState.Enabled
+                    Direction = [string]$firewallState.Direction
+                    Protocol = [string]$firewallState.Protocol
+                    Action = [string]$firewallState.Action
+                    LocalPort = [string]$firewallState.LocalPort
+                    Profile = [string]$firewallState.Profile
+                }
+                New-NetFirewallRule @firewallRuleArguments | Out-Null
+            }
+            else {
+                Set-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -Enabled ([string]$firewallState.Enabled) -Action ([string]$firewallState.Action) -Direction ([string]$firewallState.Direction) -Profile ([string]$firewallState.Profile) -Protocol ([string]$firewallState.Protocol) -LocalPort ([string]$firewallState.LocalPort)
+            }
+            Write-Success 'The previous OpenSSH TCP/22 firewall rule state was restored.'
+        }
+        elseif ($firewallRule) {
+            Remove-NetFirewallRule -Name 'OpenSSH-Server-In-TCP'
+            Write-Success 'The SetupVibe-created OpenSSH TCP/22 firewall rule was removed.'
+        }
+        Remove-Item -Path $script:OpenSshFirewallStatePath -Force
+    }
+    elseif (Get-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -ErrorAction SilentlyContinue) {
+        Write-WarningMessage 'OpenSSH firewall ownership state was not found. The existing TCP/22 rule was preserved to avoid removing a user-managed rule.'
+    }
     Write-Success 'SetupVibe-managed Microsoft OpenSSH Client and Server MSI installation removed.'
 }
 
@@ -628,7 +820,7 @@ function Install-WindowsSubsystemForLinux {
     $featureNames = @('Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform')
     $featureStates = @{}
     foreach ($featureName in $featureNames) {
-        $featureStates[$featureName] = (Get-WindowsOptionalFeature -Online -FeatureName $featureName).State
+        $featureStates[$featureName] = [string](Get-WindowsOptionalFeature -Online -FeatureName $featureName).State
     }
     if (-not (Test-Path $script:WslFeatureStatePath)) {
         $featureStates | ConvertTo-Json | Set-Content -Path $script:WslFeatureStatePath -Encoding ASCII
@@ -697,6 +889,39 @@ function Install-WslDevelopmentConfiguration {
 }
 
 function Uninstall-WindowsSubsystemForLinux {
+    $savedFeatureStates = @{}
+    $savedFirewallAction = $null
+    if (Test-Path $script:WslFirewallStatePath -PathType Leaf) {
+        $savedFirewallAction = (Get-Content -Path $script:WslFirewallStatePath -Raw).Trim()
+        if ($savedFirewallAction -notin @('Allow', 'Block', 'NotConfigured')) {
+            throw "The saved WSL firewall action '$savedFirewallAction' is invalid and was preserved before changing WSL."
+        }
+    }
+    if (Test-Path $script:WslFeatureStatePath -PathType Leaf) {
+        try {
+            $previousFeatureStates = Get-Content -Path $script:WslFeatureStatePath -Raw | ConvertFrom-Json
+            foreach ($featureName in @('Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform')) {
+                $savedProperty = $previousFeatureStates.PSObject.Properties[$featureName]
+                if (-not $savedProperty) {
+                    throw "The saved state for '$featureName' is missing."
+                }
+                $feature = Get-WindowsOptionalFeature -Online -FeatureName $featureName
+                $previousState = [string]$savedProperty.Value
+                if ($previousState -match '^\d+$') {
+                    $previousState = [Enum]::GetName($feature.State.GetType(), [int]$previousState)
+                }
+                $knownFeatureStates = @([Enum]::GetNames($feature.State.GetType()))
+                if ([string]::IsNullOrWhiteSpace($previousState) -or $knownFeatureStates -notcontains $previousState) {
+                    throw "The saved state for '$featureName' is invalid."
+                }
+                $savedFeatureStates[$featureName] = $previousState
+            }
+        }
+        catch {
+            throw "The WSL feature state is invalid and was preserved before changing WSL: $($_.Exception.Message)"
+        }
+    }
+
     $wslPath = Join-Path $env:SystemRoot 'System32\wsl.exe'
     if (Test-Path $wslPath) {
         & $wslPath --shutdown 2>$null
@@ -712,20 +937,20 @@ function Uninstall-WindowsSubsystemForLinux {
     }
 
     $firewallSetting = Get-NetFirewallHyperVVMSetting -Name $script:WslVmCreatorId -ErrorAction SilentlyContinue
-    if ($firewallSetting -and (Test-Path $script:WslFirewallStatePath)) {
-        $previousInboundAction = (Get-Content -Path $script:WslFirewallStatePath -Raw).Trim()
-        if ($previousInboundAction -notin @('Allow', 'Block', 'NotConfigured')) {
-            $previousInboundAction = 'NotConfigured'
+    if ($savedFirewallAction) {
+        if ($firewallSetting) {
+            Set-NetFirewallHyperVVMSetting -Name $script:WslVmCreatorId -DefaultInboundAction $savedFirewallAction
         }
-        Set-NetFirewallHyperVVMSetting -Name $script:WslVmCreatorId -DefaultInboundAction $previousInboundAction
+        elseif ($savedFirewallAction -ne 'NotConfigured') {
+            New-NetFirewallHyperVVMSetting -Name $script:WslVmCreatorId -DefaultInboundAction $savedFirewallAction
+        }
     }
     Remove-Item -Path $script:WslFirewallStatePath -Force -ErrorAction SilentlyContinue
 
-    if (Test-Path $script:WslFeatureStatePath) {
-        $previousFeatureStates = Get-Content -Path $script:WslFeatureStatePath -Raw | ConvertFrom-Json
+    if ($savedFeatureStates.Count -gt 0) {
         foreach ($featureName in @('Microsoft-Windows-Subsystem-Linux', 'VirtualMachinePlatform')) {
-            $previousState = $previousFeatureStates.PSObject.Properties[$featureName].Value
             $feature = Get-WindowsOptionalFeature -Online -FeatureName $featureName
+            $previousState = [string]$savedFeatureStates[$featureName]
             if ($previousState -notin @('Enabled', 'EnablePending') -and $feature.State -in @('Enabled', 'EnablePending')) {
                 $result = Disable-WindowsOptionalFeature -Online -FeatureName $featureName -NoRestart
                 if ($result.RestartNeeded) {
@@ -842,6 +1067,38 @@ function Test-GitHubCli {
     $ghPath = Find-Executable -Name 'gh.exe'
     Invoke-NativeCommand -FilePath $ghPath -ArgumentList @('--version')
     Write-Success 'GitHub CLI is available as gh in the Windows PATH.'
+}
+
+function Test-InstalledCommand {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$Command,
+        [Parameter()][string[]]$Arguments = @('--version'),
+        [Parameter()][string[]]$PreferredPaths = @()
+    )
+
+    Import-EnvironmentPath
+    $resolvedCommand = Get-Command $Command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $resolvedCommand) {
+        foreach ($preferredPath in $PreferredPaths) {
+            if (-not (Test-Path $preferredPath -PathType Leaf)) {
+                continue
+            }
+            $preferredDirectory = Split-Path -Parent $preferredPath
+            $pathWasPresent = Test-PathEntry -Path $preferredDirectory -Scope 'Machine'
+            Register-PackagePath -Path $preferredDirectory -WasPresent $pathWasPresent
+            Add-PathEntry -Path $preferredDirectory -Scope 'Machine' -Prepend
+            Assert-CommandResolvesToPath -Name $Command -ExpectedPath $preferredPath
+            $resolvedCommand = Get-Command $Command -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            break
+        }
+    }
+    if (-not $resolvedCommand) {
+        throw "The package was installed, but '$Command' was not found in the refreshed Windows PATH."
+    }
+    $commandPath = $resolvedCommand.Source
+    Invoke-NativeCommand -FilePath $commandPath -ArgumentList $Arguments
+    Write-Success ("{0} is executable from the refreshed Windows PATH." -f $Name)
 }
 
 function Test-WindowsTerminal {
@@ -971,50 +1228,82 @@ function Invoke-WithUserPowerShellProfilesPreserved {
     Write-Success 'The original Windows PowerShell and PowerShell 7 profile files were preserved.'
 }
 
+function Get-TextFileEncodingInfo {
+    param([Parameter(Mandatory = $true)][byte[]]$Bytes)
+
+    if ($Bytes.Length -ge 4 -and $Bytes[0] -eq 0xFF -and $Bytes[1] -eq 0xFE -and $Bytes[2] -eq 0x00 -and $Bytes[3] -eq 0x00) {
+        return [PSCustomObject]@{ Encoding = [Text.Encoding]::UTF32; PreambleLength = 4 }
+    }
+    if ($Bytes.Length -ge 4 -and $Bytes[0] -eq 0x00 -and $Bytes[1] -eq 0x00 -and $Bytes[2] -eq 0xFE -and $Bytes[3] -eq 0xFF) {
+        return [PSCustomObject]@{ Encoding = [Text.Encoding]::GetEncoding(12001); PreambleLength = 4 }
+    }
+    if ($Bytes.Length -ge 3 -and $Bytes[0] -eq 0xEF -and $Bytes[1] -eq 0xBB -and $Bytes[2] -eq 0xBF) {
+        return [PSCustomObject]@{ Encoding = (New-Object -TypeName Text.UTF8Encoding -ArgumentList @($true, $true)); PreambleLength = 3 }
+    }
+    if ($Bytes.Length -ge 2 -and $Bytes[0] -eq 0xFF -and $Bytes[1] -eq 0xFE) {
+        return [PSCustomObject]@{ Encoding = [Text.Encoding]::Unicode; PreambleLength = 2 }
+    }
+    if ($Bytes.Length -ge 2 -and $Bytes[0] -eq 0xFE -and $Bytes[1] -eq 0xFF) {
+        return [PSCustomObject]@{ Encoding = [Text.Encoding]::BigEndianUnicode; PreambleLength = 2 }
+    }
+
+    $utf8 = New-Object -TypeName Text.UTF8Encoding -ArgumentList @($false, $true)
+    try {
+        [void]$utf8.GetString($Bytes)
+        return [PSCustomObject]@{ Encoding = $utf8; PreambleLength = 0 }
+    }
+    catch {
+        return [PSCustomObject]@{ Encoding = [Text.Encoding]::Default; PreambleLength = 0 }
+    }
+}
+
 function Uninstall-PowerShellProfile {
     $profilePaths = Get-UserPowerShellProfilePaths
     $profileMarker = '# SetupVibe shell initialization'
     $profileEndMarker = '# End SetupVibe shell initialization'
+    $escapedProfileMarker = [regex]::Escape($profileMarker)
+    $escapedProfileEndMarker = [regex]::Escape($profileEndMarker)
+    $completeBlockPattern = '(?ms)^' + $escapedProfileMarker + '\r?$(?:\r\n|\n|\r).*?^' + $escapedProfileEndMarker + '\r?$(?:(?:\r\n|\n|\r)|$)'
+    $legacyBlockPattern = '(?mi)^' + $escapedProfileMarker + '\r?$(?:\r\n|\n|\r)[^\r\n]*starship[^\r\n]*init powershell[^\r\n]*\r?$(?:\r\n|\n|\r)[^\r\n]*zoxide[^\r\n]*init powershell[^\r\n]*\r?$(?:(?:\r\n|\n|\r)|$)'
 
     foreach ($profilePath in $profilePaths) {
-        if (-not (Test-Path $profilePath)) {
+        if (-not (Test-Path $profilePath -PathType Leaf)) {
             continue
         }
 
-        $lines = @(Get-Content -Path $profilePath)
-        $updatedLines = New-Object System.Collections.Generic.List[string]
-        for ($index = 0; $index -lt $lines.Count; $index++) {
-            if ($lines[$index] -ne $profileMarker) {
-                $updatedLines.Add($lines[$index])
-                continue
-            }
-
-            $endIndex = -1
-            for ($candidateIndex = $index + 1; $candidateIndex -lt $lines.Count; $candidateIndex++) {
-                if ($lines[$candidateIndex] -eq $profileEndMarker) {
-                    $endIndex = $candidateIndex
-                    break
-                }
-            }
-            if ($endIndex -ge 0) {
-                $index = $endIndex
-            }
-            else {
-                $index = [Math]::Min($index + 2, $lines.Count - 1)
-            }
+        $originalBytes = [IO.File]::ReadAllBytes($profilePath)
+        $encodingInfo = Get-TextFileEncodingInfo -Bytes $originalBytes
+        $textLength = $originalBytes.Length - $encodingInfo.PreambleLength
+        $profileText = $encodingInfo.Encoding.GetString($originalBytes, $encodingInfo.PreambleLength, $textLength)
+        if ($profileText -notmatch ('(?m)^' + $escapedProfileMarker + '\r?$')) {
+            continue
         }
 
-        if ($updatedLines.Count -eq 0 -or -not ($updatedLines | Where-Object { $_.Trim() })) {
+        $updatedText = [regex]::Replace($profileText, $completeBlockPattern, '')
+        if ($updatedText -eq $profileText) {
+            $updatedText = [regex]::Replace($profileText, $legacyBlockPattern, '')
+        }
+        if ($updatedText -eq $profileText) {
+            Write-WarningMessage ("A SetupVibe marker was found in {0}, but its legacy block was not recognized. The profile was preserved unchanged." -f $profilePath)
+            continue
+        }
+
+        if ($updatedText.Length -eq 0) {
             Remove-Item -Path $profilePath -Force
         }
         else {
-            Set-Content -Path $profilePath -Value $updatedLines -Encoding UTF8
+            $updatedBody = $encodingInfo.Encoding.GetBytes($updatedText)
+            $updatedBytes = New-Object byte[] ($encodingInfo.PreambleLength + $updatedBody.Length)
+            if ($encodingInfo.PreambleLength -gt 0) {
+                [Buffer]::BlockCopy($originalBytes, 0, $updatedBytes, 0, $encodingInfo.PreambleLength)
+            }
+            [Buffer]::BlockCopy($updatedBody, 0, $updatedBytes, $encodingInfo.PreambleLength, $updatedBody.Length)
+            [IO.File]::WriteAllBytes($profilePath, $updatedBytes)
         }
+        Write-Success ("Legacy SetupVibe shell initialization removed without re-encoding the remaining profile: {0}" -f $profilePath)
     }
 
-    $starshipConfig = Join-Path $env:USERPROFILE '.config\starship.toml'
-    Remove-Item -Path $starshipConfig -Force -ErrorAction SilentlyContinue
-    Write-Success 'SetupVibe shell initialization and Starship configuration removed.'
+    Write-Success 'Recognized legacy SetupVibe profile blocks were removed; unrelated profile bytes and Starship configuration were preserved.'
 }
 
 function Uninstall-LegacyEcosystemTools {
@@ -1048,11 +1337,12 @@ function Remove-PathEntry {
     )
 
     $currentPath = [Environment]::GetEnvironmentVariable('Path', $Scope)
-    $normalizedPath = $Path.TrimEnd('\')
+    $normalizedPath = ConvertTo-NormalizedPathEntry -Path $Path
     $remainingEntries = @($currentPath -split ';' | Where-Object {
-        $_ -and ([Environment]::ExpandEnvironmentVariables($_)).TrimEnd('\') -ne $normalizedPath
+        $_ -and (ConvertTo-NormalizedPathEntry -Path $_) -ne $normalizedPath
     })
     [Environment]::SetEnvironmentVariable('Path', ($remainingEntries -join ';'), $Scope)
+    Send-EnvironmentChangeNotification
 }
 
 function Add-PathEntry {
@@ -1063,20 +1353,33 @@ function Add-PathEntry {
     )
 
     $currentPath = [Environment]::GetEnvironmentVariable('Path', $Scope)
-    $normalizedPath = $Path.TrimEnd('\')
+    $normalizedPath = ConvertTo-NormalizedPathEntry -Path $Path
     $existingEntries = @($currentPath -split ';' | Where-Object { $_ })
-    $pathExists = @($existingEntries | Where-Object {
-            ([Environment]::ExpandEnvironmentVariables($_)).TrimEnd('\') -eq $normalizedPath
-        }).Count -gt 0
-    if ($pathExists -and -not $Prepend) {
-        return
+    $matchingEntries = @($existingEntries | Where-Object {
+        (ConvertTo-NormalizedPathEntry -Path $_) -eq $normalizedPath
+    })
+    if ($matchingEntries.Count -gt 0 -and -not $Prepend) {
+        $targetEntryAdded = $false
+        $deduplicatedEntries = New-Object System.Collections.Generic.List[string]
+        foreach ($existingEntry in $existingEntries) {
+            if ((ConvertTo-NormalizedPathEntry -Path $existingEntry) -ne $normalizedPath) {
+                $deduplicatedEntries.Add([string]$existingEntry)
+            }
+            elseif (-not $targetEntryAdded) {
+                $targetEntryAdded = $true
+                $deduplicatedEntries.Add([string]$existingEntry)
+            }
+        }
+        $updatedPath = @($deduplicatedEntries)
     }
-
-    $remainingEntries = @($existingEntries | Where-Object {
-            ([Environment]::ExpandEnvironmentVariables($_)).TrimEnd('\') -ne $normalizedPath
+    else {
+        $remainingEntries = @($existingEntries | Where-Object {
+            (ConvertTo-NormalizedPathEntry -Path $_) -ne $normalizedPath
         })
-    $updatedPath = if ($Prepend) { @($Path) + $remainingEntries } else { $remainingEntries + $Path }
+        $updatedPath = if ($Prepend) { @($Path) + $remainingEntries } else { $remainingEntries + $Path }
+    }
     [Environment]::SetEnvironmentVariable('Path', ($updatedPath -join ';'), $Scope)
+    Send-EnvironmentChangeNotification
 }
 
 function Test-PathEntry {
@@ -1085,10 +1388,10 @@ function Test-PathEntry {
         [Parameter(Mandatory = $true)][ValidateSet('User', 'Machine')][string]$Scope
     )
 
-    $normalizedPath = $Path.TrimEnd('\')
+    $normalizedPath = ConvertTo-NormalizedPathEntry -Path $Path
     $currentPath = [Environment]::GetEnvironmentVariable('Path', $Scope)
     return @($currentPath -split ';' | Where-Object {
-            $_ -and ([Environment]::ExpandEnvironmentVariables($_)).TrimEnd('\') -eq $normalizedPath
+            $_ -and (ConvertTo-NormalizedPathEntry -Path $_) -eq $normalizedPath
         }).Count -gt 0
 }
 
@@ -1107,7 +1410,7 @@ function Register-AiCliPath {
             }
         }
         catch {
-            Write-WarningMessage ("Could not read the AI CLI PATH state: {0}" -f $_.Exception.Message)
+            throw "The AI CLI PATH state is invalid and was preserved to prevent ownership data loss: $($_.Exception.Message)"
         }
     }
 
@@ -1115,6 +1418,50 @@ function Register-AiCliPath {
         $pathsAdded += $Path
     }
     @{ PathsAdded = @($pathsAdded) } | ConvertTo-Json | Set-Content -Path $script:AiCliPathStatePath -Encoding ASCII
+}
+
+function Register-PackagePath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][bool]$WasPresent
+    )
+
+    $pathsAdded = @()
+    if (Test-Path $script:PackagePathStatePath -PathType Leaf) {
+        try {
+            $state = Get-Content -Path $script:PackagePathStatePath -Raw | ConvertFrom-Json
+            if ($state.PSObject.Properties['PathsAdded']) {
+                $pathsAdded = @($state.PathsAdded)
+            }
+        }
+        catch {
+            throw "The package PATH state is invalid and was preserved to prevent ownership data loss: $($_.Exception.Message)"
+        }
+    }
+
+    if (-not $WasPresent -and $pathsAdded -notcontains $Path) {
+        $pathsAdded += $Path
+    }
+    @{ PathsAdded = @($pathsAdded) } | ConvertTo-Json | Set-Content -Path $script:PackagePathStatePath -Encoding ASCII
+}
+
+function Uninstall-PackagePaths {
+    if (Test-Path $script:PackagePathStatePath -PathType Leaf) {
+        try {
+            $state = Get-Content -Path $script:PackagePathStatePath -Raw | ConvertFrom-Json
+            foreach ($path in @($state.PathsAdded)) {
+                if (-not [string]::IsNullOrWhiteSpace([string]$path)) {
+                    Remove-PathEntry -Path ([string]$path) -Scope 'Machine'
+                }
+            }
+        }
+        catch {
+            throw "The package PATH state is invalid and was preserved for manual recovery: $($_.Exception.Message)"
+        }
+    }
+    Remove-Item -Path $script:PackagePathStatePath -Force -ErrorAction SilentlyContinue
+    Import-EnvironmentPath
+    Write-Success 'SetupVibe-managed package PATH entries were removed.'
 }
 
 function Uninstall-AiCliPaths {
@@ -1128,7 +1475,7 @@ function Uninstall-AiCliPaths {
             }
         }
         catch {
-            Write-WarningMessage ("Could not restore the AI CLI PATH state: {0}" -f $_.Exception.Message)
+            throw "The AI CLI PATH state is invalid and was preserved for manual recovery: $($_.Exception.Message)"
         }
     }
     Remove-Item -Path $script:AiCliPathStatePath -Force -ErrorAction SilentlyContinue
@@ -1324,16 +1671,17 @@ function Install-NodeJs {
             throw 'The official Node.js SHASUMS256.txt file was empty or missing.'
         }
 
-        $checksumMatch = @(Get-Content -Path $checksumsPath | Where-Object {
-                $_ -match '^([0-9a-fA-F]{64})\s{2}(node-(v24\.\d+\.\d+)-x64\.msi)$'
-            } | Select-Object -First 1)
-        if ($checksumMatch.Count -eq 0 -or $checksumMatch[0] -notmatch '^([0-9a-fA-F]{64})\s{2}(node-(v24\.\d+\.\d+)-x64\.msi)$') {
+        $checksumLine = Get-Content -Path $checksumsPath | Where-Object {
+            $_ -match '^[0-9a-fA-F]{64}\s{2}node-v24\.\d+\.\d+-x64\.msi$'
+        } | Select-Object -First 1
+        $checksumMatch = [regex]::Match([string]$checksumLine, '^([0-9a-fA-F]{64})\s{2}(node-(v24\.\d+\.\d+)-x64\.msi)$')
+        if (-not $checksumMatch.Success) {
             throw 'The official Node.js 24 LTS checksum file does not contain an x64 MSI.'
         }
 
-        $expectedChecksum = $matches[1]
-        $installerName = $matches[2]
-        $nodeVersion = $matches[3]
+        $expectedChecksum = $checksumMatch.Groups[1].Value
+        $installerName = $checksumMatch.Groups[2].Value
+        $nodeVersion = $checksumMatch.Groups[3].Value
         $installerPath = Join-Path $temporaryDirectory $installerName
         Write-Host ("[RUN] Downloading Node.js {0} LTS from nodejs.org..." -f $nodeVersion)
         Invoke-NativeCommand -FilePath $curlPath -ArgumentList @(
@@ -1402,6 +1750,12 @@ function Install-NodeJs {
         foreach ($runtimeFile in @($nodePath, $npmPath, $npxPath)) {
             if (-not (Test-Path $runtimeFile -PathType Leaf)) {
                 throw "Node.js MSI completed, but a required command was not found: $runtimeFile. Review $installerLogPath and $reconfigureLogPath."
+            }
+        }
+        foreach ($powerShellShim in @('npm.ps1', 'npx.ps1')) {
+            $powerShellShimPath = Join-Path $nodeDirectory[0] $powerShellShim
+            if (Test-Path $powerShellShimPath -PathType Leaf) {
+                Remove-Item -Path $powerShellShimPath -Force
             }
         }
         Invoke-NativeCommand -FilePath $nodePath -ArgumentList @('--version')
@@ -1519,6 +1873,11 @@ function Install-DevelopmentRuntimePaths {
     Invoke-NativeCommand -FilePath $nodePath -ArgumentList @('--version')
     Invoke-NativeCommand -FilePath $npmPath -ArgumentList @('--version')
     Invoke-NativeCommand -FilePath $npxPath -ArgumentList @('--version')
+    Assert-CommandResolvesToPath -Name 'python' -ExpectedPath $pythonPath
+    Assert-CommandResolvesToPath -Name 'pip' -ExpectedPath $pipPath
+    Assert-CommandResolvesToPath -Name 'node' -ExpectedPath $nodePath
+    Assert-CommandResolvesToPath -Name 'npm' -ExpectedPath $npmPath
+    Assert-CommandResolvesToPath -Name 'npx' -ExpectedPath $npxPath
     Write-Success 'Python, pip, Node.js, npm, and npx are available in the machine PATH for Claude and Codex.'
 }
 
@@ -1537,7 +1896,7 @@ function Uninstall-DevelopmentRuntimePaths {
             $runtimePaths += @($state.Paths)
         }
         catch {
-            Write-WarningMessage ("Could not read the runtime PATH state; removing known paths: {0}" -f $_.Exception.Message)
+            throw "The runtime PATH state is invalid and was preserved to prevent unsafe PATH removal: $($_.Exception.Message)"
         }
     }
 
@@ -1557,7 +1916,7 @@ function Invoke-OfficialPowerShellInstaller {
     )
 
     $installerUri = [Uri]$Uri
-    if ($installerUri.Scheme -ne 'https' -or $installerUri.Host -notin @('claude.ai', 'antigravity.google')) {
+    if ($installerUri.Scheme -ne 'https' -or $installerUri.Host -notin @('claude.ai', 'chatgpt.com', 'antigravity.google')) {
         throw "Unsupported official installer URL for ${Name}: $Uri"
     }
 
@@ -1616,7 +1975,7 @@ function Install-ClaudeCode {
     $claudePath = $null
     $nativeClaudePath = Join-Path $claudeDirectory 'claude.exe'
     if (Test-Path $nativeClaudePath -PathType Leaf) {
-        Add-PathEntry -Path $claudeDirectory -Scope 'User'
+        Add-PathEntry -Path $claudeDirectory -Scope 'User' -Prepend
         Register-AiCliPath -Path $claudeDirectory -WasPresent $pathWasPresent
         $claudePath = $nativeClaudePath
     }
@@ -1629,8 +1988,9 @@ function Install-ClaudeCode {
         }
         $npmPrefix = ([string]$prefixOutput[0]).Trim()
         $npmPrefixWasPresent = Test-PathEntry -Path $npmPrefix -Scope 'User'
-        Add-PathEntry -Path $npmPrefix -Scope 'User'
+        Add-PathEntry -Path $npmPrefix -Scope 'User' -Prepend
         Register-AiCliPath -Path $npmPrefix -WasPresent $npmPrefixWasPresent
+        Remove-Item -Path (Join-Path $npmPrefix 'claude.ps1') -Force -ErrorAction SilentlyContinue
         foreach ($candidate in @((Join-Path $npmPrefix 'claude.exe'), (Join-Path $npmPrefix 'claude.cmd'))) {
             if (Test-Path $candidate -PathType Leaf) {
                 $claudePath = $candidate
@@ -1644,35 +2004,44 @@ function Install-ClaudeCode {
 
     Import-EnvironmentPath
     Invoke-NativeCommand -FilePath $claudePath -ArgumentList @('--version')
+    Assert-CommandResolvesToPath -Name 'claude' -ExpectedPath $claudePath
     Write-Success 'Claude Code is installed and available from the user PATH.'
 }
 
 function Install-CodexCli {
-    $npmPath = Get-NpmCommandPath
-    Invoke-NativeCommand -FilePath $npmPath -ArgumentList @('install', '--global', '@openai/codex@latest', '--no-audit', '--no-fund')
+    try {
+        $npmPath = Get-NpmCommandPath
+        Invoke-NativeCommand -FilePath $npmPath -ArgumentList @('uninstall', '--global', '@openai/codex')
+    }
+    catch {
+        Write-WarningMessage ("Could not remove a legacy npm Codex CLI installation: {0}" -f $_.Exception.Message)
+    }
 
-    $prefixOutput = @(& $npmPath 'config' 'get' 'prefix')
-    if ($LASTEXITCODE -ne 0 -or $prefixOutput.Count -eq 0) {
-        throw 'npm did not return its global prefix after installing Codex CLI.'
+    $pathWasPresent = Test-PathEntry -Path $script:CodexInstallDirectory -Scope 'User'
+    Invoke-WithUserPowerShellProfilesPreserved -Action {
+        $previousNonInteractive = $env:CODEX_NON_INTERACTIVE
+        $previousInstallDirectory = $env:CODEX_INSTALL_DIR
+        try {
+            $env:CODEX_NON_INTERACTIVE = '1'
+            $env:CODEX_INSTALL_DIR = $script:CodexInstallDirectory
+            Invoke-OfficialPowerShellInstaller -Uri 'https://chatgpt.com/codex/install.ps1' -Name 'Codex CLI'
+        }
+        finally {
+            $env:CODEX_NON_INTERACTIVE = $previousNonInteractive
+            $env:CODEX_INSTALL_DIR = $previousInstallDirectory
+        }
     }
-    $npmPrefix = ([string]$prefixOutput[0]).Trim()
-    $npmCodexPath = Join-Path $npmPrefix 'codex.cmd'
-    if (-not (Test-Path $npmCodexPath -PathType Leaf)) {
-        throw "The official Codex CLI npm shim was not found at $npmCodexPath."
-    }
-    Invoke-NativeCommand -FilePath $npmCodexPath -ArgumentList @('--version')
-
-    $codexLauncher = Join-Path $script:WindowsUtilitiesDirectory 'codex.cmd'
-    if (-not (Test-Path $codexLauncher -PathType Leaf)) {
-        throw "The SetupVibe Codex launcher was not found at $codexLauncher."
-    }
+    Add-PathEntry -Path $script:CodexInstallDirectory -Scope 'User' -Prepend
+    Register-AiCliPath -Path $script:CodexInstallDirectory -WasPresent $pathWasPresent
     Import-EnvironmentPath
-    $resolvedCodexCommand = Get-Command 'codex' -ErrorAction SilentlyContinue
-    if (-not $resolvedCodexCommand -or [IO.Path]::GetFullPath($resolvedCodexCommand.Source) -ne [IO.Path]::GetFullPath($codexLauncher)) {
-        throw 'The codex command does not resolve to the SetupVibe CMD launcher before PowerShell npm shims.'
+
+    $codexPath = Join-Path $script:CodexInstallDirectory 'codex.exe'
+    if (-not (Test-Path $codexPath -PathType Leaf)) {
+        throw "The official Codex standalone installer completed, but codex.exe was not found at $codexPath."
     }
-    Invoke-NativeCommand -FilePath $resolvedCodexCommand.Source -ArgumentList @('--version')
-    Write-Success 'Codex CLI was installed from @openai/codex and is available through the execution-policy-safe codex.cmd launcher.'
+    Invoke-NativeCommand -FilePath $codexPath -ArgumentList @('--version')
+    Assert-CommandResolvesToPath -Name 'codex' -ExpectedPath $codexPath
+    Write-Success 'Codex CLI was installed with the official native Windows standalone installer and validated from the user PATH.'
 }
 
 function Install-AntigravityCli {
@@ -1681,7 +2050,7 @@ function Install-AntigravityCli {
     Invoke-WithUserPowerShellProfilesPreserved -Action {
         Invoke-OfficialPowerShellInstaller -Uri 'https://antigravity.google/cli/install.ps1' -Name 'Antigravity CLI' -ScriptArguments @('--skip-aliases', '--skip-path')
     }
-    Add-PathEntry -Path $antigravityDirectory -Scope 'User'
+    Add-PathEntry -Path $antigravityDirectory -Scope 'User' -Prepend
     Register-AiCliPath -Path $antigravityDirectory -WasPresent $pathWasPresent
     Import-EnvironmentPath
 
@@ -1691,6 +2060,8 @@ function Install-AntigravityCli {
     if ((Get-Item $antigravityPath).Length -eq 0) {
         throw "The official Antigravity CLI executable at $antigravityPath is empty."
     }
+    Invoke-NativeCommand -FilePath $antigravityPath -ArgumentList @('--version')
+    Assert-CommandResolvesToPath -Name 'agy' -ExpectedPath $antigravityPath
     Write-Success 'Antigravity CLI was installed as agy without modifying PowerShell profiles or aliases.'
 }
 
@@ -1713,12 +2084,18 @@ function Uninstall-ClaudeCode {
 function Uninstall-CodexCli {
     $npmCommand = Get-Command 'npm.cmd' -ErrorAction SilentlyContinue
     if ($npmCommand) {
-        Invoke-NativeCommand -FilePath $npmCommand.Source -ArgumentList @('uninstall', '--global', '@openai/codex')
+        try {
+            Invoke-NativeCommand -FilePath $npmCommand.Source -ArgumentList @('uninstall', '--global', '@openai/codex')
+        }
+        catch {
+            Write-WarningMessage ("Could not remove a legacy npm Codex CLI installation: {0}" -f $_.Exception.Message)
+        }
     }
-    else {
-        Write-WarningMessage 'npm was not found; the Codex CLI package could not be removed.'
-    }
-    Write-Success 'The SetupVibe-managed Codex CLI npm package was removed.'
+
+    Remove-Item -Path $script:CodexInstallDirectory -Recurse -Force -ErrorAction SilentlyContinue
+    $standalonePackageDirectory = Join-Path $env:USERPROFILE '.codex\packages\standalone'
+    Remove-Item -Path $standalonePackageDirectory -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Success 'Codex CLI standalone files and legacy npm package were removed; Codex configuration, sessions, and credentials were preserved.'
 }
 
 function Uninstall-AntigravityCli {
@@ -1799,7 +2176,7 @@ function Install-WindowsUtilities {
     $state = @{ Files = @($installedFiles) }
     $state | ConvertTo-Json | Set-Content -Path $script:WindowsUtilitiesStatePath -Encoding ASCII
     Add-PathEntry -Path $script:WindowsUtilitiesDirectory -Scope 'User' -Prepend
-    Import-EnvironmentPath
+    Assert-CommandResolvesToPath -Name 'ssh_copy_id' -ExpectedPath (Join-Path $script:WindowsUtilitiesDirectory 'ssh_copy_id.cmd')
 
     if ($failedUtilities.Count -gt 0) {
         throw "One or more Windows utilities failed to install: $($failedUtilities -join '; ')"
@@ -1844,7 +2221,7 @@ function Uninstall-WindowsUtilities {
     Write-Success 'SetupVibe-managed Windows utilities and their user PATH entry were removed.'
 }
 
-function Remove-LegacyToolchainPaths {
+function Remove-StaleLegacyToolchainPaths {
     $legacyUserPaths = @(
         (Join-Path $env:USERPROFILE '.cargo\bin')
         (Join-Path $env:USERPROFILE '.local\bin')
@@ -1852,19 +2229,31 @@ function Remove-LegacyToolchainPaths {
         (Join-Path $env:APPDATA 'Composer\vendor\bin')
     )
     foreach ($legacyPath in $legacyUserPaths) {
-        Remove-PathEntry -Path $legacyPath -Scope 'User'
+        if (Test-Path $legacyPath) {
+            Write-Success ("Preserved active user-managed PATH directory: {0}" -f $legacyPath)
+        }
+        else {
+            Remove-PathEntry -Path $legacyPath -Scope 'User'
+        }
     }
 
     $legacyBinDirectory = Join-Path $env:ProgramData 'SetupVibe\bin'
     Remove-PathEntry -Path $legacyBinDirectory -Scope 'Machine'
     Remove-Item -Path $legacyBinDirectory -Recurse -Force -ErrorAction SilentlyContinue
     Import-EnvironmentPath
-    Write-Success 'Legacy language-toolchain PATH entries removed.'
+    Write-Success 'Missing legacy toolchain directories were removed from PATH; existing user-managed directories were preserved.'
 }
 
 if ($env:OS -ne 'Windows_NT') {
     throw 'This installer can only run on Windows.'
 }
+
+$currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$currentUserSid = $currentIdentity.User.Value
+if (-not [string]::IsNullOrWhiteSpace($ExpectedUserSid) -and $ExpectedUserSid -ne $currentUserSid) {
+    throw "SetupVibe elevation changed from user SID '$ExpectedUserSid' to '$currentUserSid'. Sign in with an account that is a member of the local Administrators group and run SetupVibe again. Using credentials for a different administrator would install user-scoped tools in the wrong Windows profile."
+}
+$script:InvokerUserSid = $currentUserSid
 
 $currentVersion = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
 $currentBuild = [int]$currentVersion.CurrentBuildNumber
@@ -1919,6 +2308,7 @@ if ($Uninstall) {
     Invoke-SetupStep -Name 'Node.js 24 LTS official MSI' -Action { Uninstall-NodeJs }
     Invoke-SetupStep -Name 'Python 3.14 official installer' -Action { Uninstall-Python }
     Invoke-SetupStep -Name 'Python and Node.js machine PATH' -Action { Uninstall-DevelopmentRuntimePaths }
+    Invoke-SetupStep -Name 'Windows package PATH entries' -Action { Uninstall-PackagePaths }
 
     $script:WinGetPath = Find-WinGet
     if ($script:WinGetPath) {
@@ -1950,7 +2340,7 @@ if ($Uninstall) {
     if ($currentBuild -ge 22621) {
         Invoke-SetupStep -Name 'Windows Subsystem for Linux' -Action { Uninstall-WindowsSubsystemForLinux }
     }
-    Invoke-SetupStep -Name 'Legacy toolchain PATH entries' -Action { Remove-LegacyToolchainPaths }
+    Invoke-SetupStep -Name 'Stale legacy toolchain PATH entries' -Action { Remove-StaleLegacyToolchainPaths }
 }
 else {
     Invoke-SetupStep -Name 'OpenSSH Client and Server' -Action { Install-OpenSsh }
@@ -1968,6 +2358,12 @@ else {
                 Install-WinGetPackage -Id $package.Id -Name $package.Name
             }
         }
+        foreach ($commandCheck in $script:WinGetCommandChecks) {
+            Invoke-SetupStep -Name ("Validate command: {0}" -f $commandCheck.Name) -Action {
+                $preferredPaths = Get-ObjectPropertyValue -InputObject $commandCheck -Name 'PreferredPaths'
+                Test-InstalledCommand -Name $commandCheck.Name -Command $commandCheck.Command -Arguments $commandCheck.Arguments -PreferredPaths @($preferredPaths)
+            }
+        }
         Invoke-SetupStep -Name 'GitHub CLI command (gh)' -Action { Test-GitHubCli }
         Invoke-SetupStep -Name 'Windows Terminal command (wt)' -Action { Test-WindowsTerminal }
     }
@@ -1982,15 +2378,17 @@ else {
                 Install-ChocolateyPackage -Id $package.Id -Name $package.Name
             }
         }
+        foreach ($commandCheck in $script:ChocolateyCommandChecks) {
+            Invoke-SetupStep -Name ("Validate command: {0}" -f $commandCheck.Name) -Action {
+                Test-InstalledCommand -Name $commandCheck.Name -Command $commandCheck.Command -Arguments $commandCheck.Arguments
+            }
+        }
     }
 
     Import-EnvironmentPath
     Invoke-SetupStep -Name 'Original Windows PowerShell profile' -Action {
         Uninstall-PowerShellProfile
-        if ($script:WinGetPath -and (Test-WinGetPackageInstalled -Id 'Starship.Starship')) {
-            Uninstall-WinGetPackage -Id 'Starship.Starship' -Name 'Starship'
-        }
-        Write-Success 'The original Windows PowerShell profile is preserved without Starship, zoxide initialization, or ZSH.'
+        Write-Success 'SetupVibe does not add Starship, zoxide initialization, ZSH, or PowerShell profile content on Windows.'
     }
 }
 

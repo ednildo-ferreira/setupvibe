@@ -1,14 +1,5 @@
 # 1. PATH CONFIGURATION (Must come first!)
-# Homebrew
-if [ -f "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-elif [ -f "$HOME/.linuxbrew/bin/brew" ]; then
-    eval "$($HOME/.linuxbrew/bin/brew shellenv)"
-fi
-
 export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
 
 
 # 2. OH-MY-ZSH CONFIG
@@ -18,7 +9,7 @@ ZSH_THEME="" # Disabled because Starship handles it
 # Plugins
 plugins=(git rsync nmap cp extract zoxide fzf zsh-autosuggestions zsh-syntax-highlighting tmux gh ansible docker docker-compose)
 
-source $ZSH/oh-my-zsh.sh
+source "$ZSH/oh-my-zsh.sh"
 
 
 # 3. STARSHIP & ZOXIDE
@@ -29,7 +20,7 @@ if command -v starship >/dev/null; then eval "$(starship init zsh)"; fi
 # 4. ALIASES
 
 # --- SetupVibe ---
-alias setupvibe="curl -sSL server.setupvibe.dev | bash"                       # Reinstala ou atualiza o SetupVibe Server
+alias setupvibe="curl --proto '=https' --tlsv1.2 -fsSL server.setupvibe.dev | bash" # Reinstala ou atualiza o SetupVibe Server
 
 # --- AI CLIs ---
 alias cc="claude --permission-mode=auto --dangerously-skip-permissions"        # Claude CLI sem confirmações
@@ -170,29 +161,8 @@ alias portainer-update="docker compose -f ~/.setupvibe/portainer-compose.yml pul
 alias portainer-start="docker compose -f ~/.setupvibe/portainer-compose.yml up -d"
 alias portainer-stop="docker compose -f ~/.setupvibe/portainer-compose.yml stop"
 
-# --- PM2 ---
-alias p="pm2"                                        # Atalho para o pm2
-alias p-start="pm2 start ~/ecosystem.config.js"      # Inicia apps via ecosystem file
-alias p-stop="pm2 stop ~/ecosystem.config.js"       # Para apps via ecosystem file
-alias p-restart="pm2 restart ~/ecosystem.config.js" # Reinicia apps via ecosystem file
-alias pl="pm2 list"                                  # Lista todos os processos
-alias psave="pm2 save"                               # Salva a lista de processos atual
-alias pres="pm2 resurrect"                           # Restaura a lista de processos salva
-alias pmon="pm2 monit"                               # Monitora CPU/memória em tempo real
-alias plog="pm2 logs"                                # Segue os logs de todos os processos
-alias pstop="pm2 stop"                               # Para um processo (ex: pstop 0)
-alias prestart="pm2 restart"                         # Reinicia um processo
-alias pdel="pm2 delete"                              # Remove um processo da lista
-
-# --- Agentlytics ---
-alias agl-start="pm2 start agentlytics"              # Inicia o Agentlytics
-alias agl-stop="pm2 stop agentlytics"                # Para o Agentlytics
-alias agl-restart="pm2 restart agentlytics"          # Reinicia o Agentlytics
-alias agl-logs="pm2 logs agentlytics"                # Segue os logs do Agentlytics
-alias agl-show="pm2 show agentlytics"                # Mostra detalhes do Agentlytics
-
 # --- Monitoring ---
-alias update="sudo apt update && sudo apt upgrade && (command -v brew >/dev/null 2>&1 && brew update && brew upgrade || true)" # Atualiza APT e Homebrew
+alias update="sudo apt update && sudo apt upgrade" # Atualiza os pacotes do sistema via APT
 alias apti="sudo apt install"                   # Instala um pacote via APT (ex: apti htop)
 alias aptr="sudo apt remove"                    # Remove um pacote via APT
 alias apts="apt search"                         # Busca pacotes nos repositórios APT
@@ -207,11 +177,6 @@ alias nrd="npm run dev"                         # Inicia o servidor de desenvolv
 alias nrb="npm run build"                       # Executa o build de produção
 alias nrt="npm run test"                        # Executa os testes
 alias nx="npx"                                  # Executa pacote Node sem instalar globalmente
-alias bi="bun install"                          # Instala dependências com Bun
-alias br="bun run"                              # Executa script com Bun (ex: br dev)
-alias brd="bun run dev"                         # Inicia o dev server com Bun
-alias brb="bun run build"                       # Build de produção com Bun
-alias bx="bunx"                                 # Executa pacote sem instalar, via Bun
 
 # --- Ansible ---
 alias anp="ansible-playbook"                    # Executa um playbook (ex: anp site.yml -i hosts)
@@ -226,7 +191,6 @@ alias andiff="ansible-playbook --check --diff"  # Simula e exibe diff das mudan�
 alias anfacts="ansible all -m setup"            # Coleta facts de todos os hosts do inventário
 
 # --- Cron & Scheduling ---
-alias cronb="cronboard"                         # Abre o dashboard TUI do Cronboard para gerenciar crontab
 alias cronl="crontab -l"                        # Lista as tarefas cron do usuário atual
 alias crone="crontab -e"                        # Edita as tarefas cron do usuário atual
 alias cronr="crontab -r"                        # Remove todas as tarefas cron do usuário atual (CUIDADO)
@@ -251,11 +215,11 @@ alias slogs="sudo journalctl -u"                # Exibe logs de um serviço espe
 alias syslog="sudo journalctl -f"               # Segue o log do sistema em tempo real
 
 # --- Rede ---
-alias myip="curl -s ifconfig.me"                # Exibe o IP público da máquina
+alias myip="curl --proto '=https' --tlsv1.2 -fsS https://ifconfig.me/ip" # Exibe o IP público da máquina
 alias localip="hostname -I | awk '{print \$1}'" # Exibe o IP local principal da máquina
 alias ports="ss -tulnp"                         # Lista todas as portas TCP/UDP em escuta
 alias wholistening="ss -tulnp"                  # Alias alternativo para listar portas em escuta
-alias flush="sudo systemd-resolve --flush-caches" # Limpa o cache de DNS do systemd
+alias flush="sudo resolvectl flush-caches"      # Limpa o cache de DNS do systemd-resolved
 
 # --- cURL / HTTP ---
 alias get="curl -s"                             # GET request simples (ex: get https://api.exemplo.com)
@@ -265,7 +229,7 @@ alias httpcode="curl -o /dev/null -s -w '%{http_code}\n'" # Exibe somente o cód
 alias timing="curl -o /dev/null -s -w 'dns:%{time_namelookup}s connect:%{time_connect}s total:%{time_total}s\n'" # Latência detalhada
 
 # --- JSON ---
-alias jpp="python3 -m json.tool"                # Formata e valida JSON (ex: cat data.json | jpp)
+alias jpp="jq ."                                # Formata e valida JSON (ex: cat data.json | jpp)
 alias jsonf="jq ."                              # Formata JSON com cores via jq (ex: cat data.json | jsonf)
 
 # --- Segurança & Certs ---
@@ -278,11 +242,3 @@ alias genpass="openssl rand -base64 32"         # Gera uma senha aleatória segu
 alias envls="env | sort"                        # Lista todas as variáveis de ambiente ordenadas
 alias envg="env | grep"                         # Filtra variáveis de ambiente (ex: envg PATH)
 alias dotenv="export \$(cat .env | grep -v '^#' | xargs)" # Carrega variáveis do arquivo .env atual
-
-# --- Python / uv ---
-alias py="python3"                              # Atalho para Python 3
-alias pyv="python3 --version"                   # Exibe a versão ativa do Python
-alias uvi="uv pip install"                      # Instala pacote Python com uv (ex: uvi requests)
-alias uvs="uv run"                              # Executa script com uv (ex: uvs main.py)
-alias venv="python3 -m venv .venv && source .venv/bin/activate" # Cria e ativa virtualenv local
-alias activate="source .venv/bin/activate"      # Ativa o virtualenv local do diretório

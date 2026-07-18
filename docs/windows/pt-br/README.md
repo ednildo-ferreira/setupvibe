@@ -9,7 +9,7 @@ A Edição Windows (Beta) configura utilitários nativos do Windows, Python, Nod
 - Windows 11 versão 22H2 (build 22621) ou posterior
 - Uma edição desktop x64 (AMD64) do Windows; não há suporte para Windows de 32 bits, Windows em ARM, Windows 10 nem Windows Server
 - Windows PowerShell 5.1 ou posterior
-- Uma conta de administrador
+- Uma conta que pertença ao grupo Administradores local; o prompt do UAC deve usar a mesma conta conectada
 - Acesso à internet
 
 ## O Que É Instalado
@@ -18,7 +18,7 @@ A Edição Windows (Beta) configura utilitários nativos do Windows, Python, Nod
 - WinGet pelo fluxo oficial de reparo `Microsoft.WinGet.Client`, quando ausente
 - Chocolatey pelo script oficial de bootstrap, quando ausente
 - Python 3.14 diretamente pelo instalador oficial do `python.org` e Node.js 24 LTS pelo canal oficial `latest-v24.x` do `nodejs.org`, com `python`, `pip`, `node`, `npm` e `npx` no `PATH` da máquina para Claude e Codex
-- Claude Code pelo instalador nativo recomendado da Anthropic, com seu pacote npm oficial como recuperação, Codex CLI pelo pacote npm oficial `@openai/codex` e Google Antigravity CLI como `agy` pelo seu instalador nativo oficial
+- Claude Code pelo instalador nativo recomendado da Anthropic, com seu pacote npm oficial como recuperação, Codex CLI pelo instalador autônomo oficial da OpenAI para Windows e Google Antigravity CLI como `agy` pelo seu instalador nativo oficial
 - Sistema base do WSL sem uma distribuição Linux, com WSL 2 como padrão
 - Rede espelhada do WSL com acesso por VPN/LAN, tunelamento de DNS, integração com o proxy do Windows, entrada liberada no firewall Hyper-V, recuperação automática de memória e discos virtuais esparsos
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick e GitHub CLI (`gh`)
@@ -80,19 +80,19 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1
 
 Durante a execução, o instalador:
 
-1. Valida o Windows 11 22H2 ou posterior e a arquitetura x64, reiniciando o próprio script pelo Windows PowerShell x64 nativo se ele tiver sido iniciado em um processo de 32 bits.
+1. Valida o Windows 11 22H2 ou posterior e a arquitetura x64, reiniciando o próprio script pelo Windows PowerShell x64 nativo se ele tiver sido iniciado em um processo de 32 bits, e recusa elevação UAC com credenciais de outro perfil de usuário.
 2. Solicita privilégios de administrador pelo UAC.
 3. Lista processos de instalação concorrentes e pergunta se deve encerrá-los. Se aceito, tenta normalmente, força os que permanecerem e executa `sfc.exe /scannow`; se recusado, aguarda ENTER e encerra.
 4. Recusa reinicializações pendentes, inicia os serviços necessários, executa `sfc.exe /scannow` caso ainda não tenha sido executado, verifica a política WSUS e valida o armazenamento de componentes do Windows.
-5. Resolve o MSI x64 oficial mais recente do Microsoft Win32-OpenSSH sem usar a API de releases do GitHub, valida sua assinatura, instala Cliente e Servidor à força, configura o `PATH` da máquina, valida `ssh.exe -V`, inicia `sshd` automaticamente e libera a entrada TCP/22.
-6. Copia os scripts auxiliares Windows do SetupVibe para `%USERPROFILE%\.setupvibe\bin` e adiciona esse diretório ao `PATH` do usuário.
+5. Resolve o MSI x64 oficial mais recente do Microsoft Win32-OpenSSH sem usar a API de releases do GitHub, valida sua assinatura, instala e repara explicitamente Cliente e Servidor, configura o `PATH` da máquina, valida o código de saída de `ssh.exe -V`, inicia `sshd` automaticamente e libera a entrada TCP/22 salvando o estado anterior da regra de firewall.
+6. Copia os scripts auxiliares Windows do SetupVibe para `%USERPROFILE%\.setupvibe\bin` e adiciona esse diretório ao `PATH` do usuário, normalizando e eliminando entradas duplicadas e notificando o Windows sobre a alteração de ambiente.
 7. Instala o sistema base do WSL sem uma distribuição Linux e torna o WSL 2 o padrão.
 8. Aplica ao WSL rede espelhada, acesso por VPN/LAN, DNS, proxy, firewall, recuperação de memória e discos VHD esparsos.
 9. Instala WinGet e Chocolatey quando necessário.
-10. Baixa Python 3.14 do `python.org` e resolve o Node.js 24 LTS diretamente pelo canal oficial `latest-v24.x` do `nodejs.org`, sem a API do índice de releases, WinGet ou Chocolatey. Usa o `curl.exe` do Windows com redirecionamentos somente HTTPS e novas tentativas, valida o Authenticode e o SHA-256 oficial do Node.js, repara recursos ausentes do Python ou do MSI do Node.js, coloca os diretórios x64 nativos dos runtimes no início do `PATH` da máquina e valida `python`, `pip`, `node`, `npm` e `npx`.
-11. Instala cada utilitário restante do Windows de forma independente, valida `gh.exe` e o alias `wt.exe` do Windows Terminal e continua após falhas isoladas.
-12. Instala e valida Claude Code, Codex CLI e Antigravity CLI por suas fontes oficiais, preservando todos os arquivos de perfil PowerShell do usuário. O Claude usa o instalador nativo recomendado independentemente do npm e recorre ao pacote npm oficial da Anthropic somente quando necessário.
-13. Remove blocos legados do Starship/zoxide e o próprio Starship instalados pelo SetupVibe, preservando os perfis e a política de execução originais do Windows PowerShell.
+10. Baixa Python 3.14 do `python.org` e resolve o Node.js 24 LTS diretamente pelo canal oficial `latest-v24.x` do `nodejs.org`, sem a API do índice de releases, WinGet ou Chocolatey. Usa o `curl.exe` do Windows com redirecionamentos somente HTTPS e novas tentativas, valida o Authenticode e o SHA-256 oficial do Node.js, repara recursos ausentes do Python ou do MSI do Node.js, remove os shims redundantes `npm.ps1` e `npx.ps1` que falham sob uma política de execução restrita, coloca os diretórios x64 nativos dos runtimes no início do `PATH` da máquina e valida `python`, `pip`, `node`, `npm` e `npx` exatamente como o usuário os executa.
+11. Instala cada utilitário restante do Windows de forma independente, executa cada CLI previsível do WinGet e Chocolatey pelo `PATH` atualizado, valida `gh.exe` e o alias `wt.exe` do Windows Terminal e continua após falhas isoladas de pacote ou comando.
+12. Instala e valida Claude Code, Codex CLI e Antigravity CLI por suas fontes oficiais, preservando todos os arquivos de perfil PowerShell do usuário. O Claude usa o instalador nativo recomendado independentemente do npm e recorre ao pacote npm oficial da Anthropic somente quando necessário; o Codex usa o instalador autônomo oficial da OpenAI em vez do npm.
+13. Remove somente blocos legados reconhecidos do SetupVibe para Starship/zoxide sem recodificar conteúdo não relacionado, preservando os bytes originais dos perfis PowerShell, a configuração Starship do usuário e a política de execução.
 14. Exibe um resumo final e o local do log completo.
 
 O processo pode demorar porque os gerenciadores de pacotes baixam e instalam cada utilitário separadamente.
@@ -103,7 +103,7 @@ O processo pode demorar porque os gerenciadores de pacotes baixam e instalam cad
 2. Abra o Windows Terminal ou PowerShell 7 para carregar o novo `PATH`.
 3. Conclua as autenticações iniciais exigidas pelo GitHub CLI, Tailscale, Claude Code, Codex CLI ou Antigravity CLI.
 
-Os scripts auxiliares do SetupVibe ficam em `%USERPROFILE%\.setupvibe\bin`. O núcleo `ssh_copy_id.ps1` e seu lançador mínimo `ssh_copy_id.cmd` podem ser iniciados como `ssh_copy_id`; o lançador gerenciado `codex.cmd` mantém o Codex CLI utilizável com uma política de execução restrita do PowerShell. Ambos os comandos funcionam em uma nova sessão do PowerShell, Windows Terminal ou Prompt de Comando.
+Os scripts auxiliares do SetupVibe ficam em `%USERPROFILE%\.setupvibe\bin`. O núcleo instalado `ssh_copy_id_core.ps1` e seu lançador mínimo `ssh_copy_id.cmd` podem ser iniciados sem ambiguidade como `ssh_copy_id`. O Codex usa seu `codex.exe` nativo; nenhum script PowerShell ou lançador do SetupVibe é necessário. Ambos os comandos funcionam em uma nova sessão do PowerShell, Windows Terminal ou Prompt de Comando.
 
 Verifique os principais componentes em um novo terminal:
 
@@ -153,7 +153,7 @@ Os detalhes do Verificador de Arquivos do Sistema são registrados em `C:\Window
 
 Se um processo permanecer ativo depois das tentativas de encerramento normal e forçado, o SetupVibe conclui a verificação do SFC, aguarda ENTER e encerra recomendando reiniciar o PC.
 
-O OpenSSH não usa os Recursos sob Demanda do Windows nem a API de releases do GitHub. O SetupVibe resolve a página oficial `releases/latest` e seus assets expandidos, aceita somente o MSI x64 `OpenSSH-Win64-*.msi`, valida sua assinatura Authenticode, instala Cliente e Servidor pela seleção padrão de recursos do MSI e força todos os recursos do MSI somente se os binários estiverem inicialmente ausentes. Ele resolve o diretório de instalação pelo diretório Program Files x64 nativo, pelos metadados do MSI e pelo serviço `sshd`, coloca esse diretório no início do `PATH` da máquina, configura `sshd` para inicialização automática, inicia o serviço, habilita a regra de firewall `OpenSSH-Server-In-TCP` para entrada TCP/22 e registra `openssh-msi-*.log` e `openssh-reconfigure-*.log` em `C:\ProgramData\SetupVibe\Logs`.
+O OpenSSH não usa os Recursos sob Demanda do Windows nem a API de releases do GitHub. O SetupVibe resolve a página oficial `releases/latest` e seus assets expandidos, aceita somente o MSI x64 `OpenSSH-Win64-*.msi`, valida sua assinatura Authenticode e instala e repara explicitamente os recursos Cliente e Servidor em uma única transação MSI com `ADDLOCAL=Client,Server`, `REINSTALL=ALL` e `REINSTALLMODE=amus`. Ele resolve o diretório de instalação pelo diretório Program Files x64 nativo, pelos metadados do MSI e pelo serviço `sshd`, coloca esse diretório no início do `PATH` da máquina, configura `sshd` para inicialização automática, inicia o serviço, habilita a regra de firewall `OpenSSH-Server-In-TCP` para entrada TCP/22, salva o estado anterior da regra para a desinstalação e registra `openssh-msi-*.log` em `C:\ProgramData\SetupVibe\Logs`.
 
 ## Opções
 
@@ -179,7 +179,7 @@ Ou execute o desinstalador pela branch `windows`:
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
 ```
 
-O modo de desinstalação remove o Cliente e o Servidor OpenSSH, Python e Node.js por seus desinstaladores oficiais, Claude Code, Codex CLI, Antigravity CLI, os arquivos gerenciados pelo SetupVibe em `%USERPROFILE%\.setupvibe\bin` e as entradas correspondentes do `PATH` do usuário, restaura os estados anteriores dos recursos opcionais e do firewall do WSL, remove a configuração do WSL aplicada pelo SetupVibe, remove todos os utilitários WinGet e Chocolatey gerenciados pelo SetupVibe e remove as entradas dos runtimes no `PATH` da máquina e configurações legadas do perfil Starship/zoxide criadas pelo SetupVibe. Ele também remove ferramentas de frameworks, caminhos de gerenciadores de runtime e pacotes npm legados instalados por versões Beta anteriores do Windows. Distribuições Linux existentes não são apagadas. Configurações e credenciais de usuário das CLIs de IA, WinGet, Chocolatey, logs e arquivos não relacionados dentro de `%USERPROFILE%\.setupvibe` são preservados.
+O modo de desinstalação remove o Cliente e o Servidor OpenSSH, Python e Node.js por seus desinstaladores oficiais, Claude Code, Codex CLI, Antigravity CLI, os arquivos gerenciados pelo SetupVibe em `%USERPROFILE%\.setupvibe\bin` e as entradas correspondentes do `PATH` do usuário, restaura os estados anteriores dos recursos opcionais do WSL, do firewall do WSL e da regra de firewall do OpenSSH, remove a configuração do WSL aplicada pelo SetupVibe, remove todos os utilitários WinGet e Chocolatey gerenciados pelo SetupVibe e remove as entradas de pacotes e runtimes adicionadas pelo SetupVibe ao `PATH` da máquina e blocos legados reconhecidos do SetupVibe para Starship/zoxide. Ele também remove ferramentas de frameworks, caminhos ausentes de gerenciadores de runtime e pacotes npm legados instalados por versões Beta anteriores do Windows. Diretórios ativos gerenciados pelo usuário no `PATH`, configuração Starship, distribuições Linux, configurações e credenciais de usuário das CLIs de IA, WinGet, Chocolatey, logs e arquivos não relacionados dentro de `%USERPROFILE%\.setupvibe` são preservados.
 
 **Aviso sobre a desinstalação:** a versão Beta atual não registra se o Cliente e o Servidor OpenSSH ou um pacote gerenciado já existiam antes do SetupVibe. Portanto, `-Uninstall` remove o produto MSI do OpenSSH e todos os pacotes de suas listas gerenciadas, inclusive componentes que possam ter sido instalados separadamente antes do SetupVibe.
 

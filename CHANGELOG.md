@@ -16,7 +16,9 @@ All notable changes to **SetupVibe** are documented in this file.
 - Added Windows Edition (Beta) documentation in English, Portuguese, French, and Spanish.
 - Added `utils/windows/ssh_copy_id/ssh_copy_id.ps1`, a minimal `ssh_copy_id.cmd` compatibility launcher, and their usage guide for creating or detecting an SSH key, copying it to a remote server, selecting a port, and optionally opening the SSH session.
 - Added Python 3.14 from the official signed `python.org` standalone installer and Node.js 24 LTS from the official signed `nodejs.org` MSI, with Node.js SHA-256 verification, machine `PATH` normalization, and validation of `python`, `pip`, `node`, `npm`, and `npx` for Claude and Codex.
-- Added Claude Code through Anthropic's checksum-verifying native Windows installer, Codex CLI through the official `@openai/codex` npm package with an execution-policy-safe CMD launcher, and Google Antigravity CLI through its checksum-verifying native installer as `agy`.
+- Added Claude Code through Anthropic's checksum-verifying native Windows installer, Codex CLI through OpenAI's official checksum-verifying standalone Windows installer, and Google Antigravity CLI through its checksum-verifying native installer as `agy`.
+- Added Server Edition `--yes` and `--advertise-addr` options for unattended setup and explicit Docker Swarm routing.
+- Added SHA-256 verification for Server Edition ctop binaries and one-time `.pre-setupvibe` backups for shell and tmux configuration files.
 
 ### Changed
 
@@ -30,6 +32,14 @@ All notable changes to **SetupVibe** are documented in this file.
 - Kept Python and Node.js outside WinGet and Chocolatey; those package managers remain responsible only for the Windows utility lists.
 - Updated AI context synchronization to cover only `AGENTS.md` and `CLAUDE.md`.
 - Split agent skills into platform-specific `.codex/skills` and `.claude/skills` folders.
+- Reworked persistent Windows `PATH` updates to normalize and deduplicate entries, refresh the running process, notify other Windows applications, and verify that AI CLI commands resolve to the intended executable.
+- Expanded Windows package validation to execute the installed WinGet and Chocolatey CLI commands from the refreshed `PATH`, with isolated failures included in the final summary.
+- Hardened `server.sh` with strict mode, preflight validation, bounded APT lock waits, APT retries, fail-fast step execution, current deb822 Docker and NodeSource repositories, and post-install command validation.
+- Updated Server Edition GitHub Copilot CLI from the deprecated `@githubnext/github-copilot-cli` package to `@github/copilot`.
+- Updated Portainer CE to the `lts` channel with HTTPS-only port `9443`, and aligned the server ZSH configuration with tools the edition actually installs.
+- Updated Server Edition reruns to refresh zoxide, ctop, Tailscale, Oh My Zsh, Starship, Portainer, Git repositories, Node.js, and AI CLI packages instead of leaving managed installations stale.
+- Changed Docker Swarm address detection to use the local routing table instead of external public-IP services.
+- Removed Server Edition's explicit Python, uv, Cronboard, build-library, Homebrew, Bun, and PM2 setup to match its lean, no-language-ecosystem scope.
 
 ### Fixed
 
@@ -43,6 +53,18 @@ All notable changes to **SetupVibe** are documented in this file.
 - Fixed `desktop.ps1` UAC elevation for remote `irm ... | iex` execution by handing off a temporary script to the elevated process.
 - Added Windows Server, non-x64 Windows, and minimum-build preflight checks to avoid unsupported installations; Windows on ARM and 32-bit editions are rejected.
 - Corrected broken contribution, license, Tmux, and PM2 links in the existing documentation indexes and localized guides.
+- Fixed UAC elevation with alternate administrator credentials by rejecting a changed user SID before any user-scoped installation can target the wrong Windows profile.
+- Fixed OpenSSH installation and removal by explicitly installing and force-repairing `Client,Server` in one signed MSI transaction, checking the `ssh.exe -V` exit code, and backing up and restoring the previous TCP/22 firewall-rule state.
+- Fixed WSL removal by serializing optional-feature states as names and safely decoding state files created by earlier Beta versions with numeric enum values.
+- Fixed legacy PowerShell-profile cleanup so unrelated files remain byte-for-byte unchanged, only recognized SetupVibe blocks are removed without changing encoding, and user-owned Starship configuration is preserved.
+- Fixed Antigravity validation to execute `agy.exe --version`, and fixed stale legacy toolchain cleanup so active user-managed `PATH` directories are preserved.
+- Fixed restricted-policy execution of `npm` and `npx` by removing their redundant PowerShell shims after the official Node.js MSI is installed and validating the commands exactly as users invoke them.
+- Fixed extensionless `ssh_copy_id` resolution by installing its PowerShell core under a distinct name and validating that the command resolves to the execution-policy-safe CMD launcher.
+- Preserved the existing SSH authentication policy instead of enabling root and password login, and stopped creating demonstration cron jobs in the Server Edition.
+- Fixed npm global installation for a non-root target user when `server.sh` itself runs as root through `sudo`.
+- Fixed false-success summaries, unsafe broad APT repository deletion, unverified ctop downloads, Debian 13 Docker repository fallback, and root-owned temporary download failures.
+- Fixed Server Edition Node.js 24 enforcement with newer preinstalled versions, safe root TPM and Portainer data ownership handling, shell `PATH` appends without a trailing newline, and HTTPS-only public IP lookup.
+- Preserved installed packages, journal history, and user caches during Server Edition cleanup.
 
 ### Removed
 
@@ -52,6 +74,7 @@ All notable changes to **SetupVibe** are documented in this file.
 - Removed the Batch implementation of `ssh_copy_id`; PowerShell now contains all SSH logic and the CMD file only launches it.
 - Removed Starship and all automatic PowerShell profile customization from the Windows Edition; ZSH remains Unix-only, zoxide stays available as an uninitialized CLI utility, and the original Windows shell policy and profile are preserved.
 - Removed PHP, Composer, Laravel Installer, Ruby, Bundler, Rails, uv, Spec-Kit, Go, Rustup, Cargo, Bun, PNPM, PM2, n8n, legacy AI CLI packages, and mise from Windows installation.
+- Removed the SetupVibe `codex.cmd` launcher and the `ssh_copy_id` fallback to Windows Features on Demand; Codex now uses its native executable and `ssh_copy_id` requires the signed OpenSSH installation managed by SetupVibe.
 
 ---
 

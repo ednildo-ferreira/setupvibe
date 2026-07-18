@@ -10,48 +10,14 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-function Test-Administrator {
-    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-}
-
-function Install-OpenSshClientIfMissing {
+function Assert-OpenSshClientAvailable {
     $sshCommand = Get-Command 'ssh.exe' -ErrorAction SilentlyContinue
     $sshKeygenCommand = Get-Command 'ssh-keygen.exe' -ErrorAction SilentlyContinue
     if ($sshCommand -and $sshKeygenCommand) {
         return
     }
 
-    if ($env:OS -ne 'Windows_NT') {
-        throw 'OpenSSH Client is not available on this system.'
-    }
-
-    $activeServicing = @(Get-Process -Name @('dism', 'dismhost', 'TiWorker') -ErrorAction SilentlyContinue)
-    if ($activeServicing.Count -gt 0) {
-        $processes = ($activeServicing | ForEach-Object { '{0} (PID {1})' -f $_.ProcessName, $_.Id }) -join ', '
-        throw "Windows servicing is already active: $processes. Wait for it to finish or restart Windows before trying again."
-    }
-
-    Write-Host 'OpenSSH Client is not installed. Windows will request administrator privileges to install it.' -ForegroundColor Yellow
-    $dismPath = Join-Path $env:SystemRoot 'System32\dism.exe'
-    $arguments = @('/Online', '/Add-Capability', '/CapabilityName:OpenSSH.Client~~~~0.0.1.0', '/NoRestart')
-    if (Test-Administrator) {
-        $process = Start-Process -FilePath $dismPath -ArgumentList $arguments -NoNewWindow -Wait -PassThru
-    }
-    else {
-        $process = Start-Process -FilePath $dismPath -Verb RunAs -ArgumentList $arguments -Wait -PassThru
-    }
-    if ($process.ExitCode -notin @(0, 3010)) {
-        throw "OpenSSH Client installation failed with exit code $($process.ExitCode). Run SetupVibe for complete Windows servicing diagnostics and logs."
-    }
-
-    $env:Path = "${env:Path};${env:SystemRoot}\System32\OpenSSH"
-    $sshCommand = Get-Command 'ssh.exe' -ErrorAction SilentlyContinue
-    $sshKeygenCommand = Get-Command 'ssh-keygen.exe' -ErrorAction SilentlyContinue
-    if (-not $sshCommand -or -not $sshKeygenCommand) {
-        throw 'OpenSSH Client was installed but is not available yet. Restart Windows and run this utility again.'
-    }
+    throw 'OpenSSH Client and ssh-keygen are required. Run SetupVibe Windows to install the signed Win32-OpenSSH MSI, then open a new terminal and try again.'
 }
 
 function Test-PublicKey {
@@ -132,7 +98,7 @@ function Test-RemoteTarget {
 }
 
 try {
-    Install-OpenSshClientIfMissing
+    Assert-OpenSshClientAvailable
     $script:SshPath = (Get-Command 'ssh.exe' -ErrorAction Stop).Source
     $script:SshKeygenPath = (Get-Command 'ssh-keygen.exe' -ErrorAction Stop).Source
 
