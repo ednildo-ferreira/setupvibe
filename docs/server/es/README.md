@@ -140,7 +140,7 @@ Instala **Node.js 24** a través del repositorio APT de NodeSource, luego instal
 | ------------------ | -------------------------------- |
 | Claude Code        | `@anthropic-ai/claude-code`      |
 | OpenAI Codex       | `@openai/codex`                  |
-| GitHub Copilot CLI | `@githubnext/github-copilot-cli` |
+| GitHub Copilot CLI | `@github/copilot`                |
 
 Los paquetes globales de npm se instalan en `~/.npm-global` (configurado con `npm config set prefix`) cuando no se ejecuta como root.
 

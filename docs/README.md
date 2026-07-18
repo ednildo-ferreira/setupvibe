@@ -35,7 +35,7 @@ curl -sSL server.setupvibe.dev | bash -s -- --manager
 | ------------------------------------- | -------------- | ------- |
 | Base system & build tools             | ✔              | ✔       |
 | Homebrew                              | ✔              | ✗       |
-| PHP 8.4 + Composer + Laravel          | ✔              | ✗       |
+| PHP 8.5 + Composer + Laravel          | ✔              | ✗       |
 | Ruby + rbenv + Rails                  | ✔              | ✗       |
 | Go, Rust, Python + uv                 | ✔              | ✗       |
 | Node.js 24 + Bun + PNPM               | ✔              | ✔ (APT) |

@@ -41,9 +41,9 @@ Both `desktop.sh` and `server.sh` follow a numbered-step pattern (functions pref
 
 1. Base system & build tools
 2. Homebrew
-3. PHP 8.4 (Composer, Laravel)
-4. Ruby (rbenv, Rails)
-5. Go, Rust, Python (uv)
+3. PHP 8.5 (Composer, Laravel)
+4. Ruby 3.4.10 (rbenv, Rails)
+5. Go 1.26.5, Rust, Python (uv; Python 3.14 on macOS)
 6. JavaScript (Node, Bun, PNPM)
 7. DevOps (Docker, Ansible, GitHub CLI)
 8. Modern Unix tools via Homebrew

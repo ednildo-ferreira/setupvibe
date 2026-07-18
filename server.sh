@@ -27,7 +27,6 @@ NC='\033[0m' # No Color
 
 # --- VERSION ---
 VERSION="0.41.6"
-INSTALL_URL="https://server.setupvibe.dev"
 
 # --- ARGUMENT PARSING ---
 SWARM_MANAGER=false
@@ -673,7 +672,7 @@ step_7() {
     AI_TOOLS=(
         "@anthropic-ai/claude-code"
         "@openai/codex"
-        "@githubnext/github-copilot-cli"
+        "@github/copilot"
     )
 
     for pkg in "${AI_TOOLS[@]}"; do
