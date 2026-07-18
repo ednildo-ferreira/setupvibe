@@ -48,12 +48,12 @@ O script exibe um roteiro interativo e solicita confirmação antes de iniciar. 
 - **macOS:** instala o Homebrew se ausente, depois instala ferramentas base (`wget`, `curl`, `tmux`, `ffmpeg`, `imagemagick`, `openssl`, `readline`, etc.)
 - **Linux:** instala o Linuxbrew em `/home/linuxbrew/.linuxbrew`; adiciona entradas de PATH ao `~/.bashrc`, `~/.profile`, `~/.zshrc`; executa `brew upgrade` se já presente
 
-### Etapa 3 — Ecossistema PHP 8.4
+### Etapa 3 — Ecossistema PHP 8.5
 
 | Componente          | macOS                                       | Linux                                                                                               |
 | ------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| PHP 8.4             | via Homebrew                                | via PPA ondrej/php (Ubuntu) ou sury.org (Debian)                                                    |
-| Extensões           | redis, xdebug, imagick via PECL             | php8.4-{curl,mbstring,xml,zip,bcmath,intl,mysql,pgsql,sqlite3,gd,imagick,redis,mongodb,yaml,xdebug} |
+| PHP 8.5             | via Homebrew                                | via PPA ondrej/php (Ubuntu) ou sury.org (Debian)                                                    |
+| Extensões           | redis, xdebug, imagick via PECL             | php8.5-{curl,mbstring,xml,zip,bcmath,intl,mysql,pgsql,sqlite3,gd,imagick,redis,mongodb,yaml,xdebug} |
 | Composer            | via Homebrew                                | binário em `~/.local/bin/composer`                                                                  |
 | Laravel installer   | `composer global require laravel/installer` | igual                                                                                               |
 
@@ -63,16 +63,16 @@ O script exibe um roteiro interativo e solicita confirmação antes de iniciar. 
 | --------------- | --------------------------- | --------------------------------------- |
 | rbenv           | via Homebrew                | clonado do GitHub em `~/.rbenv`         |
 | ruby-build      | via Homebrew                | clonado em `~/.rbenv/plugins/ruby-build` |
-| Ruby            | 3.3.0 compilado via rbenv   | igual                                   |
+| Ruby            | 3.4.10 compilado via rbenv  | igual                                   |
 | Bundler + Rails | `gem install bundler rails` | igual                                   |
 
 ### Etapa 5 — Linguagens
 
 | Linguagem | macOS                      | Linux                                              |
 | --------- | -------------------------- | -------------------------------------------------- |
-| Python 3  | `python@3.12` via Homebrew | via APT (`python3`, `python3-pip`, `python3-venv`) |
+| Python 3  | `python@3.14` via Homebrew | via APT (`python3`, `python3-pip`, `python3-venv`) |
 | uv        | via script de instalação   | igual                                              |
-| Go        | via Homebrew               | binário 1.22.2 em `~/.local/go`                    |
+| Go        | via Homebrew               | binário 1.26.5 verificado em `~/.local/go`         |
 | Rust      | via rustup                 | igual                                              |
 
 ### Etapa 6 — JavaScript
@@ -82,7 +82,7 @@ O script exibe um roteiro interativo e solicita confirmação antes de iniciar. 
 | Node.js 24 | `node@24` via Homebrew    | via repositório APT NodeSource |
 | PNPM       | `npm install -g pnpm`     | igual                   |
 | PM2        | `npm install -g pm2`      | igual                   |
-| n8n        | `npm install -g @n8n/cli` | igual                   |
+| n8n        | `npm install -g n8n`       | igual                   |
 | Bun        | via script de instalação  | igual                   |
 
 ### Etapa 7 — DevOps
@@ -126,7 +126,7 @@ Instaladas via Homebrew em ambas as plataformas.
 
 - Instala `openssh-server`
 - Habilita e inicia o serviço systemd `ssh`
-- Configura `PermitRootLogin yes` e `PasswordAuthentication yes`
+- Configura `PermitRootLogin prohibit-password` e `PasswordAuthentication yes`
 - Faz backup do `sshd_config` original antes de modificar
 
 ### Etapa 11 — Shell (ZSH e Starship)
@@ -134,7 +134,7 @@ Instaladas via Homebrew em ambas as plataformas.
 - Instala ZSH (Linux via APT; já padrão no macOS)
 - Instala Oh My Zsh (sem interação)
 - Clona os plugins `zsh-autosuggestions` e `zsh-syntax-highlighting`
-- Instala Nerd Fonts: **FiraCode** e **JetBrains Mono** (Homebrew Cask no macOS; baixadas em `~/.local/share/fonts` no Linux)
+- Instala Nerd Fonts: **FiraCode** e **JetBrains Mono** (Homebrew Cask no macOS; v3.4.0 baixada em `~/.local/share/fonts` no Linux)
 - Instala o prompt Starship e aplica o preset **Gruvbox Rainbow**
 - Baixa scripts auxiliares de [`bin/`](../../../bin) para `~/.setupvibe/bin`; veja [Executáveis](../../pt-br/EXECUTABLES.md)
 - Baixa o `.zshrc` adequado:
@@ -158,13 +158,13 @@ Instaladas globalmente via `npm install -g`:
 | Agentlytics        | `agentlytics`                    |
 | Claude Code        | `@anthropic-ai/claude-code`      |
 | OpenAI Codex       | `@openai/codex`                  |
-| GitHub Copilot CLI | `@githubnext/github-copilot-cli` |
+| GitHub Copilot CLI | `@github/copilot`                |
 
 O **Spec-Kit** é instalado via `uv tool install specify-cli`. Veja o [SPECKIT.md](SPECKIT.md) para o guia completo de Spec-Driven Development e aliases.
 
 ### Passo 14 — Finalização e Limpeza
 
-**macOS:** `brew cleanup --prune=all`, `brew autoremove`, limpa `~/Library/Caches` e `~/.Trash`.
+**macOS:** `brew cleanup --prune=all`, `brew autoremove` e remove somente arquivos temporários do SetupVibe.
 
 **Linux:** `apt autoremove`, `apt clean`, remove arquivos temporários e limpa logs do journal; limpa `~/.cache/pip`, `~/.cache/composer`, `~/.npm/_npx`, `~/.bundle/cache`.
 

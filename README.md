@@ -10,6 +10,7 @@ Installs and configures a complete development stack in one command, supporting 
 - **Auto-Update:** Automatically upgrades existing Homebrew packages during setup.
 - **Modern Shell:** ZSH + Oh My Zsh + Starship with a curated set of plugins and aliases.
 - **Optimized Tmux:** Pre-configured with TPM, intuitive keybindings, and window/pane numbering starting at 1.
+- **Current Runtimes:** PHP 8.5, Ruby 3.4.10, Go 1.26.5, Python 3.14 on macOS, and Node.js 24 LTS.
 - **AI-Ready:** Includes the latest AI CLI tools for developers.
 
 ## Documentation

@@ -14,6 +14,20 @@ All notable changes to **SetupVibe** are documented in this file.
 
 - Updated AI context synchronization to cover only `AGENTS.md` and `CLAUDE.md`.
 - Split agent skills into platform-specific `.codex/skills` and `.claude/skills` folders.
+- Updated the Desktop Edition to PHP 8.5, Ruby 3.4.10, Go 1.26.5, Python 3.14 on macOS, and Nerd Fonts 3.4.0.
+- Replaced the deprecated `@githubnext/github-copilot-cli` package with `@github/copilot` in the Desktop and Server editions.
+- Replaced the beta n8n client package `@n8n/cli` with the full `n8n` workflow automation package.
+- Restricted Linux Desktop root SSH access to public-key authentication and moved SetupVibe settings to an `sshd_config.d` drop-in.
+- Limited macOS cleanup to Homebrew and SetupVibe-owned temporary files instead of deleting user caches and Trash contents.
+
+### Fixed
+
+- Fixed macOS Ruby compilation by evaluating `MAKE_OPTS` inside the target user shell.
+- Added SHA-256 verification and version-aware replacement for the Go Linux archive.
+- Hardened APT key downloads and repository cleanup so failed pipelines cannot create empty keyrings or delete user-managed source files.
+- Restored native Debian 13 (`trixie`) repositories for PHP and Docker instead of falling back to Debian 12.
+- Fixed downloads performed as root so artifacts placed in the real user's home retain the correct ownership.
+- Removed the temporary unrestricted `NOPASSWD:ALL` sudoers rule previously used by the Linux Homebrew installation.
 
 ### Removed
 
