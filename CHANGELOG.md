@@ -19,6 +19,7 @@ All notable changes to **SetupVibe** are documented in this file.
 - Added Claude Code through Anthropic's checksum-verifying native Windows installer, Codex CLI through OpenAI's official checksum-verifying standalone Windows installer, and Google Antigravity CLI through its checksum-verifying native installer as `agy`.
 - Added Server Edition `--yes` and `--advertise-addr` options for unattended setup and explicit Docker Swarm routing.
 - Added SHA-256 verification for Server Edition ctop binaries and one-time `.pre-setupvibe` backups for shell and tmux configuration files.
+- Added the Vercel Labs `skills` CLI to Desktop, Windows, and Server editions, with post-install validation on every platform and execution-policy-safe installation and managed removal on Windows.
 
 ### Changed
 
@@ -40,6 +41,7 @@ All notable changes to **SetupVibe** are documented in this file.
 - Updated Server Edition reruns to refresh zoxide, ctop, Tailscale, Oh My Zsh, Starship, Portainer, Git repositories, Node.js, and AI CLI packages instead of leaving managed installations stale.
 - Changed Docker Swarm address detection to use the local routing table instead of external public-IP services.
 - Removed Server Edition's explicit Python, uv, Cronboard, build-library, Homebrew, Bun, and PM2 setup to match its lean, no-language-ecosystem scope.
+- Updated the Skills CLI shell aliases to use the globally installed `skills` executable directly instead of invoking it through `npx`.
 
 ### Fixed
 

@@ -2044,6 +2044,35 @@ function Install-CodexCli {
     Write-Success 'Codex CLI was installed with the official native Windows standalone installer and validated from the user PATH.'
 }
 
+function Install-SkillsCli {
+    $npmPath = Get-NpmCommandPath
+    Invoke-NativeCommand -FilePath $npmPath -ArgumentList @('install', '--global', 'skills@latest', '--no-audit', '--no-fund')
+
+    $prefixOutput = @(& $npmPath 'config' 'get' 'prefix')
+    if ($LASTEXITCODE -ne 0 -or $prefixOutput.Count -eq 0) {
+        throw 'npm did not return its global prefix after installing Skills CLI.'
+    }
+    $npmPrefix = ([string]$prefixOutput[0]).Trim()
+    if ([string]::IsNullOrWhiteSpace($npmPrefix)) {
+        throw 'npm returned an empty global prefix after installing Skills CLI.'
+    }
+
+    $pathWasPresent = Test-PathEntry -Path $npmPrefix -Scope 'User'
+    Add-PathEntry -Path $npmPrefix -Scope 'User' -Prepend
+    Register-AiCliPath -Path $npmPrefix -WasPresent $pathWasPresent
+    Remove-Item -Path (Join-Path $npmPrefix 'skills.ps1') -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path (Join-Path $npmPrefix 'add-skill.ps1') -Force -ErrorAction SilentlyContinue
+
+    $skillsPath = Join-Path $npmPrefix 'skills.cmd'
+    if (-not (Test-Path $skillsPath -PathType Leaf)) {
+        throw "Skills CLI was installed, but its execution-policy-safe launcher was not found at $skillsPath."
+    }
+    Import-EnvironmentPath
+    Invoke-NativeCommand -FilePath $skillsPath -ArgumentList @('--version')
+    Assert-CommandResolvesToPath -Name 'skills' -ExpectedPath $skillsPath
+    Write-Success 'Skills CLI is installed and available from the user PATH.'
+}
+
 function Install-AntigravityCli {
     $antigravityDirectory = Join-Path $env:LOCALAPPDATA 'agy\bin'
     $pathWasPresent = Test-PathEntry -Path $antigravityDirectory -Scope 'User'
@@ -2096,6 +2125,14 @@ function Uninstall-CodexCli {
     $standalonePackageDirectory = Join-Path $env:USERPROFILE '.codex\packages\standalone'
     Remove-Item -Path $standalonePackageDirectory -Recurse -Force -ErrorAction SilentlyContinue
     Write-Success 'Codex CLI standalone files and legacy npm package were removed; Codex configuration, sessions, and credentials were preserved.'
+}
+
+function Uninstall-SkillsCli {
+    $npmCommand = Get-Command 'npm.cmd' -ErrorAction SilentlyContinue
+    if ($npmCommand) {
+        Invoke-NativeCommand -FilePath $npmCommand.Source -ArgumentList @('uninstall', '--global', 'skills')
+    }
+    Write-Success 'Skills CLI was removed; installed agent skills were preserved.'
 }
 
 function Uninstall-AntigravityCli {
@@ -2302,6 +2339,7 @@ if ($Uninstall) {
     Invoke-SetupStep -Name 'Legacy SetupVibe PowerShell profile blocks' -Action { Uninstall-PowerShellProfile }
     Invoke-SetupStep -Name 'Claude Code' -Action { Uninstall-ClaudeCode }
     Invoke-SetupStep -Name 'Codex CLI' -Action { Uninstall-CodexCli }
+    Invoke-SetupStep -Name 'Skills CLI' -Action { Uninstall-SkillsCli }
     Invoke-SetupStep -Name 'Antigravity CLI' -Action { Uninstall-AntigravityCli }
     Invoke-SetupStep -Name 'AI CLI PATH entries' -Action { Uninstall-AiCliPaths }
     Invoke-SetupStep -Name 'Legacy ecosystem tools' -Action { Uninstall-LegacyEcosystemTools }
@@ -2368,6 +2406,7 @@ else {
         Invoke-SetupStep -Name 'Windows Terminal command (wt)' -Action { Test-WindowsTerminal }
     }
     Invoke-SetupStep -Name 'Python and Node.js PATH for Claude and Codex' -Action { Install-DevelopmentRuntimePaths }
+    Invoke-SetupStep -Name 'Skills CLI' -Action { Install-SkillsCli }
     Invoke-SetupStep -Name 'Claude Code native CLI' -Action { Install-ClaudeCode }
     Invoke-SetupStep -Name 'Codex CLI' -Action { Install-CodexCli }
     Invoke-SetupStep -Name 'Antigravity CLI (agy)' -Action { Install-AntigravityCli }

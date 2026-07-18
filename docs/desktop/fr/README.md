@@ -158,8 +158,9 @@ Installés globalement via `npm install -g` :
 | Claude Code        | `@anthropic-ai/claude-code`      |
 | OpenAI Codex       | `@openai/codex`                  |
 | GitHub Copilot CLI | `@githubnext/github-copilot-cli` |
+| Skills CLI         | `skills`                         |
 
-**Spec-Kit** est installé via `uv tool install specify-cli`. Consultez [SPECKIT.md](SPECKIT.md) pour le guide complet du Spec-Driven Development et les alias.
+Le [CLI Skills de Vercel Labs](https://github.com/vercel-labs/skills) est validé avec `skills --version`. **Spec-Kit** est installé via `uv tool install specify-cli`. Consultez [SPECKIT.md](SPECKIT.md) pour le guide complet du Spec-Driven Development et les alias.
 
 ### Étape 14 — Finalisation et Nettoyage
 
@@ -192,10 +193,10 @@ Chaque plateforme reçoit un `.zshrc` dédié :
 | `update`   | `brew update && brew upgrade` (macOS) / `sudo apt update && sudo apt upgrade` (Linux)      |
 | `brewup`   | `brew update && brew upgrade && brew cleanup`                                            |
 | `cc`       | `claude --permission-mode=auto --dangerously-skip-permissions`                        |
-| `skl`      | `npx skills list`                                                                     |
-| `skf`      | `npx skills find`                                                                     |
-| `ska`      | `npx skills add`                                                                      |
-| `sku`      | `npx skills update`                                                                   |
+| `skl`      | `skills list`                                                                         |
+| `skf`      | `skills find`                                                                         |
+| `ska`      | `skills add`                                                                          |
+| `sku`      | `skills update`                                                                       |
 | `d`        | `docker`                                                                              |
 
 | `dc`       | `docker compose`                                                                         |

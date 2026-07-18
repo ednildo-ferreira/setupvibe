@@ -158,8 +158,9 @@ Instaladas globalmente a través de `npm install -g`:
 | Claude Code        | `@anthropic-ai/claude-code`      |
 | OpenAI Codex       | `@openai/codex`                  |
 | GitHub Copilot CLI | `@githubnext/github-copilot-cli` |
+| Skills CLI         | `skills`                         |
 
-**Spec-Kit** se instala a través de `uv tool install specify-cli`. Consulte [SPECKIT.md](SPECKIT.md) para obtener la guía completa de Spec-Driven Development y los aliases.
+La [CLI Skills de Vercel Labs](https://github.com/vercel-labs/skills) se valida con `skills --version`. **Spec-Kit** se instala a través de `uv tool install specify-cli`. Consulte [SPECKIT.md](SPECKIT.md) para obtener la guía completa de Spec-Driven Development y los aliases.
 
 ### Paso 14 — Finalización y Limpieza
 
@@ -192,10 +193,10 @@ Cada plataforma recibe un `.zshrc` dedicado:
 | `update`   | `brew update && brew upgrade` (macOS) / `sudo apt update && sudo apt upgrade` (Linux)      |
 | `brewup`   | `brew update && brew upgrade && brew cleanup`                                             |
 | `cc`       | `claude --permission-mode=auto --dangerously-skip-permissions`                        |
-| `skl`      | `npx skills list`                                                                     |
-| `skf`      | `npx skills find`                                                                     |
-| `ska`      | `npx skills add`                                                                      |
-| `sku`      | `npx skills update`                                                                   |
+| `skl`      | `skills list`                                                                         |
+| `skf`      | `skills find`                                                                         |
+| `ska`      | `skills add`                                                                          |
+| `sku`      | `skills update`                                                                       |
 | `d`        | `docker`                                                                              |
 
 | `dc`       | `docker compose`                                                                          |

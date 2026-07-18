@@ -19,6 +19,7 @@ The Windows Edition (Beta) configures native Windows utilities, Python, Node.js,
 - Chocolatey through its official bootstrap script when missing
 - Python 3.14 directly from the official `python.org` installer and Node.js 24 LTS from the official `latest-v24.x` channel on `nodejs.org`, with `python`, `pip`, `node`, `npm`, and `npx` in the machine `PATH` for Claude and Codex
 - Claude Code through Anthropic's recommended native Windows installer with its official npm package as a recovery path, Codex CLI through OpenAI's official standalone Windows installer, and Google Antigravity CLI as `agy` through its official native installer
+- [Vercel Labs Skills CLI](https://github.com/vercel-labs/skills) through its official npm package, with an execution-policy-safe `skills.cmd` launcher
 - WSL base without a Linux distribution, with WSL 2 as the default
 - Mirrored WSL networking with VPN/LAN access, DNS tunneling, Windows proxy integration, Hyper-V firewall inbound access, automatic memory reclaim, and sparse virtual disks
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick, and GitHub CLI (`gh`)
@@ -91,7 +92,7 @@ During execution, the installer:
 9. Installs WinGet and Chocolatey when needed.
 10. Downloads Python 3.14 from `python.org` and resolves Node.js 24 LTS directly through the official `latest-v24.x` channel on `nodejs.org` without the release-index API, WinGet, or Chocolatey. It uses Windows `curl.exe` with HTTPS-only redirects and retries, validates Authenticode and the official Node.js SHA-256, repairs missing Python or Node.js MSI features, removes the redundant `npm.ps1` and `npx.ps1` shims that fail under a restricted execution policy, prepends the native x64 runtime directories to the machine `PATH`, and verifies `python`, `pip`, `node`, `npm`, and `npx` exactly as users invoke them.
 11. Installs each remaining Windows utility independently, executes every predictable WinGet and Chocolatey CLI from the refreshed `PATH`, validates `gh.exe` and the Windows Terminal `wt.exe` alias, and continues after isolated package or command failures.
-12. Installs and validates Claude Code, Codex CLI, and Antigravity CLI from their official sources while preserving every user PowerShell profile file. Claude uses the recommended native installer independently of npm and falls back to Anthropic's official npm package only when necessary; Codex uses OpenAI's official standalone installer instead of npm.
+12. Installs and validates the Skills CLI, Claude Code, Codex CLI, and Antigravity CLI from their official sources while preserving every user PowerShell profile file. Skills uses its official npm package and an execution-policy-safe CMD launcher; Claude uses the recommended native installer independently of npm and falls back to Anthropic's official npm package only when necessary; Codex uses OpenAI's official standalone installer instead of npm.
 13. Removes only recognized legacy SetupVibe Starship/zoxide profile blocks without re-encoding unrelated content, preserving the original PowerShell profile bytes, user Starship configuration, and execution policy.
 14. Displays a final summary and the transcript log location.
 
@@ -121,6 +122,7 @@ pip --version
 node --version
 npm --version
 npx --version
+skills --version
 claude --version
 codex --version
 Get-Command agy
@@ -179,7 +181,7 @@ Or run the uninstaller from the `windows` branch:
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
 ```
 
-The uninstall mode removes OpenSSH Client and Server, Python and Node.js through their official uninstallers, Claude Code, Codex CLI, Antigravity CLI, the SetupVibe-managed files from `%USERPROFILE%\.setupvibe\bin` and their user `PATH` entries, restores the previous WSL optional-feature, WSL firewall, and OpenSSH firewall-rule states, removes the SetupVibe WSL configuration, removes every WinGet and Chocolatey utility managed by SetupVibe, and removes SetupVibe-added package and runtime machine `PATH` entries and recognized legacy SetupVibe Starship/zoxide profile blocks. It also removes legacy framework tools, missing runtime-manager paths, and npm packages installed by earlier Windows Beta versions. Existing user-managed `PATH` directories, Starship configuration, Linux distributions, AI CLI user configuration and credentials, WinGet, Chocolatey, transcript logs, and unrelated files under `%USERPROFILE%\.setupvibe` are preserved.
+The uninstall mode removes OpenSSH Client and Server, Python and Node.js through their official uninstallers, Skills CLI, Claude Code, Codex CLI, Antigravity CLI, the SetupVibe-managed files from `%USERPROFILE%\.setupvibe\bin` and their user `PATH` entries, restores the previous WSL optional-feature, WSL firewall, and OpenSSH firewall-rule states, removes the SetupVibe WSL configuration, removes every WinGet and Chocolatey utility managed by SetupVibe, and removes SetupVibe-added package and runtime machine `PATH` entries and recognized legacy SetupVibe Starship/zoxide profile blocks. Installed agent skills are preserved. It also removes legacy framework tools, missing runtime-manager paths, and npm packages installed by earlier Windows Beta versions. Existing user-managed `PATH` directories, Starship configuration, Linux distributions, AI CLI user configuration and credentials, WinGet, Chocolatey, transcript logs, and unrelated files under `%USERPROFILE%\.setupvibe` are preserved.
 
 **Uninstall warning:** the current Beta does not track whether OpenSSH Client and Server or a managed package existed before SetupVibe. `-Uninstall` therefore removes the OpenSSH MSI product and every package in its managed lists, including components that may have been installed separately before SetupVibe.
 

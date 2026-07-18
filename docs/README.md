@@ -62,6 +62,7 @@ Add `--yes` for unattended installation or `--advertise-addr ADDRESS` to choose 
 | Nerd Fonts (FiraCode, JetBrains Mono) | ✔              | ✔               | ✗       |
 | Tmux + TPM plugins                    | ✔              | ✗               | ✔       |
 | AI CLI tools                          | ✔              | ✔ (selected)    | ✔       |
+| Vercel Labs Skills CLI                | ✔              | ✔               | ✔       |
 | PM2 auto-startup                      | ✔              | ✗               | ✗       |
 | Docker Swarm Manager (`--manager`)    | ✗              | ✗               | ✔       |
 

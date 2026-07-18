@@ -46,12 +46,12 @@ alias setupvibe="curl -sSL desktop.setupvibe.dev | bash"                      # 
 alias cc="claude --permission-mode=auto --dangerously-skip-permissions"        # Claude CLI sem confirmações
 
 # --- Skills CLI ---
-alias skl="npx skills list"                     # Lista todas as skills instaladas
-alias skf="npx skills find"                     # Busca skills no registro (ex: skf react)
-alias ska="npx skills add"                      # Instala uma nova skill (ex: ska owner/repo)
-alias sku="npx skills update"                   # Atualiza todas as skills instaladas
-alias skun="npx skills remove"                  # Remove uma skill instalada (ex: skun nome)
-alias skc="npx skills check"                    # Verifica atualizações disponíveis
+alias skl="skills list"                         # Lista todas as skills instaladas
+alias skf="skills find"                         # Busca skills no registro (ex: skf react)
+alias ska="skills add"                          # Instala uma nova skill (ex: ska owner/repo)
+alias sku="skills update"                       # Atualiza todas as skills instaladas
+alias skun="skills remove"                      # Remove uma skill instalada (ex: skun nome)
+alias skc="skills check"                        # Verifica atualizações disponíveis
 
 # --- Spec-Kit (Spec-Driven Development) ---
 alias sp="specify"                              # Atalho principal do Spec-Kit

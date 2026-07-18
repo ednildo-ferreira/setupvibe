@@ -111,11 +111,11 @@ Paquets APT :
 | `sshcopykey`   | `sshcopykey --host HOTE --user UTILISATEUR [--pass MOT_DE_PASSE]` |
 | `update`       | `sudo apt update && sudo apt upgrade`                             |
 | `cc`           | `claude --permission-mode=auto --dangerously-skip-permissions`    |
-| `skl`          | `npx skills list`                                                 |
-| `skf`          | `npx skills find`                                                 |
-| `ska`          | `npx skills add`                                                  |
-| `sku`          | `npx skills update`                                               |
-| `skun`         | `npx skills remove`                                               |
+| `skl`          | `skills list`                                                     |
+| `skf`          | `skills find`                                                     |
+| `ska`          | `skills add`                                                      |
+| `sku`          | `skills update`                                                   |
+| `skun`         | `skills remove`                                                   |
 | `d`            | `docker`                                                          |
 | `dc`           | `docker compose`                                                  |
 | `syslog`       | `sudo journalctl -f`                                              |
@@ -147,8 +147,9 @@ Installe **Node.js 24** via le dépôt APT NodeSource, puis installe globalement
 | Claude Code        | `@anthropic-ai/claude-code` |
 | OpenAI Codex       | `@openai/codex`             |
 | GitHub Copilot CLI | `@github/copilot`           |
+| Skills CLI         | `skills`                    |
 
-Le paquet obsolète `@githubnext/github-copilot-cli` est supprimé. Les paquets globaux npm sont installés dans `~/.npm-global` chaque fois que l'utilisateur cible n'est pas root, y compris lorsque l'installateur est exécuté avec `sudo`, et chaque commande est validée après l'installation.
+Le [CLI Skills de Vercel Labs](https://github.com/vercel-labs/skills) et chaque commande CLI d'IA sont validés après l'installation. Le paquet obsolète `@githubnext/github-copilot-cli` est supprimé. Les paquets globaux npm sont installés dans `~/.npm-global` chaque fois que l'utilisateur cible n'est pas root, y compris lorsque l'installateur est exécuté avec `sudo`.
 
 ### Étape 8 — Finalisation & Nettoyage
 

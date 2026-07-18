@@ -32,37 +32,37 @@ Esta é a lista exaustiva de todos os aliases configurados pelo SetupVibe em tod
 
 - **`skl`**
   - Disponibilidad: 🌐 Ambos
-  - Comando: `npx skills list`
+  - Comando: `skills list`
   - Descripción: Lista todas las skills instaladas.
   - Ejemplo: `skl`
 
 - **`skf`**
   - Disponibilidad: 🌐 Ambos
-  - Comando: `npx skills find`
+  - Comando: `skills find`
   - Descripción: Busca skills en el registro.
   - Ejemplo: `skf react`
 
 - **`ska`**
   - Disponibilidad: 🌐 Ambos
-  - Comando: `npx skills add`
+  - Comando: `skills add`
   - Descripción: Instala una nueva skill.
   - Ejemplo: `ska owner/repo`
 
 - **`sku`**
   - Disponibilidad: 🌐 Ambos
-  - Comando: `npx skills update`
+  - Comando: `skills update`
   - Descripción: Actualiza todas las skills instaladas.
   - Ejemplo: `sku`
 
 - **`skun`**
   - Disponibilidad: 🌐 Ambos
-  - Comando: `npx skills remove`
+  - Comando: `skills remove`
   - Descripción: Elimina una skill instalada.
   - Ejemplo: `skun nombre`
 
 - **`skc`**
   - Disponibilidad: 🌐 Ambos
-  - Comando: `npx skills check`
+  - Comando: `skills check`
   - Descripción: Verifica actualizaciones disponibles.
   - Ejemplo: `skc`
 

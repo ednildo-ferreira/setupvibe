@@ -1192,12 +1192,16 @@ step_13() {
         "@anthropic-ai/claude-code"
         "@openai/codex"
         "@githubnext/github-copilot-cli"
+        "skills@latest"
     )
 
     for pkg in "${AI_TOOLS[@]}"; do
         echo "Installing $pkg..."
         user_do npm install -g "$pkg" 2>/dev/null || echo -e "${YELLOW}⚠ Failed to install $pkg${NC}"
     done
+
+    echo "Validating Skills CLI..."
+    user_do skills --version
 
     echo "Installing Spec-Kit (specify-cli)..."
     if ! user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; command -v specify" &>/dev/null; then

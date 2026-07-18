@@ -19,6 +19,7 @@ La Edición Windows (Beta) configura utilidades nativas de Windows, Python, Node
 - Chocolatey mediante su script oficial de arranque cuando no está disponible
 - Python 3.14 directamente mediante el instalador oficial de `python.org` y Node.js 24 LTS mediante el canal oficial `latest-v24.x` de `nodejs.org`, con `python`, `pip`, `node`, `npm` y `npx` en el `PATH` de la máquina para Claude y Codex
 - Claude Code mediante el instalador nativo recomendado de Anthropic, con su paquete npm oficial como vía de recuperación, Codex CLI mediante el instalador independiente oficial de OpenAI para Windows y Google Antigravity CLI como `agy` mediante su instalador nativo oficial
+- [CLI Skills de Vercel Labs](https://github.com/vercel-labs/skills) mediante su paquete npm oficial, con un lanzador `skills.cmd` compatible con directivas de ejecución restringidas
 - Sistema base de WSL sin una distribución Linux, con WSL 2 como valor predeterminado
 - Red reflejada de WSL con acceso por VPN/LAN, túnel DNS, integración con el proxy de Windows, entrada permitida en el firewall de Hyper-V, recuperación automática de memoria y discos virtuales dispersos
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick y GitHub CLI (`gh`)
@@ -91,7 +92,7 @@ Durante la ejecución, el instalador:
 9. Instala WinGet y Chocolatey cuando sea necesario.
 10. Descarga Python 3.14 desde `python.org` y resuelve Node.js 24 LTS directamente mediante el canal oficial `latest-v24.x` de `nodejs.org`, sin la API del índice de releases, WinGet ni Chocolatey. Usa `curl.exe` de Windows con redirecciones solo HTTPS y reintentos, valida Authenticode y el SHA-256 oficial de Node.js, repara características ausentes de Python o del MSI de Node.js, elimina los shims redundantes `npm.ps1` y `npx.ps1` que fallan con una directiva de ejecución restringida, antepone los directorios x64 nativos de los runtimes al `PATH` de la máquina y valida `python`, `pip`, `node`, `npm` y `npx` exactamente como los invoca el usuario.
 11. Instala cada utilidad restante de Windows de forma independiente, ejecuta cada CLI predecible de WinGet y Chocolatey desde el `PATH` actualizado, valida `gh.exe` y el alias `wt.exe` de Windows Terminal y continúa después de errores aislados de paquetes o comandos.
-12. Instala y valida Claude Code, Codex CLI y Antigravity CLI desde sus fuentes oficiales, preservando todos los archivos de perfil PowerShell del usuario. Claude usa el instalador nativo recomendado independientemente de npm y recurre al paquete npm oficial de Anthropic solo cuando es necesario; Codex usa el instalador independiente oficial de OpenAI en lugar de npm.
+12. Instala y valida Skills CLI, Claude Code, Codex CLI y Antigravity CLI desde sus fuentes oficiales, preservando todos los archivos de perfil PowerShell del usuario. Skills usa su paquete npm oficial y un lanzador CMD compatible con directivas de ejecución restringidas; Claude usa el instalador nativo recomendado independientemente de npm y recurre al paquete npm oficial de Anthropic solo cuando es necesario; Codex usa el instalador independiente oficial de OpenAI en lugar de npm.
 13. Elimina únicamente bloques heredados reconocidos de SetupVibe para Starship y zoxide sin recodificar contenido no relacionado, y conserva los bytes originales de los perfiles PowerShell, la configuración Starship del usuario y la directiva de ejecución.
 14. Muestra un resumen final y la ubicación del registro completo.
 
@@ -121,6 +122,7 @@ pip --version
 node --version
 npm --version
 npx --version
+skills --version
 claude --version
 codex --version
 Get-Command agy
@@ -179,7 +181,7 @@ O ejecute el desinstalador desde la rama `windows`:
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
 ```
 
-El modo de desinstalación elimina el Cliente y el Servidor OpenSSH, Python y Node.js mediante sus desinstaladores oficiales, Claude Code, Codex CLI, Antigravity CLI, los archivos administrados por SetupVibe de `%USERPROFILE%\.setupvibe\bin` y sus entradas del `PATH` del usuario, restaura los estados anteriores de las características opcionales de WSL, el firewall de WSL y la regla de firewall de OpenSSH, elimina la configuración de WSL aplicada por SetupVibe, elimina todas las utilidades WinGet y Chocolatey administradas por SetupVibe y elimina las entradas de paquetes y runtimes agregadas por SetupVibe al `PATH` de la máquina y los bloques heredados reconocidos de SetupVibe para Starship y zoxide. También elimina herramientas de frameworks, rutas ausentes de administradores de runtimes y paquetes npm heredados instalados por versiones Beta anteriores de Windows. Se conservan los directorios activos administrados por el usuario en el `PATH`, la configuración Starship, las distribuciones Linux, las configuraciones y credenciales de usuario de las CLIs de IA, WinGet, Chocolatey, los registros y los archivos no relacionados dentro de `%USERPROFILE%\.setupvibe`.
+El modo de desinstalación elimina el Cliente y el Servidor OpenSSH, Python y Node.js mediante sus desinstaladores oficiales, Skills CLI, Claude Code, Codex CLI, Antigravity CLI, los archivos administrados por SetupVibe de `%USERPROFILE%\.setupvibe\bin` y sus entradas del `PATH` del usuario, restaura los estados anteriores de las características opcionales de WSL, el firewall de WSL y la regla de firewall de OpenSSH, elimina la configuración de WSL aplicada por SetupVibe, elimina todas las utilidades WinGet y Chocolatey administradas por SetupVibe y elimina las entradas de paquetes y runtimes agregadas por SetupVibe al `PATH` de la máquina y los bloques heredados reconocidos de SetupVibe para Starship y zoxide. Se conservan las skills de agentes instaladas. También elimina herramientas de frameworks, rutas ausentes de administradores de runtimes y paquetes npm heredados instalados por versiones Beta anteriores de Windows. Se conservan los directorios activos administrados por el usuario en el `PATH`, la configuración Starship, las distribuciones Linux, las configuraciones y credenciales de usuario de las CLIs de IA, WinGet, Chocolatey, los registros y los archivos no relacionados dentro de `%USERPROFILE%\.setupvibe`.
 
 **Advertencia de desinstalación:** la versión Beta actual no registra si el Cliente y el Servidor OpenSSH o un paquete administrado ya existían antes de SetupVibe. Por lo tanto, `-Uninstall` elimina el producto MSI de OpenSSH y todos los paquetes de sus listas administradas, incluidos los componentes que puedan haber sido instalados por separado antes de SetupVibe.
 

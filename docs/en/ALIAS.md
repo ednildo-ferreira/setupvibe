@@ -32,37 +32,37 @@ This is the exhaustive list of all aliases configured by SetupVibe on all platfo
 
 - **`skl`**
   - Availability: 🌐 Both
-  - Command: `npx skills list`
+  - Command: `skills list`
   - Description: Lists all installed skills.
   - Example: `skl`
 
 - **`skf`**
   - Availability: 🌐 Both
-  - Command: `npx skills find`
+  - Command: `skills find`
   - Description: Search for skills in the registry.
   - Example: `skf react`
 
 - **`ska`**
   - Availability: 🌐 Both
-  - Command: `npx skills add`
+  - Command: `skills add`
   - Description: Installs a new skill.
   - Example: `ska owner/repo`
 
 - **`sku`**
   - Availability: 🌐 Both
-  - Command: `npx skills update`
+  - Command: `skills update`
   - Description: Updates all installed skills.
   - Example: `sku`
 
 - **`skun`**
   - Availability: 🌐 Both
-  - Command: `npx skills remove`
+  - Command: `skills remove`
   - Description: Removes an installed skill.
   - Example: `skun name`
 
 - **`skc`**
   - Availability: 🌐 Both
-  - Command: `npx skills check`
+  - Command: `skills check`
   - Description: Checks for available updates.
   - Example: `skc`
 

@@ -19,6 +19,7 @@ A Edição Windows (Beta) configura utilitários nativos do Windows, Python, Nod
 - Chocolatey pelo script oficial de bootstrap, quando ausente
 - Python 3.14 diretamente pelo instalador oficial do `python.org` e Node.js 24 LTS pelo canal oficial `latest-v24.x` do `nodejs.org`, com `python`, `pip`, `node`, `npm` e `npx` no `PATH` da máquina para Claude e Codex
 - Claude Code pelo instalador nativo recomendado da Anthropic, com seu pacote npm oficial como recuperação, Codex CLI pelo instalador autônomo oficial da OpenAI para Windows e Google Antigravity CLI como `agy` pelo seu instalador nativo oficial
+- [Vercel Labs Skills CLI](https://github.com/vercel-labs/skills) pelo pacote npm oficial, com o lançador `skills.cmd` compatível com política de execução restrita
 - Sistema base do WSL sem uma distribuição Linux, com WSL 2 como padrão
 - Rede espelhada do WSL com acesso por VPN/LAN, tunelamento de DNS, integração com o proxy do Windows, entrada liberada no firewall Hyper-V, recuperação automática de memória e discos virtuais esparsos
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick e GitHub CLI (`gh`)
@@ -91,7 +92,7 @@ Durante a execução, o instalador:
 9. Instala WinGet e Chocolatey quando necessário.
 10. Baixa Python 3.14 do `python.org` e resolve o Node.js 24 LTS diretamente pelo canal oficial `latest-v24.x` do `nodejs.org`, sem a API do índice de releases, WinGet ou Chocolatey. Usa o `curl.exe` do Windows com redirecionamentos somente HTTPS e novas tentativas, valida o Authenticode e o SHA-256 oficial do Node.js, repara recursos ausentes do Python ou do MSI do Node.js, remove os shims redundantes `npm.ps1` e `npx.ps1` que falham sob uma política de execução restrita, coloca os diretórios x64 nativos dos runtimes no início do `PATH` da máquina e valida `python`, `pip`, `node`, `npm` e `npx` exatamente como o usuário os executa.
 11. Instala cada utilitário restante do Windows de forma independente, executa cada CLI previsível do WinGet e Chocolatey pelo `PATH` atualizado, valida `gh.exe` e o alias `wt.exe` do Windows Terminal e continua após falhas isoladas de pacote ou comando.
-12. Instala e valida Claude Code, Codex CLI e Antigravity CLI por suas fontes oficiais, preservando todos os arquivos de perfil PowerShell do usuário. O Claude usa o instalador nativo recomendado independentemente do npm e recorre ao pacote npm oficial da Anthropic somente quando necessário; o Codex usa o instalador autônomo oficial da OpenAI em vez do npm.
+12. Instala e valida Skills CLI, Claude Code, Codex CLI e Antigravity CLI por suas fontes oficiais, preservando todos os arquivos de perfil PowerShell do usuário. Skills usa seu pacote npm oficial e um lançador CMD compatível com política de execução restrita; o Claude usa o instalador nativo recomendado independentemente do npm e recorre ao pacote npm oficial da Anthropic somente quando necessário; o Codex usa o instalador autônomo oficial da OpenAI em vez do npm.
 13. Remove somente blocos legados reconhecidos do SetupVibe para Starship/zoxide sem recodificar conteúdo não relacionado, preservando os bytes originais dos perfis PowerShell, a configuração Starship do usuário e a política de execução.
 14. Exibe um resumo final e o local do log completo.
 
@@ -121,6 +122,7 @@ pip --version
 node --version
 npm --version
 npx --version
+skills --version
 claude --version
 codex --version
 Get-Command agy
@@ -179,7 +181,7 @@ Ou execute o desinstalador pela branch `windows`:
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
 ```
 
-O modo de desinstalação remove o Cliente e o Servidor OpenSSH, Python e Node.js por seus desinstaladores oficiais, Claude Code, Codex CLI, Antigravity CLI, os arquivos gerenciados pelo SetupVibe em `%USERPROFILE%\.setupvibe\bin` e as entradas correspondentes do `PATH` do usuário, restaura os estados anteriores dos recursos opcionais do WSL, do firewall do WSL e da regra de firewall do OpenSSH, remove a configuração do WSL aplicada pelo SetupVibe, remove todos os utilitários WinGet e Chocolatey gerenciados pelo SetupVibe e remove as entradas de pacotes e runtimes adicionadas pelo SetupVibe ao `PATH` da máquina e blocos legados reconhecidos do SetupVibe para Starship/zoxide. Ele também remove ferramentas de frameworks, caminhos ausentes de gerenciadores de runtime e pacotes npm legados instalados por versões Beta anteriores do Windows. Diretórios ativos gerenciados pelo usuário no `PATH`, configuração Starship, distribuições Linux, configurações e credenciais de usuário das CLIs de IA, WinGet, Chocolatey, logs e arquivos não relacionados dentro de `%USERPROFILE%\.setupvibe` são preservados.
+O modo de desinstalação remove o Cliente e o Servidor OpenSSH, Python e Node.js por seus desinstaladores oficiais, Skills CLI, Claude Code, Codex CLI, Antigravity CLI, os arquivos gerenciados pelo SetupVibe em `%USERPROFILE%\.setupvibe\bin` e as entradas correspondentes do `PATH` do usuário, restaura os estados anteriores dos recursos opcionais do WSL, do firewall do WSL e da regra de firewall do OpenSSH, remove a configuração do WSL aplicada pelo SetupVibe, remove todos os utilitários WinGet e Chocolatey gerenciados pelo SetupVibe e remove as entradas de pacotes e runtimes adicionadas pelo SetupVibe ao `PATH` da máquina e blocos legados reconhecidos do SetupVibe para Starship/zoxide. As skills de agentes instaladas são preservadas. Ele também remove ferramentas de frameworks, caminhos ausentes de gerenciadores de runtime e pacotes npm legados instalados por versões Beta anteriores do Windows. Diretórios ativos gerenciados pelo usuário no `PATH`, configuração Starship, distribuições Linux, configurações e credenciais de usuário das CLIs de IA, WinGet, Chocolatey, logs e arquivos não relacionados dentro de `%USERPROFILE%\.setupvibe` são preservados.
 
 **Aviso sobre a desinstalação:** a versão Beta atual não registra se o Cliente e o Servidor OpenSSH ou um pacote gerenciado já existiam antes do SetupVibe. Portanto, `-Uninstall` remove o produto MSI do OpenSSH e todos os pacotes de suas listas gerenciadas, inclusive componentes que possam ter sido instalados separadamente antes do SetupVibe.
 

@@ -836,15 +836,17 @@ step_7() {
     local package
     local command_name
     local index
-    local -a ai_packages=(
+    local -a cli_packages=(
         "@anthropic-ai/claude-code"
         "@openai/codex"
         "@github/copilot"
+        "skills@latest"
     )
-    local -a ai_commands=(
+    local -a cli_commands=(
         claude
         codex
         copilot
+        skills
     )
 
     echo "Installing Node.js 24 via NodeSource..."
@@ -885,9 +887,9 @@ step_7() {
     # Remove the package deprecated by GitHub before installing its supported replacement.
     user_do env PATH="$npm_path" "$npm_bin" uninstall -g @githubnext/github-copilot-cli >/dev/null 2>&1 || true
 
-    for index in "${!ai_packages[@]}"; do
-        package=${ai_packages[$index]}
-        command_name=${ai_commands[$index]}
+    for index in "${!cli_packages[@]}"; do
+        package=${cli_packages[$index]}
+        command_name=${cli_commands[$index]}
         echo "Installing $package..."
         user_do env PATH="$npm_path" "$npm_bin" install --global "$package"
         user_do env PATH="$npm_path" "$command_name" --version >/dev/null
