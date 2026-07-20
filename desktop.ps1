@@ -72,7 +72,6 @@ $script:WinGetPackages = @(
 
 $script:ChocolateyPackages = @(
     @{ Id = 'trippy'; Name = 'trippy' }
-    @{ Id = 'rustscan'; Name = 'RustScan' }
     @{ Id = 'firacodenf'; Name = 'FiraCode Nerd Font' }
 )
 
@@ -105,7 +104,6 @@ $script:WinGetCommandChecks = @(
 
 $script:ChocolateyCommandChecks = @(
     @{ Name = 'trippy'; Command = 'trip.exe'; Arguments = @('--version') }
-    @{ Name = 'RustScan'; Command = 'rustscan.exe'; Arguments = @('--version') }
 )
 
 $script:LegacyWinGetPackages = @(

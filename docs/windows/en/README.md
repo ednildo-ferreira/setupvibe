@@ -24,7 +24,7 @@ The Windows Edition (Beta) configures native Windows utilities, Python, Node.js,
 - Mirrored WSL networking with VPN/LAN access, DNS tunneling, Windows proxy integration, Hyper-V firewall inbound access, automatic memory reclaim, and sparse virtual disks
 - Git, 7-Zip, Wget, FFmpeg, ImageMagick, and GitHub CLI (`gh`)
 - bat, eza, zoxide, fzf, ripgrep, fd, lazygit, Neovim, Glow, tldr, Fastfetch, duf, and jq
-- Nmap, Speedtest CLI, Tailscale, gping, btop4win, trippy, and RustScan
+- Nmap, Speedtest CLI, Tailscale, gping, btop4win, and trippy
 - PowerShell 7, Windows Terminal, FiraCode Nerd Font, and JetBrains Mono Nerd Font
 
 The installer is idempotent: installed WinGet packages are detected and skipped, Chocolatey safely ensures its packages are present, and the official Python and Node.js installers are reapplied safely. Failures are recorded per package so remaining installations can continue. A transcript is saved under `C:\ProgramData\SetupVibe\Logs`.

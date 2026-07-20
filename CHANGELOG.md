@@ -80,6 +80,7 @@ All notable changes to **SetupVibe** are documented in this file.
 - Removed Starship and all automatic PowerShell profile customization from the Windows Edition; ZSH remains Unix-only, zoxide stays available as an uninitialized CLI utility, and the original Windows shell policy and profile are preserved.
 - Removed PHP, Composer, Laravel Installer, Ruby, Bundler, Rails, uv, Spec-Kit, Go, Rustup, Cargo, Bun, PNPM, PM2, n8n, legacy AI CLI packages, and mise from Windows installation.
 - Removed the SetupVibe `codex.cmd` launcher and the `ssh_copy_id` fallback to Windows Features on Demand; Codex now uses its native executable and `ssh_copy_id` requires the signed OpenSSH installation managed by SetupVibe.
+- Removed RustScan from the Windows Edition; its Chocolatey shim is blocked by Windows Smart App Control on machines that enforce it, and this cannot be worked around from an installer script.
 
 ---
 

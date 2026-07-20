@@ -188,11 +188,18 @@ Isso é uma política de segurança do próprio Windows, não um defeito do
 via Configurações do Windows (e, uma vez desativado, não pode ser reativado
 sem reinstalar o Windows).
 
-**Ação tomada:** nenhuma mudança de código — não é apropriado para um script
-de setup tentar contornar silenciosamente uma política de segurança do SO.
-O erro que já é lançado (`Invoke-NativeCommand` reportando o exit code) é
-suficientemente informativo para o usuário investigar. Isso é uma limitação
-de ambiente, documentada aqui para não ser confundida com um bug do script em
+**Ação tomada (atualizada):** inicialmente nenhuma mudança de código — não é
+apropriado para um script de setup tentar contornar silenciosamente uma
+política de segurança do SO, e o erro já lançado (`Invoke-NativeCommand`
+reportando o exit code) era suficientemente informativo. Depois de discutir
+com o usuário nesta máquina, **o RustScan foi removido do instalador**
+(`$script:ChocolateyPackages` e `$script:ChocolateyCommandChecks`), já que é
+o único dos ~35 apps/CLIs instalados pelo `desktop.ps1` que esbarra nesse
+bloqueio — todos os demais são assinados ou vêm de editores já reconhecidos
+pelo Smart App Control, ou passam pela validação do WinGet em vez do shim do
+Chocolatey. `trippy` e `FiraCode Nerd Font` continuam sendo instalados
+normalmente via Chocolatey sem esse problema. Isso é uma limitação de
+ambiente, documentada aqui para não ser confundida com um bug do script em
 futuras investigações.
 
 ### 5. Falso positivo de "instalador concorrente" causado pelo próprio SFC (`TiWorker.exe`)
@@ -269,6 +276,7 @@ validadas isoladamente (ver seções 1-4) fora desse cenário de contenção.
 | `Invoke-MsiExec` (nova função) | `msiexec.exe` via `Start-Process -Wait -PassThru` em vez do operador `&` |
 | `Install-NodeJs` | As 2 chamadas de `msiexec /i` (inicial + reconfigure) migradas para `Invoke-MsiExec` |
 | `Resolve-ActiveWindowsInstallerOperations` | Loop de espera (até 30s) antes de declarar falha na checagem pós-terminação, evitando falso positivo com o próprio `TiWorker.exe` do SFC |
+| `$script:ChocolateyPackages` / `$script:ChocolateyCommandChecks` | RustScan removido — único pacote bloqueado pelo Smart App Control nesta máquina |
 
 ## O que ficou validado com uma execução real completa
 
