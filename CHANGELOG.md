@@ -51,6 +51,7 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ### Fixed
 
+- Fixed Windows `ssh_copy_id` reporting success after only writing a public-key file while the following connection still requested the server password. It now selects only matching public/private key pairs, supports an explicit `-IdentityFile`, normalizes Windows line endings, verifies public-key authentication without password fallback, and uses that exact identity for the final session.
 - Fixed the PM2 ecosystem forcing Agentlytics' first-run UI build into production dependency mode, which omitted Vite and caused an endless restart loop.
 - Fixed macOS reruns upgrading unrelated Homebrew packages and existing Docker Desktop or Tailscale casks, using elevated Docker commands that lose the user's Docker Desktop context, requesting administrator privileges for user-owned downloads, and failing to install PM2's launchd startup agent without unnecessary root access.
 - Fixed Desktop Edition installs through `sudo` using the system npm prefix for the target user, which caused JavaScript and AI CLI steps to fail with `EACCES`.

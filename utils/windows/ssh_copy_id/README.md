@@ -32,11 +32,15 @@ O lançador `.cmd` não contém lógica SSH. Ele procura primeiro o PowerShell 7
 1. Verifica a disponibilidade de `ssh.exe` e `ssh-keygen.exe`.
 2. Interrompe com uma orientação clara para executar o SetupVibe quando o OpenSSH assinado não está disponível.
 3. Procura uma chave pública válida em `%USERPROFILE%\.ssh`.
-4. Reconstrói a chave pública quando encontra uma chave privada padrão sem o arquivo `.pub` correspondente.
-5. Cria uma chave Ed25519 sem senha quando nenhuma chave válida é encontrada.
-6. Valida o destino no formato `usuario@endereco` e a porta TCP.
-7. Copia a chave para `~/.ssh/authorized_keys` sem duplicar uma chave já instalada.
-8. Abre uma sessão SSH, a menos que `-NoConnect` seja informado.
+4. Confirma que a chave pública corresponde a uma chave privada local antes de selecioná-la.
+5. Reconstrói a chave pública quando encontra uma chave privada padrão sem o arquivo `.pub` correspondente.
+6. Cria uma chave Ed25519 sem senha quando nenhum par de chaves válido é encontrado, sem sobrescrever arquivos órfãos.
+7. Valida o destino no formato `usuario@endereco` e a porta TCP.
+8. Copia a chave para `~/.ssh/authorized_keys` sem duplicar uma chave já instalada.
+9. Normaliza a quebra de linha do Windows antes de gravar a chave no servidor.
+10. Testa a autenticação com a chave privada correspondente e sem fallback para a senha do servidor.
+11. Só informa sucesso depois que o servidor aceita a autenticação por chave.
+12. Abre uma sessão SSH usando explicitamente a identidade validada, a menos que `-NoConnect` seja informado.
 
 ## Uso
 
@@ -58,6 +62,14 @@ ssh_copy_id deploy@192.0.2.10
 
 ```powershell
 ssh_copy_id deploy@192.0.2.10 -Port 2222
+```
+
+### Escolher Uma Chave Específica
+
+Informe o caminho da chave privada ou pública. O utilitário exige que os dois arquivos formem um par válido e usa a chave privada explicitamente na verificação e na conexão:
+
+```powershell
+ssh_copy_id deploy@192.0.2.10 -IdentityFile "$env:USERPROFILE\.ssh\work_ed25519"
 ```
 
 ### Copiar Sem Abrir Uma Sessão
@@ -84,14 +96,15 @@ ssh_copy_id deploy@192.0.2.10 -NoConnect
 | --- | --- | --- |
 | `Remote` | Interativo | Destino no formato `usuario@endereco`; também pode ser o primeiro argumento posicional. |
 | `-Port` | `22` | Porta TCP do serviço SSH, entre `1` e `65535`. |
-| `-NoConnect` | Desativado | Copia a chave sem abrir a sessão SSH interativa ao final. |
+| `-IdentityFile` | Detecção automática | Caminho da chave privada ou pública que deve ser copiada e usada. |
+| `-NoConnect` | Desativado | Não abre a sessão interativa depois de copiar e validar a autenticação por chave. |
 
 ## Requisitos Do Servidor Remoto
 
 - Serviço SSH acessível pela porta escolhida.
 - Autenticação por senha permitida na primeira conexão ou outro método já disponível.
 - Permissão para gravar no diretório pessoal da conta remota.
-- Ambiente compatível com os comandos POSIX `umask`, `mkdir`, `touch`, `chmod`, `cat`, `grep` e `rm`.
+- Ambiente compatível com os comandos POSIX `umask`, `mkdir`, `touch`, `chmod`, `cat`, `grep`, `tr` e `rm`.
 
 O fluxo atual destina-se a servidores Linux, macOS e outros ambientes SSH compatíveis com esses comandos. Ele não instala a chave em um servidor OpenSSH nativo do Windows.
 
@@ -103,9 +116,11 @@ O utilitário procura primeiro estas chaves públicas:
 - `id_ecdsa.pub`
 - `id_rsa.pub`
 
-Em seguida, considera outros arquivos `.pub` válidos em `%USERPROFILE%\.ssh`, ignorando certificados terminados em `-cert.pub`. A validade é verificada com `ssh-keygen -l`.
+Em seguida, considera outros arquivos `.pub` válidos em `%USERPROFILE%\.ssh`, ignorando certificados terminados em `-cert.pub`. Uma chave pública só é selecionada quando existe uma chave privada de mesmo nome, sem a extensão `.pub`, e as impressões digitais SHA-256 coincidem. Para evitar que `ssh-keygen` confunda a chave privada com o arquivo `.pub` vizinho, a verificação usa uma cópia temporária da chave privada no mesmo diretório e a remove imediatamente.
 
 Quando encontra apenas `id_ed25519`, `id_ecdsa` ou `id_rsa`, tenta reconstruir o arquivo público com `ssh-keygen -y`. Uma chave privada protegida solicitará sua passphrase durante essa operação.
+
+Use `-IdentityFile` quando quiser selecionar explicitamente outro par. Se arquivos órfãos ocuparem o nome padrão e nenhum par válido estiver disponível, o utilitário cria uma chave com nome reservado ao SetupVibe em vez de substituir os arquivos existentes.
 
 ## Instalação Manual
 
@@ -137,14 +152,18 @@ Verifique se a senha pertence ao usuário informado e se o servidor permite aute
 
 ### Cópia Concluída, Mas A Conexão Final Falhou
 
-A chave já pode estar instalada. Teste a conexão manualmente:
+O utilitário não informa mais sucesso apenas porque gravou `authorized_keys`. Ele testa a chave privada correspondente sem permitir fallback para senha. Se essa validação falhar, confira `PubkeyAuthentication`, `AuthorizedKeysFile`, a propriedade do diretório pessoal remoto e as permissões de `~/.ssh` e `authorized_keys`.
+
+Para repetir manualmente o mesmo teste com uma chave específica:
 
 ```powershell
-ssh -p 22 usuario@endereco
+ssh -p 22 -i "$env:USERPROFILE\.ssh\id_ed25519" -o IdentitiesOnly=yes -o PreferredAuthentications=publickey -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no usuario@endereco
 ```
 
 ## Segurança
 
-A chave criada automaticamente não possui passphrase. Proteja a conta do Windows e nunca compartilhe a chave privada, como `%USERPROFILE%\.ssh\id_ed25519`.
+A chave criada automaticamente não possui passphrase. Proteja a conta do Windows e nunca compartilhe uma chave privada, como `%USERPROFILE%\.ssh\id_ed25519`.
 
 Somente o arquivo público terminado em `.pub` deve ser copiado ou compartilhado. Na primeira conexão, confira a impressão digital apresentada pelo servidor antes de confirmar a confiança no host.
+
+Uma chave privada existente pode solicitar a própria passphrase durante a validação ou a conexão. Essa passphrase local é diferente da senha da conta no servidor; o utilitário desativa os métodos de senha do servidor depois da cópia.
