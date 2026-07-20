@@ -48,12 +48,12 @@ El script muestra una hoja de ruta interactiva y solicita confirmación antes de
 - **macOS:** instala Homebrew si no está presente, luego instala herramientas base (`wget`, `curl`, `tmux`, `ffmpeg`, `imagemagick`, `openssl`, `readline`, etc.)
 - **Linux:** instala Linuxbrew bajo `/home/linuxbrew/.linuxbrew`; agrega entradas PATH a `~/.bashrc`, `~/.profile`, `~/.zshrc`; ejecuta `brew upgrade` si ya está presente
 
-### Paso 3 — Ecosistema PHP 8.4
+### Paso 3 — Ecosistema PHP 8.5
 
 | Componente         | macOS                                       | Linux                                                                                               |
 | ------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| PHP 8.4            | vía Homebrew                                | vía PPA ondrej/php (Ubuntu) o sury.org (Debian)                                                    |
-| Extensiones        | redis, xdebug, imagick vía PECL             | php8.4-{curl,mbstring,xml,zip,bcmath,intl,mysql,pgsql,sqlite3,gd,imagick,redis,mongodb,yaml,xdebug} |
+| PHP 8.5            | vía Homebrew                                | vía PPA ondrej/php (Ubuntu) o sury.org (Debian)                                                    |
+| Extensiones        | redis, xdebug, imagick vía PECL             | php8.5-{curl,mbstring,xml,zip,bcmath,intl,mysql,pgsql,sqlite3,gd,imagick,redis,mongodb,yaml,xdebug} |
 | Composer          | vía Homebrew                                | binario en `~/.local/bin/composer`                                                                 |
 | Instalador Laravel | `composer global require laravel/installer` | igual                                                                                               |
 
@@ -63,16 +63,16 @@ El script muestra una hoja de ruta interactiva y solicita confirmación antes de
 | --------------- | --------------------------- | --------------------------------------- |
 | rbenv           | vía Homebrew                | clonado de GitHub en `~/.rbenv`         |
 | ruby-build      | vía Homebrew                | clonado en `~/.rbenv/plugins/ruby-build` |
-| Ruby            | 3.3.0 compilado vía rbenv   | igual                                   |
+| Ruby            | 3.4.10 compilado vía rbenv  | igual                                   |
 | Bundler + Rails | `gem install bundler rails` | igual                                   |
 
 ### Paso 5 — Lenguajes
 
 | Lenguaje | macOS                      | Linux                                              |
 | -------- | -------------------------- | -------------------------------------------------- |
-| Python 3 | `python@3.12` vía Homebrew | vía APT (`python3`, `python3-pip`, `python3-venv`) |
+| Python 3 | `python@3.14` vía Homebrew | vía APT (`python3`, `python3-pip`, `python3-venv`) |
 | uv       | vía script de instalación  | igual                                              |
-| Go       | vía Homebrew               | binario 1.22.2 en `~/.local/go`                    |
+| Go       | vía Homebrew               | binario 1.26.5 verificado en `~/.local/go`         |
 | Rust     | vía rustup                 | igual                                              |
 
 ### Paso 6 — JavaScript
@@ -82,7 +82,7 @@ El script muestra una hoja de ruta interactiva y solicita confirmación antes de
 | Node.js 24  | `node@24` vía Homebrew    | vía repositorio APT NodeSource |
 | PNPM        | `npm install -g pnpm`     | igual                   |
 | PM2         | `npm install -g pm2`      | igual                   |
-| n8n         | `npm install -g @n8n/cli` | igual                   |
+| n8n         | `npm install -g n8n`       | igual                   |
 | Bun         | vía script de instalación | igual                   |
 
 ### Paso 7 — DevOps
@@ -125,7 +125,7 @@ Instaladas mediante Homebrew en ambas plataformas.
 
 - Instala `openssh-server`
 - Habilita e inicia el servicio systemd `ssh`
-- Configura `PermitRootLogin yes` y `PasswordAuthentication yes`
+- Configura `PermitRootLogin prohibit-password` y `PasswordAuthentication yes`
 - Realiza copia de seguridad del `sshd_config` original antes de modificar
 
 ### Paso 11 — Shell (ZSH y Starship)
@@ -133,7 +133,7 @@ Instaladas mediante Homebrew en ambas plataformas.
 - Instala ZSH (Linux vía APT; ya por defecto en macOS)
 - Instala Oh My Zsh (sin intervención)
 - Clona los plugins `zsh-autosuggestions` y `zsh-syntax-highlighting`
-- Instala Nerd Fonts: **FiraCode** y **JetBrains Mono** (Homebrew Cask en macOS; descarga a `~/.local/share/fonts` en Linux)
+- Instala Nerd Fonts: **FiraCode** y **JetBrains Mono** (Homebrew Cask en macOS; descarga v3.4.0 a `~/.local/share/fonts` en Linux)
 - Instala el prompt Starship y aplica el preset **Gruvbox Rainbow**
 - Descarga scripts auxiliares desde [`bin/`](../../../bin) a `~/.setupvibe/bin`; consulta [Ejecutables](../../es/EXECUTABLES.md)
 - Descarga el `.zshrc` adecuado:
@@ -157,14 +157,14 @@ Instaladas globalmente a través de `npm install -g`:
 | Agentlytics        | `agentlytics`                    |
 | Claude Code        | `@anthropic-ai/claude-code`      |
 | OpenAI Codex       | `@openai/codex`                  |
-| GitHub Copilot CLI | `@githubnext/github-copilot-cli` |
+| GitHub Copilot CLI | `@github/copilot`                |
 | Skills CLI         | `skills`                         |
 
 La [CLI Skills de Vercel Labs](https://github.com/vercel-labs/skills) se valida con `skills --version`. **Spec-Kit** se instala a través de `uv tool install specify-cli`. Consulte [SPECKIT.md](SPECKIT.md) para obtener la guía completa de Spec-Driven Development y los aliases.
 
 ### Paso 14 — Finalización y Limpieza
 
-**macOS:** `brew cleanup --prune=all`, `brew autoremove`, limpia `~/Library/Caches` y `~/.Trash`.
+**macOS:** `brew cleanup --prune=all`, `brew autoremove` y elimina solo los archivos temporales de SetupVibe.
 
 **Linux:** `apt autoremove`, `apt clean`, elimina archivos temporales y limpia logs del journal; limpia `~/.cache/pip`, `~/.cache/composer`, `~/.npm/_npx`, `~/.bundle/cache`.
 

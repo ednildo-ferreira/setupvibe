@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -o pipefail
+
 
 # ==============================================================================
 # SETUPVIBE.DEV - DESKTOP DEVELOPER EDITION (V2.3 - Cross Platform)
@@ -26,7 +28,11 @@ NC='\033[0m' # No Color
 
 # --- VERSION ---
 VERSION="0.41.6"
-INSTALL_URL="https://desktop.setupvibe.dev"
+PHP_VERSION="8.5"
+RUBY_VERSION="3.4.10"
+PYTHON_VERSION="3.14"
+GO_VERSION="1.26.5"
+NERD_FONTS_VERSION="3.4.0"
 
 echo -e "${CYAN}SetupVibe Desktop v${VERSION}${NC}"
 echo ""
@@ -55,6 +61,15 @@ sys_do() {
         fi
     else
         "$@"
+    fi
+}
+
+# Run Homebrew as the real user and isolate stdin from curl-piped installs.
+brew_cmd() {
+    if [[ "$(id -u)" -eq 0 && -n "$REAL_USER" && "$REAL_USER" != "root" ]]; then
+        ( cd "$REAL_HOME" && runuser -u "$REAL_USER" -- env HOME="$REAL_HOME" "$BREW_PREFIX/bin/brew" "$@" < /dev/null )
+    else
+        "$BREW_PREFIX/bin/brew" "$@" < /dev/null
     fi
 }
 
@@ -115,10 +130,17 @@ if [[ "$(uname -s)" == "Linux" ]]; then
     echo -e "${YELLOW}Ensuring base tools (gpg, curl, ca-certificates)...${NC}"
     export DEBIAN_FRONTEND=noninteractive
     
-    # If we have errors in APT, we try to fix them by removing potentially broken lists managed by this script
-    # This prevents the error you saw: signature verification failed because keys were deleted
-    sys_do grep -rl 'docker\|nodesource\|charm\.sh\|cli\.github\|sury\|ondrej\|ansible\|codeiumdata\|windsurf\|antigravity\|pkg\.dev' \
-        /etc/apt/sources.list.d/ 2>/dev/null | xargs -I {} sys_do rm -f "{}" 2>/dev/null || true
+    # Remove only repository files owned by SetupVibe. Content-based deletion can
+    # remove repositories managed by the user or another package manager.
+    for source_file in \
+        /etc/apt/sources.list.d/charm.list \
+        /etc/apt/sources.list.d/docker.list \
+        /etc/apt/sources.list.d/github-cli.list \
+        /etc/apt/sources.list.d/nodesource.list \
+        /etc/apt/sources.list.d/php.list; do
+        sys_do rm -f -- "$source_file"
+    done
+    unset source_file
 
     sys_do apt-get update -y -qq
     APT_BOOTSTRAP_PACKAGES=(
@@ -158,8 +180,8 @@ fi
 STEPS=(
     "Base System & Build Tools"
     "Homebrew (Package Manager)"
-    "PHP 8.4 Ecosystem (Laravel)"
-    "Ruby Ecosystem (Rails)"
+    "PHP ${PHP_VERSION} Ecosystem (Laravel)"
+    "Ruby ${RUBY_VERSION} Ecosystem (Rails)"
     "Languages (Go, Rust, Python + uv)"
     "JavaScript (Node, Bun, PNPM)"
     "DevOps (Docker, Ansible, GH)"
@@ -236,6 +258,7 @@ if [[ "$REAL_USER" == "root" && -d "/home/linuxbrew/.linuxbrew" ]]; then
 fi
 REAL_HOME=$(getent passwd "$REAL_USER" 2>/dev/null | cut -d: -f6)
 [[ -z "$REAL_HOME" ]] && REAL_HOME="$HOME"
+REAL_GROUP=$(id -gn "$REAL_USER" 2>/dev/null || echo "$REAL_USER")
 
 
 # Detect Distro (Linux only)
@@ -312,34 +335,42 @@ fi
 install_key() {
     local url=$1
     local dest=$2
+    local source_tmp
+    local key_tmp
+
     echo -e "${YELLOW}Installing key:${NC} $url ➜ $dest"
     sys_do mkdir -p -m 755 /etc/apt/keyrings
-    # Try dearmor if GPG is available
+
+    source_tmp=$(mktemp) || return 1
+    key_tmp=$(mktemp) || {
+        rm -f -- "$source_tmp"
+        return 1
+    }
+
+    if ! curl -fsSL --proto '=https' --tlsv1.2 --max-time 30 "$url" -o "$source_tmp"; then
+        echo -e "${RED}✘ Failed to download key from $url${NC}"
+        rm -f -- "$source_tmp" "$key_tmp"
+        return 1
+    fi
+
+    # Prefer a binary keyring when GPG is available.
     if [[ -n "$GPG_CMD" ]] && command -v "$GPG_CMD" >/dev/null 2>&1; then
-        if curl -fsSL "$url" | "$GPG_CMD" --dearmor --yes | sys_do tee "$dest" > /dev/null; then
-            sys_do chmod a+r "$dest"
+        if "$GPG_CMD" --dearmor --yes --output "$key_tmp" "$source_tmp" 2>/dev/null \
+            && sys_do install -m 0644 "$key_tmp" "$dest"; then
+            rm -f -- "$source_tmp" "$key_tmp"
             return 0
         fi
     fi
-    # Fallback: download as-is (modern APT handles armored keys)
-    if curl -fsSL "$url" | sys_do tee "$dest" > /dev/null; then
-        sys_do chmod a+r "$dest"
+
+    # Modern APT also accepts an armored keyring.
+    if sys_do install -m 0644 "$source_tmp" "$dest"; then
+        rm -f -- "$source_tmp" "$key_tmp"
         return 0
     fi
+
+    rm -f -- "$source_tmp" "$key_tmp"
     echo -e "${RED}✘ Failed to install key from $url${NC}"
     return 1
-}
-
-# Helper function to run brew as regular user (not root)
-brew_cmd() {
-    if [[ "$(id -u)" -eq 0 && -n "$REAL_USER" && "$REAL_USER" != "root" ]]; then
-        # Use runuser; cd to user home first (runuser inherits CWD and /root is not readable by others)
-        # Redirect stdin from /dev/null to prevent brew from consuming the script when run via curl|bash
-        ( cd "$REAL_HOME" && runuser -u "$REAL_USER" -- env HOME="$REAL_HOME" "$BREW_PREFIX/bin/brew" "$@" < /dev/null )
-    else
-        # Redirect stdin from /dev/null to prevent brew from consuming the script when run via curl|bash
-        "$BREW_PREFIX/bin/brew" "$@" < /dev/null
-    fi
 }
 
 header() {
@@ -395,13 +426,13 @@ configure_git_interactive() {
 
         while [[ -z "$GIT_NAME" ]]; do
             echo -ne "Enter your Full Name: "
-            read GIT_NAME < /dev/tty
+            read -r GIT_NAME < /dev/tty
         done
 
 
         while [[ -z "$GIT_EMAIL" ]]; do
             echo -ne "Enter your Email: "
-            read GIT_EMAIL < /dev/tty
+            read -r GIT_EMAIL < /dev/tty
         done
 
         user_do git config --global user.name "$GIT_NAME"
@@ -457,7 +488,7 @@ git_ensure() {
         echo "Cloning: $repo..."
         user_do git clone "$repo" "$dest" --quiet
     fi
-    sys_do chown -R $REAL_USER:$(id -gn $REAL_USER) "$dest" 2>/dev/null || true
+    sys_do chown -R "$REAL_USER:$REAL_GROUP" "$dest" 2>/dev/null || true
 }
 
 safe_download() {
@@ -497,7 +528,17 @@ safe_download() {
         user_do mkdir -p "$dest_dir"
     fi
 
-    user_do mv "$tmp" "$dest"
+    if [[ "$(id -u)" -eq 0 && "$REAL_USER" != "root" ]]; then
+        if ! mv -- "$tmp" "$dest"; then
+            rm -f -- "$tmp"
+            return 1
+        fi
+        chown "$REAL_USER:$REAL_GROUP" "$dest"
+    elif ! user_do mv -- "$tmp" "$dest"; then
+        rm -f -- "$tmp"
+        return 1
+    fi
+
     echo -e "${GREEN}✔ Downloaded: $dest${NC}"
     return 0
 }
@@ -510,7 +551,7 @@ install_setupvibe_bin() {
         return 1
     fi
     user_do chmod +x "$REAL_HOME/.setupvibe/bin/sshcopykey"
-    sys_do chown -R "$REAL_USER:$(id -gn $REAL_USER)" "$REAL_HOME/.setupvibe"
+    sys_do chown -R "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.setupvibe"
 }
 
 
@@ -580,14 +621,6 @@ step_2() {
             sys_do mkdir -p /home/linuxbrew/.linuxbrew
             sys_do chown -R "$REAL_USER" /home/linuxbrew/.linuxbrew 2>/dev/null || true
 
-            # Temporarily allow REAL_USER to use sudo without password for Homebrew installation
-            # This is required because the installer checks for sudo even in non-interactive mode
-            if [[ "$REAL_USER" != "root" ]]; then
-                echo "Temporarily allowing $REAL_USER to use sudo without password for Homebrew installation..."
-                echo "$REAL_USER ALL=(ALL) NOPASSWD:ALL" | sys_do tee /etc/sudoers.d/setupvibe-brew > /dev/null
-                sys_do chmod 440 /etc/sudoers.d/setupvibe-brew
-            fi
-
             # Install Homebrew
             if [[ "$REAL_USER" == "root" ]]; then
                 echo -e "${RED}✘ Homebrew cannot be installed as root. Skipping.${NC}"
@@ -596,8 +629,6 @@ step_2() {
                 user_do env NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
             fi
 
-            # Cleanup temporary sudoers rule
-            sys_do rm -f /etc/sudoers.d/setupvibe-brew
         fi
 
         # Configure Homebrew PATH in shell profiles
@@ -644,9 +675,9 @@ step_2() {
 
 step_3() {
     if $IS_MACOS; then
-        echo "Installing PHP 8.4 via Homebrew..."
-        brew_cmd install php@8.4
-        brew_cmd link php@8.4 --force --overwrite
+        echo "Installing PHP $PHP_VERSION via Homebrew..."
+        brew_cmd install php
+        brew_cmd link php --force --overwrite
         
         # Install common extensions via PECL
         # NOTE: pecl prompts interactively (e.g. redis asks about igbinary/lzf/
@@ -676,10 +707,10 @@ step_3() {
             sys_do add-apt-repository ppa:ondrej/php -y
         elif $IS_DEBIAN; then
             echo "Using Debian Sury Strategy..."
-            # Sury repo supports Debian stable releases; fall back to bookworm for unsupported codenames
+            # Sury supports Debian 12 (bookworm) and Debian 13 (trixie).
             PHP_CODENAME="$DISTRO_CODENAME"
             case "$DISTRO_CODENAME" in
-                trixie|forky|sid|experimental) PHP_CODENAME="bookworm" ;;
+                forky|sid|experimental) PHP_CODENAME="trixie" ;;
             esac
             install_key "https://packages.sury.org/php/apt.gpg" "/etc/apt/keyrings/php.gpg"
             echo "deb [signed-by=/etc/apt/keyrings/php.gpg] https://packages.sury.org/php/ $PHP_CODENAME main" | sys_do tee /etc/apt/sources.list.d/php.list
@@ -688,14 +719,15 @@ step_3() {
         fi
         
         sys_do apt-get update -qq
-        echo "Installing PHP 8.4 & Core Extensions..."
-        sys_do apt-get install -y php8.4 php8.4-cli php8.4-common php8.4-dev \
-            php8.4-curl php8.4-mbstring php8.4-xml php8.4-bcmath \
-            php8.4-mysql php8.4-pgsql php8.4-sqlite3
+        echo "Installing PHP $PHP_VERSION & Core Extensions..."
+        sys_do apt-get install -y \
+            "php${PHP_VERSION}" "php${PHP_VERSION}-cli" "php${PHP_VERSION}-common" "php${PHP_VERSION}-dev" \
+            "php${PHP_VERSION}-curl" "php${PHP_VERSION}-mbstring" "php${PHP_VERSION}-xml" "php${PHP_VERSION}-bcmath" \
+            "php${PHP_VERSION}-mysql" "php${PHP_VERSION}-pgsql" "php${PHP_VERSION}-sqlite3"
 
-        echo "Installing PHP 8.4 Optional Extensions..."
-        for _ext in php8.4-zip php8.4-intl php8.4-gd php8.4-imagick \
-                    php8.4-redis php8.4-mongodb php8.4-yaml php8.4-xdebug; do
+        echo "Installing PHP $PHP_VERSION Optional Extensions..."
+        for _ext in "php${PHP_VERSION}-zip" "php${PHP_VERSION}-intl" "php${PHP_VERSION}-gd" "php${PHP_VERSION}-imagick" \
+                    "php${PHP_VERSION}-redis" "php${PHP_VERSION}-mongodb" "php${PHP_VERSION}-yaml" "php${PHP_VERSION}-xdebug"; do
             sys_do apt-get install -y "$_ext" 2>/dev/null \
                 || echo -e "${YELLOW}⚠ Optional extension $_ext not available on this distro, skipping.${NC}"
         done
@@ -729,12 +761,18 @@ step_4() {
         # On macOS, use Homebrew for rbenv
         brew_cmd install rbenv ruby-build
         
-        echo "Checking Ruby 3.3.0..."
-        if ! user_do rbenv versions --bare | grep -q "^3.3.0$"; then
-            echo "Compiling Ruby 3.3.0 (this may take a few minutes)..."
-            # Optimization: Skip documentation and use parallel compilation
-            user_do bash -c "export RUBY_CONFIGURE_OPTS='--disable-install-doc'; export MAKE_OPTS='-j\$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)'; rbenv install 3.3.0"
-            user_do rbenv global 3.3.0
+        echo "Checking Ruby $RUBY_VERSION..."
+        if ! user_do rbenv versions --bare | grep -Fxq "$RUBY_VERSION"; then
+            echo "Compiling Ruby $RUBY_VERSION (this may take a few minutes)..."
+            # Optimization: Skip documentation and use parallel compilation.
+            # Use single quotes for the outer `bash -c` and double quotes for the
+            # values so $(...) is evaluated by the inner shell. With the previous
+            # double-quoted outer + single-quoted, escaped \$(...), MAKE_OPTS was
+            # stored literally as "-j$(nproc ...)" and ruby-build ran a broken
+            # `make "-j$(nproc" ...`, failing the build (and cascading the Rails
+            # install onto system Ruby). Mirrors the Linux path below.
+            user_do env RUBY_VERSION="$RUBY_VERSION" bash -c 'export RUBY_CONFIGURE_OPTS="--disable-install-doc"; export MAKE_OPTS="-j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)"; rbenv install "$RUBY_VERSION"'
+            user_do rbenv global "$RUBY_VERSION"
         fi
         
         # Initialize rbenv for current session
@@ -746,17 +784,17 @@ step_4() {
         git_ensure "https://github.com/rbenv/rbenv.git" "$REAL_HOME/.rbenv"
         git_ensure "https://github.com/rbenv/ruby-build.git" "$REAL_HOME/.rbenv/plugins/ruby-build"
 
-        sys_do chown -R $REAL_USER:$(id -gn $REAL_USER) "$REAL_HOME/.rbenv"
+        sys_do chown -R "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.rbenv"
         user_do bash -c "cd '$REAL_HOME/.rbenv' && src/configure && make -C src" >/dev/null 2>&1
 
         # Write gemrc to suppress documentation generation for all future gem installs
         user_do bash -c 'echo "gem: --no-document" > "$HOME/.gemrc"'
 
-        echo "Checking Ruby 3.3.0..."
-        if ! user_do bash -c 'export PATH="$HOME/.rbenv/bin:$PATH"; eval "$(rbenv init -)"; rbenv versions --bare | grep -q "^3.3.0$"'; then
-            echo "Compiling Ruby 3.3.0 (this may take a few minutes)..."
+        echo "Checking Ruby $RUBY_VERSION..."
+        if ! user_do env RUBY_VERSION="$RUBY_VERSION" bash -c 'export PATH="$HOME/.rbenv/bin:$PATH"; eval "$(rbenv init -)"; rbenv versions --bare | grep -Fxq "$RUBY_VERSION"'; then
+            echo "Compiling Ruby $RUBY_VERSION (this may take a few minutes)..."
             # Use $HOME/.tmp as TMPDIR to avoid noexec on /tmp (common in cloud VMs)
-            user_do bash -c 'mkdir -p "$HOME/.tmp"; export TMPDIR="$HOME/.tmp"; export PATH="$HOME/.rbenv/bin:$PATH"; eval "$(rbenv init -)"; export RUBY_CONFIGURE_OPTS="--disable-install-doc"; export MAKE_OPTS="-j$(nproc 2>/dev/null || echo 2)"; rbenv install 3.3.0 && rbenv global 3.3.0'
+            user_do env RUBY_VERSION="$RUBY_VERSION" bash -c 'mkdir -p "$HOME/.tmp"; export TMPDIR="$HOME/.tmp"; export PATH="$HOME/.rbenv/bin:$PATH"; eval "$(rbenv init -)"; export RUBY_CONFIGURE_OPTS="--disable-install-doc"; export MAKE_OPTS="-j$(nproc 2>/dev/null || echo 2)"; rbenv install "$RUBY_VERSION" && rbenv global "$RUBY_VERSION"'
         fi
 
         echo "Installing Rails..."
@@ -768,7 +806,7 @@ step_4() {
 step_5() {
     if $IS_MACOS; then
         echo "Setup Python..."
-        brew_cmd install python@3.12
+        brew_cmd install "python@${PYTHON_VERSION}"
         
         echo "Setup uv (Python Package Manager)..."
         if ! command -v uv &> /dev/null; then
@@ -777,8 +815,7 @@ step_5() {
             user_do uv self update
         fi
         
-        GO_VER="1.22.2"
-        echo "Setup Go $GO_VER..."
+        echo "Setup Go $GO_VERSION..."
         brew_cmd install go
         
         echo "Setup Rust..."
@@ -806,14 +843,37 @@ step_5() {
         fi
         export PATH="$REAL_HOME/.local/bin:$PATH"
 
-        GO_VER="1.22.2"
-        echo "Setup Go $GO_VER ($ARCH_GO)..."
-        if [ ! -d "$REAL_HOME/.local/go" ]; then
-            echo "Installing Go to $REAL_HOME/.local/go..."
-            user_do mkdir -p "$REAL_HOME/.local"
-            wget -q "https://go.dev/dl/go${GO_VER}.linux-${ARCH_GO}.tar.gz" -O /tmp/go.tar.gz
-            user_do tar -C "$REAL_HOME/.local" -xzf /tmp/go.tar.gz && rm /tmp/go.tar.gz
+        echo "Setup Go $GO_VERSION ($ARCH_GO)..."
+        INSTALLED_GO_VERSION=""
+        if [ -x "$REAL_HOME/.local/go/bin/go" ]; then
+            INSTALLED_GO_VERSION=$("$REAL_HOME/.local/go/bin/go" version 2>/dev/null | awk '{print $3}')
         fi
+
+        if [[ "$INSTALLED_GO_VERSION" != "go${GO_VERSION}" ]]; then
+            echo "Installing Go $GO_VERSION to $REAL_HOME/.local/go..."
+            case "$ARCH_GO" in
+                amd64) GO_SHA256="5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053" ;;
+                arm64) GO_SHA256="fe4789e92b1f33358680864bbe8704289e7bb5fc207d80623c308935bd696d49" ;;
+                *)
+                    echo -e "${RED}✘ No Go checksum configured for architecture: $ARCH_GO${NC}"
+                    return 1
+                    ;;
+            esac
+
+            user_do mkdir -p "$REAL_HOME/.local"
+            safe_download "https://go.dev/dl/go${GO_VERSION}.linux-${ARCH_GO}.tar.gz" /tmp/go.tar.gz 10000000 || return 1
+
+            if [[ "$(sha256sum /tmp/go.tar.gz | awk '{print $1}')" != "$GO_SHA256" ]]; then
+                echo -e "${RED}✘ Go archive checksum verification failed.${NC}"
+                rm -f /tmp/go.tar.gz
+                return 1
+            fi
+
+            user_do rm -rf "$REAL_HOME/.local/go"
+            user_do tar -C "$REAL_HOME/.local" -xzf /tmp/go.tar.gz
+            rm -f /tmp/go.tar.gz
+        fi
+        unset INSTALLED_GO_VERSION GO_SHA256
         export PATH="$REAL_HOME/.local/go/bin:$PATH"
 
         echo "Setup Rust..."
@@ -844,7 +904,7 @@ step_6() {
         user_do npm install -g pnpm npm@latest
         
         echo "Installing PM2 & n8n..."
-        user_do npm install -g pm2 @n8n/cli
+        user_do npm install -g pm2 n8n
 
         echo "Setup Bun..."
         user_do curl -fsSL https://bun.sh/install | bash
@@ -866,7 +926,7 @@ step_6() {
         user_do npm install -g pnpm npm@latest
 
         echo "Installing PM2 & n8n..."
-        user_do npm install -g pm2 @n8n/cli
+        user_do npm install -g pm2 n8n
 
         echo "Setup Bun..."
         user_do bash -c "curl -fsSL https://bun.sh/install | bash"
@@ -903,7 +963,7 @@ step_7() {
         elif $IS_DEBIAN; then
             echo "Using Debian Docker Strategy..."
             case "$DISTRO_CODENAME" in
-                trixie|forky|sid|experimental) DOCKER_CODENAME="bookworm" ;;
+                forky|sid|experimental) DOCKER_CODENAME="trixie" ;;
             esac
         fi
 
@@ -941,7 +1001,7 @@ step_7() {
     echo "Configuring Portainer..."
     user_do mkdir -p "$REAL_HOME/.setupvibe/portainer_data"
     safe_download https://raw.githubusercontent.com/promovaweb/setupvibe/main/conf/portainer-compose.yml "$REAL_HOME/.setupvibe/portainer-compose.yml"
-    sys_do chown -R "$REAL_USER:$(id -gn $REAL_USER)" "$REAL_HOME/.setupvibe"
+    sys_do chown -R "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.setupvibe"
 
     # Try to start Portainer if docker is running
     if command -v docker &>/dev/null && sys_do docker info &>/dev/null; then
@@ -957,10 +1017,10 @@ step_7() {
 
 step_8() {
     echo "Installing Modern Unix Tools via Homebrew..."
-    TOOLS="bat eza zoxide fzf ripgrep fd lazygit lazydocker neovim glow tldr fastfetch duf jq mise"
+    local -a tools=(bat eza zoxide fzf ripgrep fd lazygit lazydocker neovim glow tldr fastfetch duf jq mise)
 
     if $IS_MACOS; then
-        brew_cmd install $TOOLS
+        brew_cmd install "${tools[@]}"
 
         # FZF keybindings setup
         if [ -d "$BREW_PREFIX/opt/fzf" ]; then
@@ -973,7 +1033,7 @@ step_8() {
             return 1
         fi
 
-        brew_cmd install $TOOLS || brew_cmd upgrade $TOOLS
+        brew_cmd install "${tools[@]}" || brew_cmd upgrade "${tools[@]}"
 
         # FZF install script path
         local FZF_OPT="/home/linuxbrew/.linuxbrew/opt/fzf"
@@ -1039,7 +1099,7 @@ step_10() {
         return 0
     fi
 
-    echo "Setting up SSH Server and enabling root remote login..."
+    echo "Setting up SSH Server with key-only root access..."
 
     # Install OpenSSH Server
     if ! command -v sshd &> /dev/null; then
@@ -1058,17 +1118,15 @@ step_10() {
         echo "Backed up original sshd_config"
     fi
 
-    # Configure sshd to allow root login
-    echo "Configuring SSH to allow root login..."
-    sys_do sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-    sys_do sed -i 's/^PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-    sys_do sed -i 's/^#PermitRootLogin no/PermitRootLogin yes/' /etc/ssh/sshd_config
-    sys_do sed -i 's/^PermitRootLogin no/PermitRootLogin yes/' /etc/ssh/sshd_config
-
-    # Allow password authentication
-    echo "Enabling password authentication for SSH..."
-    sys_do sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
-    sys_do sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    # Keep password authentication for regular users, but never allow root
+    # password login. A drop-in is idempotent and avoids rewriting vendor config.
+    echo "Configuring SSH authentication defaults..."
+    sys_do mkdir -p /etc/ssh/sshd_config.d
+    printf '%s\n' \
+        '# Managed by SetupVibe' \
+        'PermitRootLogin prohibit-password' \
+        'PasswordAuthentication yes' \
+        | sys_do tee /etc/ssh/sshd_config.d/99-setupvibe.conf > /dev/null
 
     # Validate configuration
     if sys_do sshd -t &> /dev/null; then
@@ -1125,14 +1183,14 @@ step_11() {
         git_ensure "https://github.com/zsh-users/zsh-autosuggestions" "$REAL_HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
         git_ensure "https://github.com/zsh-users/zsh-syntax-highlighting" "$REAL_HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"
 
-        echo "Installing Nerd Fonts (FiraCode & JetBrains Mono)..."
+        echo "Installing Nerd Fonts $NERD_FONTS_VERSION (FiraCode & JetBrains Mono)..."
         user_do mkdir -p "$REAL_HOME/.local/share/fonts"
-        wget -q --show-progress -O /tmp/FiraCode.zip https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.1/FiraCode.zip
+        safe_download "https://github.com/ryanoasis/nerd-fonts/releases/download/v${NERD_FONTS_VERSION}/FiraCode.zip" /tmp/FiraCode.zip 1000000 || return 1
         user_do unzip -o -q /tmp/FiraCode.zip -d "$REAL_HOME/.local/share/fonts"
-        wget -q --show-progress -O /tmp/JetBrainsMono.zip https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.1/JetBrainsMono.zip
+        safe_download "https://github.com/ryanoasis/nerd-fonts/releases/download/v${NERD_FONTS_VERSION}/JetBrainsMono.zip" /tmp/JetBrainsMono.zip 1000000 || return 1
         user_do unzip -o -q /tmp/JetBrainsMono.zip -d "$REAL_HOME/.local/share/fonts"
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/JetBrains/JetBrainsMono/master/install_manual.sh)"
-        sys_do chown -R $REAL_USER:$REAL_USER "$REAL_HOME/.local"
+        sys_do chown -R "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.local"
         user_do fc-cache -f >/dev/null
 
 
@@ -1149,7 +1207,7 @@ step_11() {
 
         # Linux ZSHRC
         safe_download https://raw.githubusercontent.com/promovaweb/setupvibe/main/conf/zshrc-linux.zsh "$REAL_HOME/.zshrc"
-        sys_do chown $REAL_USER:$REAL_USER "$REAL_HOME/.zshrc"
+        sys_do chown "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.zshrc"
 
         # Ensure ~/.local/bin is in .bashrc so tools like uv are accessible in bash sessions
         if ! grep -q '\.local/bin' "$REAL_HOME/.bashrc" 2>/dev/null; then
@@ -1157,7 +1215,7 @@ step_11() {
         fi
 
         if [ "$SHELL" != "/bin/zsh" ] && [ "$SHELL" != "/usr/bin/zsh" ]; then
-            sys_do chsh -s $(which zsh) $REAL_USER
+            sys_do chsh -s "$(command -v zsh)" "$REAL_USER"
         fi
     fi
 }
@@ -1178,8 +1236,8 @@ step_12() {
             ln -sfn "$REAL_HOME/.tmux/plugins/tpm" /root/.tmux/plugins/tpm 2>/dev/null || true
     fi
 
-    sys_do chown -R $REAL_USER:$(id -gn $REAL_USER) "$REAL_HOME/.tmux" 2>/dev/null || true
-    sys_do chown $REAL_USER:$(id -gn $REAL_USER) "$REAL_HOME/.tmux.conf" 2>/dev/null || true
+    sys_do chown -R "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.tmux" 2>/dev/null || true
+    sys_do chown "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.tmux.conf" 2>/dev/null || true
 
     echo "Restarting tmux to apply new config..."
     user_do pkill -x tmux 2>/dev/null || true
@@ -1191,7 +1249,7 @@ step_13() {
         "agentlytics"
         "@anthropic-ai/claude-code"
         "@openai/codex"
-        "@githubnext/github-copilot-cli"
+        "@github/copilot"
         "skills@latest"
     )
 
@@ -1218,11 +1276,8 @@ step_14() {
         brew_cmd cleanup --prune=all
         brew_cmd autoremove
 
-        echo "Cleaning macOS caches and temp files..."
-        sys_do rm -rf /private/tmp/* 2>/dev/null || true
-        sys_do rm -rf /private/var/folders/*/*/*/com.apple.* 2>/dev/null || true
-        rm -rf "$REAL_HOME/Library/Caches/"* 2>/dev/null || true
-        rm -rf "$REAL_HOME/.Trash/"* 2>/dev/null || true
+        echo "Cleaning SetupVibe temporary files..."
+        rm -f /tmp/FiraCode.zip /tmp/JetBrainsMono.zip /tmp/go.tar.gz /tmp/ctop /tmp/starship 2>/dev/null || true
     else
         echo "Cleaning APT cache and orphaned packages..."
         sys_do apt-get autoremove -y -qq
@@ -1245,10 +1300,10 @@ step_14() {
     echo "Configuring PM2 for auto-startup..."
     if command -v pm2 &>/dev/null; then
         if $IS_MACOS; then
-            user_do pm2 startup launchd -u $REAL_USER --hp $REAL_HOME
+            user_do pm2 startup launchd -u "$REAL_USER" --hp "$REAL_HOME"
             user_do pm2 save
         else
-            user_do pm2 startup systemd -u $REAL_USER --hp $REAL_HOME
+            user_do pm2 startup systemd -u "$REAL_USER" --hp "$REAL_HOME"
             user_do pm2 save
         fi
         echo -e "${GREEN}✔ PM2 configured for auto-startup${NC}"
@@ -1259,7 +1314,7 @@ step_14() {
 
         echo "Downloading PM2 ecosystem configuration..."
         safe_download https://raw.githubusercontent.com/promovaweb/setupvibe/main/conf/ecosystem.config.js "$REAL_HOME/ecosystem.config.js"
-        sys_do chown "$REAL_USER:$(id -gn $REAL_USER)" "$REAL_HOME/ecosystem.config.js"
+        sys_do chown "$REAL_USER:$REAL_GROUP" "$REAL_HOME/ecosystem.config.js"
         
         echo "Starting PM2 applications from ecosystem file..."
         user_do pm2 start "$REAL_HOME/ecosystem.config.js"

@@ -47,7 +47,7 @@ Add `--yes` for unattended installation or `--advertise-addr ADDRESS` to choose 
 | WinGet + Chocolatey                   | ✗              | ✔               | ✗       |
 | OpenSSH Client                        | ✔              | ✔               | ✔       |
 | WSL 2 base without a distribution     | ✗              | ✔               | ✗       |
-| PHP 8.4 + Composer + Laravel          | ✔              | ✗               | ✗       |
+| PHP 8.5 + Composer + Laravel          | ✔              | ✗               | ✗       |
 | Ruby + rbenv + Rails                  | ✔              | ✗               | ✗       |
 | Go, Rust, Python + uv                 | ✔              | ✗               | ✗       |
 | Node.js 24                            | ✔              | Node.js 24 LTS   | ✔ (APT) |
