@@ -543,7 +543,9 @@ git_ensure() {
         echo "Cloning: $repo..."
         user_do git clone "$repo" "$dest" --quiet
     fi
-    sys_do chown -R "$REAL_USER:$REAL_GROUP" "$dest" 2>/dev/null || true
+    if $IS_LINUX; then
+        sys_do chown -R "$REAL_USER:$REAL_GROUP" "$dest" 2>/dev/null || true
+    fi
 }
 
 safe_download() {
@@ -602,7 +604,12 @@ safe_download() {
     dest_dir=$(dirname "$dest")
     user_do mkdir -p "$dest_dir"
 
-    if ! sys_do install -o "$REAL_USER" -g "$REAL_GROUP" -m 0644 "$tmp" "$dest"; then
+    if $IS_MACOS; then
+        if ! user_do install -m 0644 "$tmp" "$dest"; then
+            rm -f -- "$tmp"
+            return 1
+        fi
+    elif ! sys_do install -o "$REAL_USER" -g "$REAL_GROUP" -m 0644 "$tmp" "$dest"; then
         rm -f -- "$tmp"
         return 1
     fi
@@ -620,7 +627,9 @@ install_setupvibe_bin() {
         return 1
     fi
     user_do chmod +x "$REAL_HOME/.setupvibe/bin/sshcopykey"
-    sys_do chown -R "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.setupvibe"
+    if $IS_LINUX; then
+        sys_do chown -R "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.setupvibe"
+    fi
 }
 
 
@@ -664,9 +673,8 @@ step_2() {
         # Verify installation
         if command -v brew &>/dev/null; then
             echo -e "${GREEN}✔ Homebrew is ready.${NC}"
-            echo "Updating Homebrew and upgrading existing packages..."
+            echo "Updating Homebrew metadata..."
             brew_cmd update
-            brew_cmd upgrade
             
             echo "Installing base tools via Homebrew..."
             brew_cmd install wget unzip curl tmux sshpass openssl readline sqlite3 xz zlib tcl-tk ffmpeg imagemagick
@@ -1017,14 +1025,14 @@ step_6() {
 
 step_7() {
     if $IS_MACOS; then
-        # Docker Desktop for macOS (user needs to download and install manually or use Homebrew Cask)
-        echo "Installing Docker Desktop..."
-        if ! command -v docker &>/dev/null; then
-            echo -e "${YELLOW}Note: Docker Desktop requires manual installation from docker.com${NC}"
-            echo "Attempting to install via Homebrew Cask..."
-            brew_cmd install --cask docker || echo -e "${YELLOW}Please download Docker Desktop from https://www.docker.com/products/docker-desktop/${NC}"
+        echo "Checking Docker Desktop..."
+        if brew_cmd list --cask docker-desktop &>/dev/null ||
+            [[ -d /Applications/Docker.app || -d "$REAL_HOME/Applications/Docker.app" ]]; then
+            echo "Docker Desktop is already installed."
         else
-            echo "Docker is already installed."
+            echo "Installing Docker Desktop via Homebrew Cask..."
+            brew_cmd install --cask docker-desktop ||
+                echo -e "${YELLOW}Please download Docker Desktop from https://www.docker.com/products/docker-desktop/${NC}"
         fi
         
         # Ansible
@@ -1082,10 +1090,16 @@ step_7() {
     echo "Configuring Portainer..."
     user_do mkdir -p "$REAL_HOME/.setupvibe/portainer_data"
     safe_download https://raw.githubusercontent.com/promovaweb/setupvibe/main/conf/portainer-compose.yml "$REAL_HOME/.setupvibe/portainer-compose.yml"
-    sys_do chown -R "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.setupvibe"
+    if $IS_LINUX; then
+        sys_do chown -R "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.setupvibe"
+    fi
 
     # Try to start Portainer if docker is running
-    if command -v docker &>/dev/null && sys_do docker info &>/dev/null; then
+    if $IS_MACOS && command -v docker &>/dev/null && user_do docker info &>/dev/null; then
+        echo "Starting Portainer..."
+        user_do docker compose -f "$REAL_HOME/.setupvibe/portainer-compose.yml" up -d
+        echo -e "${GREEN}✔ Portainer is running at https://localhost:9443${NC}"
+    elif $IS_LINUX && command -v docker &>/dev/null && sys_do docker info &>/dev/null; then
         echo "Starting Portainer..."
         sys_do docker compose -f "$REAL_HOME/.setupvibe/portainer-compose.yml" up -d
         echo -e "${GREEN}✔ Portainer is running at https://localhost:9443${NC}"
@@ -1147,8 +1161,13 @@ step_9() {
         echo "Installing ctop..."
         brew_cmd install ctop
 
-        echo "Installing Tailscale..."
-        brew_cmd install --cask tailscale
+        echo "Checking Tailscale..."
+        if brew_cmd list --cask tailscale-app &>/dev/null ||
+            [[ -d /Applications/Tailscale.app || -d "$REAL_HOME/Applications/Tailscale.app" ]]; then
+            echo "Tailscale is already installed."
+        else
+            brew_cmd install --cask tailscale-app
+        fi
     else
         echo "Installing Network Tools (APT)..."
         sys_do apt-get install -y rsync net-tools dnsutils mtr-tiny nmap tcpdump iftop nload iotop sysstat whois iputils-ping speedtest-cli glances htop btop
@@ -1330,8 +1349,10 @@ step_12() {
             ln -sfn "$REAL_HOME/.tmux/plugins/tpm" /root/.tmux/plugins/tpm 2>/dev/null || true
     fi
 
-    sys_do chown -R "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.tmux" 2>/dev/null || true
-    sys_do chown "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.tmux.conf" 2>/dev/null || true
+    if $IS_LINUX; then
+        sys_do chown -R "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.tmux" 2>/dev/null || true
+        sys_do chown "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.tmux.conf" 2>/dev/null || true
+    fi
 
     echo "Restarting tmux to apply new config..."
     user_do pkill -x tmux 2>/dev/null || true
@@ -1409,7 +1430,6 @@ step_14() {
     if $IS_MACOS; then
         echo "Cleaning up Homebrew..."
         brew_cmd cleanup --prune=all
-        brew_cmd autoremove
 
         echo "Cleaning SetupVibe temporary files..."
         rm -f /tmp/FiraCode.zip /tmp/JetBrainsMono.zip /tmp/go.tar.gz /tmp/ctop /tmp/starship 2>/dev/null || true
@@ -1435,7 +1455,57 @@ step_14() {
     echo "Configuring PM2 for auto-startup..."
     if pm2_bin=$(command -v pm2); then
         if $IS_MACOS; then
-            user_do "$pm2_bin" startup launchd -u "$REAL_USER" --hp "$REAL_HOME"
+            local launch_agent_dir="$REAL_HOME/Library/LaunchAgents"
+            local launch_agent_label="pm2.$REAL_USER"
+            local launch_agent_plist="$launch_agent_dir/$launch_agent_label.plist"
+            local real_uid
+            local escaped_home
+            local escaped_path
+            local escaped_pm2_bin
+
+            real_uid=$(id -u "$REAL_USER")
+            escaped_home=$(printf '%s' "$REAL_HOME" |
+                sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g')
+            escaped_path=$(printf '%s' "$PATH" |
+                sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g')
+            escaped_pm2_bin=$(printf '%s' "$pm2_bin" |
+                sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g')
+
+            user_do mkdir -p "$launch_agent_dir" "$REAL_HOME/.pm2"
+            user_do tee "$launch_agent_plist" >/dev/null <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>$launch_agent_label</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$escaped_pm2_bin</string>
+        <string>resurrect</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>$escaped_home</string>
+        <key>PATH</key>
+        <string>$escaped_path</string>
+        <key>PM2_HOME</key>
+        <string>$escaped_home/.pm2</string>
+    </dict>
+    <key>StandardErrorPath</key>
+    <string>$escaped_home/.pm2/launchd.err.log</string>
+    <key>StandardOutPath</key>
+    <string>$escaped_home/.pm2/launchd.out.log</string>
+</dict>
+</plist>
+EOF
+            plutil -lint "$launch_agent_plist"
+            user_do launchctl bootout "gui/$real_uid/$launch_agent_label" 2>/dev/null || true
+            user_do launchctl bootstrap "gui/$real_uid" "$launch_agent_plist"
+            user_do launchctl enable "gui/$real_uid/$launch_agent_label"
             user_do "$pm2_bin" save
         else
             sys_do env PATH="$PATH" "$pm2_bin" startup systemd -u "$REAL_USER" --hp "$REAL_HOME"
@@ -1463,7 +1533,9 @@ step_14() {
 
         echo "Downloading PM2 ecosystem configuration..."
         safe_download https://raw.githubusercontent.com/promovaweb/setupvibe/main/conf/ecosystem.config.js "$REAL_HOME/ecosystem.config.js"
-        sys_do chown "$REAL_USER:$REAL_GROUP" "$REAL_HOME/ecosystem.config.js"
+        if $IS_LINUX; then
+            sys_do chown "$REAL_USER:$REAL_GROUP" "$REAL_HOME/ecosystem.config.js"
+        fi
         
         echo "Starting PM2 applications from ecosystem file..."
         user_do "$pm2_bin" start "$REAL_HOME/ecosystem.config.js"
