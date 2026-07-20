@@ -51,6 +51,8 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ### Fixed
 
+- Fixed the PM2 ecosystem forcing Agentlytics' first-run UI build into production dependency mode, which omitted Vite and caused an endless restart loop.
+- Fixed macOS reruns upgrading unrelated Homebrew packages and existing Docker Desktop or Tailscale casks, using elevated Docker commands that lose the user's Docker Desktop context, requesting administrator privileges for user-owned downloads, and failing to install PM2's launchd startup agent without unnecessary root access.
 - Fixed Desktop Edition installs through `sudo` using the system npm prefix for the target user, which caused JavaScript and AI CLI steps to fail with `EACCES`.
 - Fixed Desktop Edition `ctop`, Starship, Skills CLI, and PM2 commands failing because root-owned temporary files or `sudo`'s restricted `PATH` hid user-installed executables.
 - Fixed current npm releases blocking Agentlytics' required `better-sqlite3` native install script, and replaced its unsupported `--version` probe with a native SQLite load test.
