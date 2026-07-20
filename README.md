@@ -32,6 +32,7 @@ Installs and configures a development environment in one command, supporting Win
 | Desktop Edition        | [docs/desktop/README.md](docs/desktop/README.md)           |
 | Windows Edition (Beta) | [docs/windows/README.md](docs/windows/README.md)           |
 | Server Edition         | [docs/server/README.md](docs/server/README.md)             |
+| Debian Engineering     | [DEBIAN.md](DEBIAN.md)                                     |
 | Tmux Guide             | [docs/desktop/en/tmux.md](docs/desktop/en/tmux.md)         |
 | PM2 Guide              | [docs/desktop/en/pm2.md](docs/desktop/en/pm2.md)           |
 

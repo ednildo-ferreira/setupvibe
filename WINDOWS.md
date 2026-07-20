@@ -139,6 +139,7 @@ filho de outra camada de elevação: pwsh não-elevado → `Start-Process -Verb
 RunAs` → Windows PowerShell 5.1 nativo elevado → `desktop.ps1`).
 
 Testamos isoladamente:
+
 - `& msiexec.exe /i node.msi /qn ...` a partir de dentro dessa cadeia de
   elevação → **falha sempre** com Error 1316 / exit 1603 (reproduzido 3x).
 - `Start-Process -FilePath msiexec.exe -Verb RunAs -Wait` (nova elevação
@@ -239,6 +240,7 @@ nunca usada por processos interativos) e dono não resolvível via WMI — ou
 seja, o processo host do serviço Windows Installer rodando como `SYSTEM`.
 
 Confirmado que:
+
 - `Stop-Process -Id <pid>` (mesmo com `-Force`, mesmo de um shell elevado
   como Administrador) **não consegue** encerrar esse processo, e
   frequentemente lança `System.NullReferenceException: Object reference not

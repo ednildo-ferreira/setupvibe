@@ -20,6 +20,7 @@ All notable changes to **SetupVibe** are documented in this file.
 - Added Server Edition `--yes` and `--advertise-addr` options for unattended setup and explicit Docker Swarm routing.
 - Added SHA-256 verification for Server Edition ctop binaries and one-time `.pre-setupvibe` backups for shell and tmux configuration files.
 - Added the Vercel Labs `skills` CLI to Desktop, Windows, and Server editions, with post-install validation on every platform and execution-policy-safe installation and managed removal on Windows.
+- Added `DEBIAN.md` as the required Linux engineering context, including privilege boundaries, safe downloads, systemd-in-container integration tests, nested Docker constraints, and regression findings.
 
 ### Changed
 
@@ -50,6 +51,15 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ### Fixed
 
+- Fixed Desktop Edition installs through `sudo` using the system npm prefix for the target user, which caused JavaScript and AI CLI steps to fail with `EACCES`.
+- Fixed Desktop Edition `ctop`, Starship, Skills CLI, and PM2 commands failing because root-owned temporary files or `sudo`'s restricted `PATH` hid user-installed executables.
+- Fixed current npm releases blocking Agentlytics' required `better-sqlite3` native install script, and replaced its unsupported `--version` probe with a native SQLite load test.
+- Fixed current npm releases blocking n8n's remote SheetJS dependency and required native install scripts, as well as post-install scripts used by the managed AI CLIs.
+- Fixed Linux PM2 auto-start configuration running without the privileges required to create its systemd unit, and ensured Tailscale is enabled and active after installation.
+- Fixed Desktop Edition reruns failing to overwrite the managed Starship preset and repeatedly duplicating managed directories in the installation process `PATH`.
+- Fixed transient Desktop Edition downloads failing without retries, and normalized inherited duplicate `PATH` entries in the effective PM2 systemd service environment.
+- Replaced Homebrew's disabled `tldr` formula with the maintained `tlrc` implementation while preserving the `tldr` command.
+- Fixed `desktop.sh` spinning indefinitely while prompting for Git identity when no interactive terminal is available.
 - Fixed the Node.js MSI silently completing without `node.exe`, `npm.cmd`, or `npx.cmd` by installing and repairing it through a dedicated `msiexec.exe` process instead of running it as a direct child of the already-elevated session, avoiding a Windows Installer SecureRepair validation failure specific to nested elevation.
 - Fixed `7-Zip` and `btop4win` post-install validation crashing on an empty `Test-Path` argument by making the shared property-lookup helper read values from Hashtable-based command definitions instead of always returning `$null`, and added `btop4win`'s stable WinGet package path as a fallback.
 - Fixed OpenSSH Client validation treating `ssh -V`'s normal stderr version output as a terminating error under strict mode by capturing it with error action temporarily relaxed.

@@ -33,6 +33,9 @@ RUBY_VERSION="3.4.10"
 PYTHON_VERSION="3.14"
 GO_VERSION="1.26.5"
 NERD_FONTS_VERSION="3.4.0"
+CTOP_VERSION="0.7.7"
+CTOP_SHA256_AMD64="b78374734ebe3d14b6edee3d5512c911c250d7fa7f3f964cb00acd3bc5a02a09"
+CTOP_SHA256_ARM64="d8d91e0fea53a8c78fa81192f078272e5a92f0ea6c4f0e38ec7c944d76e6f02f"
 
 echo -e "${CYAN}SetupVibe Desktop v${VERSION}${NC}"
 echo ""
@@ -41,6 +44,11 @@ echo ""
 export COMPOSER_ALLOW_SUPERUSER=1
 
 # --- HELPERS ---
+
+die() {
+    echo -e "${RED}Error: $*${NC}" >&2
+    exit 1
+}
 
 # Run as real user (handles both running as root and running as user)
 user_do() {
@@ -62,6 +70,31 @@ sys_do() {
     else
         "$@"
     fi
+}
+
+path_prepend_once() {
+    local directory=$1
+
+    case ":$PATH:" in
+        *":$directory:"*) ;;
+        *) PATH="$directory:$PATH" ;;
+    esac
+}
+
+path_deduplicate() {
+    local entry
+    local normalized=""
+    local -a entries
+
+    IFS=: read -r -a entries <<< "$PATH"
+    for entry in "${entries[@]}"; do
+        [[ -z "$entry" ]] && continue
+        case ":$normalized:" in
+            *":$entry:"*) ;;
+            *) normalized="${normalized:+$normalized:}$entry" ;;
+        esac
+    done
+    PATH="$normalized"
 }
 
 # Run Homebrew as the real user and isolate stdin from curl-piped installs.
@@ -116,6 +149,10 @@ ${CRON_DISK}"
         echo "Crontab already has example tasks."
     fi
 }
+
+if ! tty >/dev/null 2>&1 </dev/tty; then
+    die "An interactive terminal is required to run desktop.sh."
+fi
 
 # --- CLEANUP APT KEYRINGS & SOURCES ---
 if [[ "$(uname -s)" == "Linux" ]]; then
@@ -301,8 +338,10 @@ else
     ARCH_RAW=$(dpkg --print-architecture)
     if [[ "$ARCH_RAW" == "amd64" ]]; then
         ARCH_GO="amd64"
+        CTOP_SHA256="$CTOP_SHA256_AMD64"
     elif [[ "$ARCH_RAW" == "arm64" ]]; then
         ARCH_GO="arm64"
+        CTOP_SHA256="$CTOP_SHA256_ARM64"
     else
         echo -e "${RED}Error: Architecture $ARCH_RAW is not supported.${NC}"
         exit 1
@@ -398,8 +437,10 @@ show_roadmap_and_wait() {
     echo -e "${RED}  ➜ Type 'q' + ENTER to cancel.${NC}"
     echo -e "--------------------------------------------------------"
 
-
-    read -r key < /dev/tty
+    if ! tty >/dev/null 2>&1 </dev/tty; then
+        die "An interactive terminal is required to run desktop.sh."
+    fi
+    read -r key </dev/tty || die "Interactive terminal input became unavailable."
     if [[ "$key" == "q" || "$key" == "Q" ]]; then
         echo -e "\n${RED}[CANCELLED] See you next time!${NC}"
         exit 0
@@ -426,13 +467,15 @@ configure_git_interactive() {
 
         while [[ -z "$GIT_NAME" ]]; do
             echo -ne "Enter your Full Name: "
-            read -r GIT_NAME < /dev/tty
+            read -r GIT_NAME </dev/tty ||
+                die "Interactive terminal input became unavailable while configuring Git."
         done
 
 
         while [[ -z "$GIT_EMAIL" ]]; do
             echo -ne "Enter your Email: "
-            read -r GIT_EMAIL < /dev/tty
+            read -r GIT_EMAIL </dev/tty ||
+                die "Interactive terminal input became unavailable while configuring Git."
         done
 
         user_do git config --global user.name "$GIT_NAME"
@@ -449,14 +492,26 @@ run_section() {
     local index=$1
     local title="${STEPS[$index]}"
     local status
+    local managed_dir
 
     echo ""
     echo -e "${BLUE}========================================================${NC}"
     echo -e "${BOLD}▶ [$(($index+1))/${#STEPS[@]}] $title ${NC}"
     echo -e "${BLUE}========================================================${NC}"
 
-    # Keep all installer-managed user paths available across isolated steps.
-    export PATH="$BREW_PREFIX/bin:$BREW_PREFIX/sbin:$REAL_HOME/.local/bin:$REAL_HOME/.local/go/bin:$REAL_HOME/.cargo/bin:$REAL_HOME/.npm-global/bin:$REAL_HOME/.bun/bin:$PATH"
+    # Keep installer-managed paths available without duplicating them at each step.
+    for managed_dir in \
+        "$REAL_HOME/.bun/bin" \
+        "$REAL_HOME/.npm-global/bin" \
+        "$REAL_HOME/.cargo/bin" \
+        "$REAL_HOME/.local/go/bin" \
+        "$REAL_HOME/.local/bin" \
+        "$BREW_PREFIX/sbin" \
+        "$BREW_PREFIX/bin"; do
+        path_prepend_once "$managed_dir"
+    done
+    path_deduplicate
+    export PATH
 
     # A function called directly from an `if` condition inherits Bash's
     # errexit suppression. Run it in an isolated strict shell so an
@@ -495,11 +550,26 @@ safe_download() {
     local url=$1
     local dest=$2
     local min_bytes=${3:-100}
+    local expected_sha256=${4:-}
     local tmp
+    local dest_dir
+
     tmp=$(mktemp)
 
     echo "Downloading: $url"
-    if ! curl -fsSL --max-time 30 "$url" -o "$tmp" 2>/dev/null; then
+    if ! curl \
+        --proto '=https' \
+        --tlsv1.2 \
+        --fail \
+        --silent \
+        --show-error \
+        --location \
+        --retry 3 \
+        --retry-all-errors \
+        --connect-timeout 10 \
+        --max-time 120 \
+        --output "$tmp" \
+        "$url"; then
         echo -e "${RED}✘ Download failed: $url${NC}"
         rm -f "$tmp"
         return 1
@@ -521,23 +591,22 @@ safe_download() {
         return 1
     fi
 
-    # Ensure parent directory exists and is writable
-    local dest_dir
-    dest_dir=$(dirname "$dest")
-    if [ ! -d "$dest_dir" ]; then
-        user_do mkdir -p "$dest_dir"
-    fi
-
-    if [[ "$(id -u)" -eq 0 && "$REAL_USER" != "root" ]]; then
-        if ! mv -- "$tmp" "$dest"; then
-            rm -f -- "$tmp"
-            return 1
-        fi
-        chown "$REAL_USER:$REAL_GROUP" "$dest"
-    elif ! user_do mv -- "$tmp" "$dest"; then
+    if [[ -n "$expected_sha256" ]] &&
+        ! printf '%s  %s\n' "$expected_sha256" "$tmp" | sha256sum --check --status; then
+        echo -e "${RED}✘ Checksum verification failed: $url${NC}"
         rm -f -- "$tmp"
         return 1
     fi
+
+    # Ensure parent directory exists and is writable
+    dest_dir=$(dirname "$dest")
+    user_do mkdir -p "$dest_dir"
+
+    if ! sys_do install -o "$REAL_USER" -g "$REAL_GROUP" -m 0644 "$tmp" "$dest"; then
+        rm -f -- "$tmp"
+        return 1
+    fi
+    rm -f -- "$tmp"
 
     echo -e "${GREEN}✔ Downloaded: $dest${NC}"
     return 0
@@ -895,16 +964,13 @@ step_5() {
 
 
 step_6() {
+    local npm_bin
+    local npm_path
+
     if $IS_MACOS; then
         echo "Setup Node.js via Homebrew..."
         brew_cmd install node@24
         brew_cmd link node@24 --force --overwrite
-        
-        echo "Installing pnpm..."
-        user_do npm install -g pnpm npm@latest
-        
-        echo "Installing PM2 & n8n..."
-        user_do npm install -g pm2 n8n
 
         echo "Setup Bun..."
         user_do curl -fsSL https://bun.sh/install | bash
@@ -914,23 +980,38 @@ step_6() {
         echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" | sys_do tee /etc/apt/sources.list.d/nodesource.list
         sys_do apt-get update -qq
         sys_do apt-get install -y nodejs
-        
-        # Configure npm to use a user-writable directory for global packages if not root
-        if [[ "$(id -u)" -ne 0 ]]; then
+
+        # Configure npm globals for the target user, even when the installer runs through sudo.
+        if [[ "$REAL_USER" != "root" ]]; then
             echo "Configuring npm to use user-writable directory for global packages..."
             user_do mkdir -p "$REAL_HOME/.npm-global"
-            user_do npm config set prefix "$REAL_HOME/.npm-global"
-            export PATH="$REAL_HOME/.npm-global/bin:$PATH"
+            user_do "$(command -v npm)" config set prefix "$REAL_HOME/.npm-global"
         fi
-
-        user_do npm install -g pnpm npm@latest
-
-        echo "Installing PM2 & n8n..."
-        user_do npm install -g pm2 n8n
 
         echo "Setup Bun..."
         user_do bash -c "curl -fsSL https://bun.sh/install | bash"
     fi
+
+    npm_bin=$(command -v npm)
+    npm_path=$(user_do "$npm_bin" config get prefix)
+    npm_path="$npm_path/bin:$PATH"
+
+    echo "Installing pnpm..."
+    user_do env PATH="$npm_path" "$npm_bin" install -g pnpm npm@latest
+
+    echo "Installing PM2..."
+    user_do env PATH="$npm_path" "$npm_bin" install -g pm2
+
+    echo "Installing n8n..."
+    user_do env PATH="$npm_path" "$npm_bin" install -g \
+        --allow-remote=all \
+        --allow-scripts='@parcel/watcher,isolated-vm,sqlite3,agent-browser,oracledb,protobufjs,msgpackr-extract,ssh2,@sentry/node-native-stacktrace,@sentry/node-cpu-profiler' \
+        n8n
+
+    user_do env PATH="$npm_path" pnpm --version
+    user_do env PATH="$npm_path" pm2 --version
+    user_do env PATH="$npm_path" n8n --version
+    user_do "$REAL_HOME/.bun/bin/bun" --version
 }
 
 
@@ -1017,7 +1098,12 @@ step_7() {
 
 step_8() {
     echo "Installing Modern Unix Tools via Homebrew..."
-    local -a tools=(bat eza zoxide fzf ripgrep fd lazygit lazydocker neovim glow tldr fastfetch duf jq mise)
+    local -a tools=(bat eza zoxide fzf ripgrep fd lazygit lazydocker neovim glow tlrc fastfetch duf jq mise)
+
+    if brew_cmd list --formula tldr &>/dev/null; then
+        echo "Migrating the disabled tldr formula to tlrc..."
+        brew_cmd uninstall tldr
+    fi
 
     if $IS_MACOS; then
         brew_cmd install "${tools[@]}"
@@ -1078,10 +1164,14 @@ step_9() {
         echo "Installing ctop for $ARCH_GO..."
         if ! command -v ctop &>/dev/null && [ ! -f "$REAL_HOME/.local/bin/ctop" ]; then
             user_do mkdir -p "$REAL_HOME/.local/bin"
-            wget -q "https://github.com/bcicen/ctop/releases/download/v0.7.7/ctop-0.7.7-linux-${ARCH_GO}" -O /tmp/ctop
-            user_do mv /tmp/ctop "$REAL_HOME/.local/bin/ctop"
+            safe_download \
+                "https://github.com/bcicen/ctop/releases/download/v${CTOP_VERSION}/ctop-${CTOP_VERSION}-linux-${ARCH_GO}" \
+                "$REAL_HOME/.local/bin/ctop" \
+                1000000 \
+                "$CTOP_SHA256"
             user_do chmod +x "$REAL_HOME/.local/bin/ctop"
         fi
+        user_do "$REAL_HOME/.local/bin/ctop" -v >/dev/null
 
         echo "Installing Tailscale..."
         if ! command -v tailscale &>/dev/null; then
@@ -1089,6 +1179,9 @@ step_9() {
         else
             echo "Tailscale already installed."
         fi
+        sys_do systemctl enable --now tailscaled
+        sys_do systemctl is-active --quiet tailscaled
+        tailscale version >/dev/null
     fi
 }
 
@@ -1168,7 +1261,8 @@ step_11() {
         user_do mkdir -p "$REAL_HOME/.config"
 
         echo "Applying Starship Preset: Gruvbox Rainbow..."
-        user_do starship preset gruvbox-rainbow -o "$REAL_HOME/.config/starship.toml"
+        user_do "$BREW_PREFIX/bin/starship" preset gruvbox-rainbow \
+            --force -o "$REAL_HOME/.config/starship.toml"
         perl -i -pe 's/╭/┌/g; s/╰/└/g; s/\x{e0b6}/\x{e0b2}/g; s/\x{e0b4}/\x{e0b0}/g' "$REAL_HOME/.config/starship.toml"
 
         # macOS ZSHRC
@@ -1189,7 +1283,6 @@ step_11() {
         user_do unzip -o -q /tmp/FiraCode.zip -d "$REAL_HOME/.local/share/fonts"
         safe_download "https://github.com/ryanoasis/nerd-fonts/releases/download/v${NERD_FONTS_VERSION}/JetBrainsMono.zip" /tmp/JetBrainsMono.zip 1000000 || return 1
         user_do unzip -o -q /tmp/JetBrainsMono.zip -d "$REAL_HOME/.local/share/fonts"
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/JetBrains/JetBrainsMono/master/install_manual.sh)"
         sys_do chown -R "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.local"
         user_do fc-cache -f >/dev/null
 
@@ -1202,7 +1295,8 @@ step_11() {
         user_do mkdir -p "$REAL_HOME/.config"
 
         echo "Applying Starship Preset: Gruvbox Rainbow..."
-        user_do starship preset gruvbox-rainbow -o "$REAL_HOME/.config/starship.toml"
+        user_do "$REAL_HOME/.local/bin/starship" preset gruvbox-rainbow \
+            --force -o "$REAL_HOME/.config/starship.toml"
         perl -i -pe 's/╭/┌/g; s/╰/└/g; s/\x{e0b6}/\x{e0b2}/g; s/\x{e0b4}/\x{e0b0}/g' "$REAL_HOME/.config/starship.toml"
 
         # Linux ZSHRC
@@ -1245,21 +1339,57 @@ step_12() {
 
 
 step_13() {
-    AI_TOOLS=(
+    local npm_bin
+    local npm_path
+    local npm_root
+    local package
+    local command_name
+    local allowed_scripts
+    local index
+    local -a ai_packages=(
         "agentlytics"
         "@anthropic-ai/claude-code"
         "@openai/codex"
         "@github/copilot"
         "skills@latest"
     )
+    local -a ai_commands=(
+        agentlytics
+        claude
+        codex
+        copilot
+        skills
+    )
+    local -a ai_allowed_scripts=(
+        better-sqlite3
+        @anthropic-ai/claude-code
+        @openai/codex
+        @github/copilot
+        skills
+    )
 
-    for pkg in "${AI_TOOLS[@]}"; do
-        echo "Installing $pkg..."
-        user_do npm install -g "$pkg" 2>/dev/null || echo -e "${YELLOW}⚠ Failed to install $pkg${NC}"
+    npm_bin=$(command -v npm)
+    npm_path=$(user_do "$npm_bin" config get prefix)
+    npm_path="$npm_path/bin:$PATH"
+    npm_root=$(user_do env PATH="$npm_path" "$npm_bin" root --global)
+
+    for index in "${!ai_packages[@]}"; do
+        package=${ai_packages[$index]}
+        command_name=${ai_commands[$index]}
+        allowed_scripts=${ai_allowed_scripts[$index]}
+        echo "Installing $package..."
+        user_do env PATH="$npm_path" "$npm_bin" install -g \
+            --allow-scripts="$allowed_scripts" "$package"
+        if [[ "$package" == "agentlytics" ]]; then
+            user_do env \
+                AGENTLYTICS_ROOT="$npm_root/agentlytics" \
+                PATH="$npm_path" \
+                node -e \
+                'const Database = require(process.env.AGENTLYTICS_ROOT + "/node_modules/better-sqlite3"); const db = new Database(":memory:"); db.close();'
+        else
+            user_do env PATH="$npm_path" "$command_name" --version >/dev/null
+        fi
     done
-
-    echo "Validating Skills CLI..."
-    user_do skills --version
 
     echo "Installing Spec-Kit (specify-cli)..."
     if ! user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; command -v specify" &>/dev/null; then
@@ -1271,6 +1401,11 @@ step_13() {
 
 
 step_14() {
+    local pm2_bin
+    local pm2_override
+    local pm2_override_dir
+    local systemd_path
+
     if $IS_MACOS; then
         echo "Cleaning up Homebrew..."
         brew_cmd cleanup --prune=all
@@ -1298,27 +1433,41 @@ step_14() {
     fi
 
     echo "Configuring PM2 for auto-startup..."
-    if command -v pm2 &>/dev/null; then
+    if pm2_bin=$(command -v pm2); then
         if $IS_MACOS; then
-            user_do pm2 startup launchd -u "$REAL_USER" --hp "$REAL_HOME"
-            user_do pm2 save
+            user_do "$pm2_bin" startup launchd -u "$REAL_USER" --hp "$REAL_HOME"
+            user_do "$pm2_bin" save
         else
-            user_do pm2 startup systemd -u "$REAL_USER" --hp "$REAL_HOME"
-            user_do pm2 save
+            sys_do env PATH="$PATH" "$pm2_bin" startup systemd -u "$REAL_USER" --hp "$REAL_HOME"
+
+            # PM2 appends its own default system paths to the generated unit,
+            # which can reintroduce duplicates. Override the effective service
+            # environment with the normalized installer PATH.
+            pm2_override_dir="/etc/systemd/system/pm2-${REAL_USER}.service.d"
+            pm2_override=$(mktemp)
+            systemd_path=${PATH//\\/\\\\}
+            systemd_path=${systemd_path//\"/\\\"}
+            printf '[Service]\nEnvironment="PATH=%s"\n' "$systemd_path" > "$pm2_override"
+            sys_do install -D -m 0644 "$pm2_override" \
+                "$pm2_override_dir/10-setupvibe-path.conf"
+            rm -f -- "$pm2_override"
+            sys_do systemctl daemon-reload
+
+            user_do "$pm2_bin" save
         fi
         echo -e "${GREEN}✔ PM2 configured for auto-startup${NC}"
 
         echo "Configuring PM2 defaults..."
-        user_do pm2 set pm2:autodump true
-        user_do pm2 set pm2:log_date_format "YYYY-MM-DD HH:mm:ss"
+        user_do "$pm2_bin" set pm2:autodump true
+        user_do "$pm2_bin" set pm2:log_date_format "YYYY-MM-DD HH:mm:ss"
 
         echo "Downloading PM2 ecosystem configuration..."
         safe_download https://raw.githubusercontent.com/promovaweb/setupvibe/main/conf/ecosystem.config.js "$REAL_HOME/ecosystem.config.js"
         sys_do chown "$REAL_USER:$REAL_GROUP" "$REAL_HOME/ecosystem.config.js"
         
         echo "Starting PM2 applications from ecosystem file..."
-        user_do pm2 start "$REAL_HOME/ecosystem.config.js"
-        user_do pm2 save
+        user_do "$pm2_bin" start "$REAL_HOME/ecosystem.config.js"
+        user_do "$pm2_bin" save
         
         echo -e "${GREEN}✔ PM2 defaults configured — applications started from ~/ecosystem.config.js${NC}"
     else

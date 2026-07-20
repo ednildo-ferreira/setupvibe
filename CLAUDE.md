@@ -38,6 +38,14 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1 -Uninstall
 
 To test changes to a script, run it directly on a target machine or VM.
 
+### Required Debian Context
+
+Before changing, investigating, or testing `desktop.sh`, `server.sh`, Linux
+configuration files, or Linux documentation, read [`DEBIAN.md`](DEBIAN.md)
+completely. It is the required supplemental context for Linux implementation,
+privilege handling, container integration tests, and known Debian constraints.
+Update it whenever a real Linux test reveals a new requirement or limitation.
+
 ## Architecture
 
 ### Script Structure

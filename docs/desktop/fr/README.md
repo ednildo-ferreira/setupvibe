@@ -85,6 +85,10 @@ Le script affiche une feuille de route interactive et demande confirmation avant
 | n8n        | `npm install -g n8n`       | identique               |
 | Bun        | via script d'installation  | identique               |
 
+Sous Linux, les paquets npm globaux utilisent le préfixe accessible en écriture
+`~/.npm-global` de l'utilisateur cible, même lorsque l'installateur est lancé
+via `sudo`. PNPM, PM2, n8n et Bun sont validés après l'installation.
+
 ### Étape 7 — DevOps
 
 | Outil             | macOS                            | Linux                                                                        |
@@ -110,7 +114,7 @@ Installés via Homebrew sur les deux plateformes.
 | `neovim`     | Vim moderne                             |
 | `glow`       | Rendu Markdown                          |
 | `jq`         | Processeur JSON                         |
-| `tldr`       | Pages de manuel simplifiées             |
+| `tldr`       | Pages simplifiées fournies par `tlrc`   |
 | `fastfetch`  | Outil d'infos système                   |
 | `duf`        | `df` moderne                            |
 | `mise`       | Gestionnaire de versions de runtime     |
@@ -119,7 +123,7 @@ Installés via Homebrew sur les deux plateformes.
 
 **macOS :** `wget`, `nmap`, `mtr`, `htop`, `btop`, `glances`, `speedtest-cli` via Homebrew ; `bandwhich`, `gping`, `trippy`, `rustscan` via Cargo ; `ctop` via Homebrew ; Tailscale via Cask.
 
-**Linux :** mêmes outils via APT + Cargo + binaire ctop vers `~/.local/bin` ; Tailscale via le script d'installation officiel.
+**Linux :** mêmes outils via APT + Cargo + binaire ctop vérifié par SHA-256 vers `~/.local/bin` ; Tailscale via le script d'installation officiel.
 
 ### Étape 10 — Serveur SSH *(Linux uniquement)*
 
@@ -160,7 +164,7 @@ Installés globalement via `npm install -g` :
 | GitHub Copilot CLI | `@github/copilot`                |
 | Skills CLI         | `skills`                         |
 
-Le [CLI Skills de Vercel Labs](https://github.com/vercel-labs/skills) est validé avec `skills --version`. **Spec-Kit** est installé via `uv tool install specify-cli`. Consultez [SPECKIT.md](SPECKIT.md) pour le guide complet du Spec-Driven Development et les alias.
+Chaque CLI répertorié est validé après l'installation. **Spec-Kit** est installé via `uv tool install specify-cli`. Consultez [SPECKIT.md](SPECKIT.md) pour le guide complet du Spec-Driven Development et les alias.
 
 ### Étape 14 — Finalisation et Nettoyage
 
@@ -168,7 +172,7 @@ Le [CLI Skills de Vercel Labs](https://github.com/vercel-labs/skills) est valid�
 
 **Linux :** `apt autoremove`, `apt clean`, supprime les archives temporaires et nettoie les logs journal ; vide `~/.cache/pip`, `~/.cache/composer`, `~/.npm/_npx`, `~/.bundle/cache`.
 
-**Les deux :** configure le démarrage automatique de PM2 (launchd sur macOS, systemd sur Linux), exécute `pm2 save`, définit `pm2:autodump true`, télécharge `ecosystem.config.js` vers `~/ecosystem.config.js`.
+**Les deux :** configure le démarrage automatique de PM2 (launchd sur macOS, systemd sur Linux), exécute `pm2 save`, définit `pm2:autodump true` et télécharge `ecosystem.config.js` avec des tentatives HTTPS limitées vers `~/ecosystem.config.js`.
 
 Voir [pm2.md](pm2.md) pour la référence complète de PM2.
 
