@@ -45,7 +45,10 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ### Fixed
 
-- Fixed missing Python, npm, npx, and Claude Code commands by relaunching the complete installer in native x64 PowerShell, using the native x64 Program Files directory, validating and repairing Python and every Node.js MSI feature, allowing Claude's native installer to run without npm, and falling back to Anthropic's official npm package when necessary.
+- Fixed the Node.js MSI silently completing without `node.exe`, `npm.cmd`, or `npx.cmd` by installing and repairing it through a dedicated `msiexec.exe` process instead of running it as a direct child of the already-elevated session, avoiding a Windows Installer SecureRepair validation failure specific to nested elevation.
+- Fixed `7-Zip` and `btop4win` post-install validation crashing on an empty `Test-Path` argument by making the shared property-lookup helper read values from Hashtable-based command definitions instead of always returning `$null`, and added `btop4win`'s stable WinGet package path as a fallback.
+- Fixed OpenSSH Client validation treating `ssh -V`'s normal stderr version output as a terminating error under strict mode by capturing it with error action temporarily relaxed.
+- Fixed a false "competing installer" failure immediately after `sfc.exe /scannow` by giving TrustedInstaller's own worker process a short grace period to exit before re-checking for active installer processes.
 - Fixed OpenSSH MSI installations that completed without a discoverable `ssh.exe` by using the MSI's documented default Client and Server selection, forcing all features only as a recovery pass, and resolving the installation directory from the native x64 Program Files directory, MSI `InstallLocation`, and the `sshd` service.
 - Fixed strict-mode failures while scanning Windows uninstall Registry entries that do not define `DisplayName`, including OpenSSH repair detection and the OpenSSH, Node.js, and Python removal paths.
 - Replaced the unreliable OpenSSH Feature on Demand operation with the latest official Microsoft Win32-OpenSSH MSI, installing and validating the Client and Server features, prioritizing the binaries in the machine `PATH`, validating `ssh.exe -V`, starting `sshd` automatically, and enabling inbound TCP/22.

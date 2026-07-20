@@ -99,7 +99,7 @@ $script:WinGetCommandChecks = @(
     @{ Name = 'Speedtest CLI'; Command = 'speedtest.exe'; Arguments = @('--version') }
     @{ Name = 'Tailscale'; Command = 'tailscale.exe'; Arguments = @('version') }
     @{ Name = 'gping'; Command = 'gping.exe'; Arguments = @('--version') }
-    @{ Name = 'btop4win'; Command = 'btop4win.exe'; Arguments = @('--version') }
+    @{ Name = 'btop4win'; Command = 'btop4win.exe'; Arguments = @('--version'); PreferredPaths = @((Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages\aristocratos.btop4win_Microsoft.Winget.Source_8wekyb3d8bbwe\btop4win\btop4win.exe')) }
     @{ Name = 'PowerShell 7'; Command = 'pwsh.exe'; Arguments = @('--version') }
 )
 
@@ -240,11 +240,41 @@ function Invoke-NativeCommand {
     }
 }
 
+function Invoke-MsiExec {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$ArgumentList,
+        [Parameter()][int[]]$SuccessExitCode = @(0)
+    )
+
+    # msiexec must run as its own elevated process (Start-Process), not as a direct
+    # child of this already-elevated session: invoking it via '&' can make Windows
+    # Installer's SecureRepair validation misidentify the installing user and fail
+    # with a spurious "Error 1316: the specified account already exists" (MSI exit
+    # code 1603) on installers that register per-machine components, such as Node.js.
+    $msiExecPath = Join-Path $env:SystemRoot 'System32\msiexec.exe'
+    $process = Start-Process -FilePath $msiExecPath -ArgumentList $ArgumentList -Wait -PassThru
+    $exitCode = $process.ExitCode
+    if ($SuccessExitCode -notcontains $exitCode) {
+        throw "Command 'msiexec.exe $($ArgumentList -join ' ')' failed with exit code $exitCode."
+    }
+    if ($exitCode -in @(1641, 3010)) {
+        $script:RestartRequired = $true
+    }
+    return $exitCode
+}
+
 function Get-ObjectPropertyValue {
     param(
         [Parameter(Mandatory = $true)][object]$InputObject,
         [Parameter(Mandatory = $true)][string]$Name
     )
+
+    if ($InputObject -is [System.Collections.IDictionary]) {
+        if ($InputObject.Contains($Name)) {
+            return $InputObject[$Name]
+        }
+        return $null
+    }
 
     $property = $InputObject.PSObject.Properties[$Name]
     if ($property) {
@@ -358,7 +388,17 @@ function Resolve-ActiveWindowsInstallerOperations {
     Ensure-WindowsServiceReady -Name 'TrustedInstaller'
     Invoke-SystemFileChecker
 
+    # sfc.exe /scannow runs through TrustedInstaller's own TiWorker.exe, which is one of
+    # the watched process names. TiWorker commonly keeps running for a short while after
+    # SFC reports completion, so check immediately after SFC would otherwise misreport its
+    # own worker process as a competing installer. Give it a short grace period to exit.
     $remainingProcesses = @(Get-ActiveWindowsInstallerProcesses)
+    $remainingWaitAttempts = 0
+    while ($remainingProcesses.Count -gt 0 -and $remainingWaitAttempts -lt 15) {
+        Start-Sleep -Seconds 2
+        $remainingWaitAttempts++
+        $remainingProcesses = @(Get-ActiveWindowsInstallerProcesses)
+    }
     if ($remainingProcesses.Count -gt 0) {
         Write-Host '[ALERT] Installer processes remain active after the termination attempts:' -ForegroundColor Red
         foreach ($process in $remainingProcesses) {
@@ -717,7 +757,14 @@ function Install-OpenSsh {
     New-Item -Path (Join-Path $env:USERPROFILE '.ssh') -ItemType Directory -Force | Out-Null
     $sshPath = Join-Path $openSshDirectory[0] 'ssh.exe'
     Assert-CommandResolvesToPath -Name 'ssh.exe' -ExpectedPath $sshPath
-    $sshVersion = @(& $sshPath -V 2>&1)
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $sshVersion = @(& $sshPath -V 2>&1)
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
     if ($LASTEXITCODE -ne 0 -or $sshVersion.Count -eq 0) {
         throw "OpenSSH Client validation failed: $($openSshDirectory[0])\ssh.exe -V"
     }
@@ -1707,11 +1754,11 @@ function Install-NodeJs {
         Assert-ValidAuthenticodeSignature -Path $installerPath -Name "Node.js $nodeVersion MSI"
 
         Write-Host '[RUN] Installing the official Node.js LTS MSI...'
-        Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/i', $installerPath, '/qn', '/norestart', '/L*v', $installerLogPath) -SuccessExitCode @(0, 1638, 1641, 3010)
-        if ($LASTEXITCODE -eq 1638) {
+        $nodeInstallExitCode = Invoke-MsiExec -ArgumentList @('/i', $installerPath, '/qn', '/norestart', '/L*v', $installerLogPath) -SuccessExitCode @(0, 1638, 1641, 3010)
+        if ($nodeInstallExitCode -eq 1638) {
             Write-WarningMessage 'Another Node.js MSI version is installed. Removing it before the forced LTS installation.'
             Uninstall-NodeJs
-            Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @('/i', $installerPath, '/qn', '/norestart', '/L*v', $installerLogPath) -SuccessExitCode @(0, 1641, 3010)
+            Invoke-MsiExec -ArgumentList @('/i', $installerPath, '/qn', '/norestart', '/L*v', $installerLogPath) -SuccessExitCode @(0, 1641, 3010) | Out-Null
         }
 
         $nodeProducts = @(Get-NodeJsMsiProducts)
@@ -1725,7 +1772,7 @@ function Install-NodeJs {
         }
         if ($runtimeFilesMissing) {
             Write-WarningMessage 'Node.js MSI completed without all Node.js, npm, and npx commands. Reconfiguring every MSI feature...'
-            Invoke-NativeCommand -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList @(
+            Invoke-MsiExec -ArgumentList @(
                 '/i'
                 $installerPath
                 'ADDLOCAL=ALL'
@@ -1736,7 +1783,7 @@ function Install-NodeJs {
                 '/norestart'
                 '/L*v'
                 $reconfigureLogPath
-            ) -SuccessExitCode @(0, 1641, 3010)
+            ) -SuccessExitCode @(0, 1641, 3010) | Out-Null
             $nodeProducts = @(Get-NodeJsMsiProducts)
             $nodeDirectory = @(Find-NodeJsInstallDirectory -Products $nodeProducts)
         }
@@ -2399,6 +2446,9 @@ else {
         foreach ($commandCheck in $script:WinGetCommandChecks) {
             Invoke-SetupStep -Name ("Validate command: {0}" -f $commandCheck.Name) -Action {
                 $preferredPaths = Get-ObjectPropertyValue -InputObject $commandCheck -Name 'PreferredPaths'
+                if ($null -eq $preferredPaths) {
+                    $preferredPaths = @()
+                }
                 Test-InstalledCommand -Name $commandCheck.Name -Command $commandCheck.Command -Arguments $commandCheck.Arguments -PreferredPaths @($preferredPaths)
             }
         }
