@@ -46,10 +46,10 @@ curl -sSL desktop.setupvibe.dev | bash
 
 ### Windows Desktop (Beta)
 
-Run the Windows utility installer directly from the `windows` development branch. It requests administrator access through the standard UAC prompt without changing the UAC policy.
+Run the Windows utility installer directly from the `main` branch. It requests administrator access through the standard UAC prompt without changing the UAC policy.
 
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 | iex
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/main/desktop.ps1 | iex
 ```
 
 See the [Windows installation guide](docs/windows/README.md) for local installation, verification, logs, restart options, and the `-Uninstall` mode.
