@@ -4,7 +4,7 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ---
 
-## [Unreleased]
+## [v0.41.6] - 2026-07-21
 
 ### Added
 
@@ -21,6 +21,10 @@ All notable changes to **SetupVibe** are documented in this file.
 - Added SHA-256 verification for Server Edition ctop binaries and one-time `.pre-setupvibe` backups for shell and tmux configuration files.
 - Added the Vercel Labs `skills` CLI to Desktop, Windows, and Server editions, with post-install validation on every platform and execution-policy-safe installation and managed removal on Windows.
 - Added `DEBIAN.md` as the required Linux engineering context, including privilege boundaries, safe downloads, systemd-in-container integration tests, nested Docker constraints, and regression findings.
+- New Python and `uv` aliases in Server Edition: `py`, `pyv`, `uvi`, `uvs`, `venv`, and `activate`.
+- Automatic addition of `$HOME/.local/bin` to `.bashrc` in both Desktop and Server editions to ensure tool accessibility in Bash sessions.
+- New `bin/sshcopykey` helper script, installed to `~/.setupvibe/bin/sshcopykey`, to copy the local public SSH key to a remote server with `--host`, `--user`, and optional `--pass` or hidden password prompt.
+- New executable helper documentation in `docs/*/EXECUTABLES.md`.
 
 ### Changed
 
@@ -48,6 +52,10 @@ All notable changes to **SetupVibe** are documented in this file.
 - Replaced the beta n8n client package `@n8n/cli` with the full `n8n` workflow automation package.
 - Restricted Linux Desktop root SSH access to public-key authentication and moved SetupVibe settings to an `sshd_config.d` drop-in.
 - Limited macOS cleanup to Homebrew and SetupVibe-owned temporary files instead of deleting user caches and Trash contents.
+- Improved Composer installation with explicit directory/filename flags and robust PATH handling for global packages.
+- Enhanced Ruby compilation process using a local `TMPDIR` to bypass `noexec` restrictions on `/tmp`.
+- Optimized Rust/rustup installation and update logic with improved PATH management.
+- Refined post-installation instructions to suggest `exec zsh` for immediate shell synchronization.
 
 ### Fixed
 
@@ -105,24 +113,6 @@ All notable changes to **SetupVibe** are documented in this file.
 - Removed PHP, Composer, Laravel Installer, Ruby, Bundler, Rails, uv, Spec-Kit, Go, Rustup, Cargo, Bun, PNPM, PM2, n8n, legacy AI CLI packages, and mise from Windows installation.
 - Removed the SetupVibe `codex.cmd` launcher and the `ssh_copy_id` fallback to Windows Features on Demand; Codex now uses its native executable and `ssh_copy_id` requires the signed OpenSSH installation managed by SetupVibe.
 - Removed RustScan from the Windows Edition; its Chocolatey shim is blocked by Windows Smart App Control on machines that enforce it, and this cannot be worked around from an installer script.
-
----
-
-## [v0.41.6] - 2026-04-05
-
-### Added
-
-- New Python and `uv` aliases in Server Edition: `py`, `pyv`, `uvi`, `uvs`, `venv`, and `activate`.
-- Automatic addition of `$HOME/.local/bin` to `.bashrc` in both Desktop and Server editions to ensure tool accessibility in Bash sessions.
-- New `bin/sshcopykey` helper script, installed to `~/.setupvibe/bin/sshcopykey`, to copy the local public SSH key to a remote server with `--host`, `--user`, and optional `--pass` or hidden password prompt.
-- New executable helper documentation in `docs/*/EXECUTABLES.md`.
-
-### Changed
-
-- Improved Composer installation with explicit directory/filename flags and robust PATH handling for global packages.
-- Enhanced Ruby compilation process using a local `TMPDIR` to bypass `noexec` restrictions on `/tmp`.
-- Optimized Rust/rustup installation and update logic with improved PATH management.
-- Refined post-installation instructions to suggest `exec zsh` for immediate shell synchronization.
 
 ---
 
