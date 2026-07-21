@@ -43,7 +43,7 @@ Docker Desktop est volontairement exclu. SetupVibe prépare WSL 2, mais n'instal
 
 Il s'agit de l'équivalent Windows de `curl -sSL desktop.setupvibe.dev | bash`.
 
-Pour le moment, les URL du programme d'installation Windows ciblent la branche de développement `windows`.
+L'URL canonique du programme d'installation Windows est `https://windows.setupvibe.dev`.
 
 1. Ouvrez le menu Démarrer.
 2. Recherchez **Windows PowerShell** et ouvrez-le. Le démarrage en tant qu'administrateur est facultatif, car le script demande automatiquement une élévation via l'UAC.
@@ -51,7 +51,7 @@ Pour le moment, les URL du programme d'installation Windows ciblent la branche d
 4. Collez la commande suivante et appuyez sur `Entrée` :
 
    ```powershell
-   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 | iex
+   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://windows.setupvibe.dev | iex
    ```
 
 5. Acceptez la demande UAC de Windows.
@@ -66,7 +66,7 @@ Pour télécharger le script avant de l'exécuter :
 
 ```powershell
 $scriptPath = Join-Path $HOME 'Downloads\desktop.ps1'
-Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 -OutFile $scriptPath
+Invoke-WebRequest -UseBasicParsing -Uri https://windows.setupvibe.dev -OutFile $scriptPath
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $scriptPath
 ```
 
@@ -162,7 +162,7 @@ OpenSSH n'utilise pas les fonctionnalités à la demande de Windows ni l'API des
 Redémarrez automatiquement Windows après une installation entièrement réussie lorsque le système indique qu'un redémarrage est nécessaire :
 
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Restart
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://windows.setupvibe.dev))) -Restart
 ```
 
 Sans `-Restart`, le programme ne redémarre jamais Windows automatiquement.
@@ -175,10 +175,10 @@ Supprimez tous les utilitaires et toutes les configurations gérés par l'Éditi
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1 -Uninstall
 ```
 
-Ou exécutez le programme de désinstallation depuis la branche `windows` :
+Ou exécutez le programme de désinstallation depuis l'URL canonique de SetupVibe pour Windows :
 
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://windows.setupvibe.dev))) -Uninstall
 ```
 
 Le mode de désinstallation supprime le client et le serveur OpenSSH, Python et Node.js via leurs programmes de désinstallation officiels, Skills CLI, Claude Code, Codex CLI, Antigravity CLI, les fichiers gérés par SetupVibe dans `%USERPROFILE%\.setupvibe\bin` et leurs entrées dans le `PATH` utilisateur, restaure les états précédents des fonctionnalités facultatives WSL, du pare-feu WSL et de la règle de pare-feu OpenSSH, supprime la configuration WSL appliquée par SetupVibe, supprime tous les utilitaires WinGet et Chocolatey gérés par SetupVibe et supprime les entrées de paquets et de runtimes ajoutées par SetupVibe au `PATH` de la machine ainsi que les anciens blocs SetupVibe reconnus pour Starship et zoxide. Les skills d'agents installées sont conservées. Il supprime également les anciens outils de frameworks, les chemins absents des gestionnaires de runtimes et les paquets npm installés par les versions Beta Windows précédentes. Les répertoires actifs gérés par l'utilisateur dans le `PATH`, la configuration Starship, les distributions Linux, les configurations et identifiants utilisateur des CLI d'IA, WinGet, Chocolatey, les journaux et les fichiers sans rapport dans `%USERPROFILE%\.setupvibe` sont conservés.

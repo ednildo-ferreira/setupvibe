@@ -26,8 +26,8 @@ curl -sSL desktop.setupvibe.dev | bash
 ```
 
 ```powershell
-# Run from the Windows development branch; it requests standard UAC elevation without changing the UAC policy
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 | iex
+# Run from the canonical Windows setup URL; it requests standard UAC elevation without changing the UAC policy
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://windows.setupvibe.dev | iex
 
 # Or run a local copy
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1

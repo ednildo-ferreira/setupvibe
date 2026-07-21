@@ -21,7 +21,7 @@ curl -sSL desktop.setupvibe.dev | bash
 ### Windows Desktop (Beta)
 
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 | iex
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://windows.setupvibe.dev | iex
 ```
 
 ### Server (Linux only)
