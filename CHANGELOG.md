@@ -28,8 +28,9 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ### Changed
 
+- Switched the canonical Windows installer, elevation handoff, restart, and uninstall URL to `https://windows.setupvibe.dev`.
 - Added explicit post-install validation for GitHub CLI and Windows Terminal so SetupVibe confirms that `gh.exe` and the `wt.exe` app execution alias are available in the refreshed Windows environment without changing the Terminal default profile.
-- Pointed all Windows-specific SetupVibe repository URLs, including the elevated-process handoff and `ssh_copy_id`, to the `windows` development branch until the Windows work is merged.
+- Kept direct Windows-specific SetupVibe repository URLs, including `ssh_copy_id`, on the `windows` development branch until the Windows work is merged.
 - Expanded the Windows Edition (Beta) guides with one-command remote installation, local installation, execution stages, verification commands, logs, rerun behavior, restart options, and scope limitations.
 - Focused the Windows Edition on native utilities, Python and Node.js as its only programming runtimes, and the selected Claude Code, Codex, and Antigravity AI CLIs; complete language ecosystems and the broader AI toolkit remain available through `desktop.sh` on macOS, Linux, and WSL.
 - Raised the Windows Edition minimum to Windows 11 22H2 build 22621 so mirrored WSL networking and Hyper-V firewall controls are consistently available.

@@ -43,7 +43,7 @@ Docker Desktop is intentionally excluded. SetupVibe prepares WSL 2 but does not 
 
 This is the Windows equivalent of `curl -sSL desktop.setupvibe.dev | bash`.
 
-For now, the Windows installer URLs target the `windows` development branch.
+The canonical Windows installer URL is `https://windows.setupvibe.dev`.
 
 1. Open the Start menu.
 2. Search for **Windows PowerShell** and open it. Starting it as administrator is optional because the script requests UAC elevation automatically.
@@ -51,7 +51,7 @@ For now, the Windows installer URLs target the `windows` development branch.
 4. Paste the following command and press `Enter`:
 
    ```powershell
-   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 | iex
+   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://windows.setupvibe.dev | iex
    ```
 
 5. Accept the Windows UAC prompt.
@@ -66,7 +66,7 @@ To download the script before running it:
 
 ```powershell
 $scriptPath = Join-Path $HOME 'Downloads\desktop.ps1'
-Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1 -OutFile $scriptPath
+Invoke-WebRequest -UseBasicParsing -Uri https://windows.setupvibe.dev -OutFile $scriptPath
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $scriptPath
 ```
 
@@ -162,7 +162,7 @@ OpenSSH does not use Windows Features on Demand or the GitHub releases API. Setu
 Restart Windows automatically after a completely successful installation when Windows reports that a restart is required:
 
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Restart
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://windows.setupvibe.dev))) -Restart
 ```
 
 Without `-Restart`, the installer never restarts Windows automatically.
@@ -175,10 +175,10 @@ Remove all utilities and configurations managed by the Windows Edition from a lo
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\desktop.ps1 -Uninstall
 ```
 
-Or run the uninstaller from the `windows` branch:
+Or run the uninstaller from the canonical Windows setup URL:
 
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://raw.githubusercontent.com/promovaweb/setupvibe/windows/desktop.ps1))) -Uninstall
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((irm https://windows.setupvibe.dev))) -Uninstall
 ```
 
 The uninstall mode removes OpenSSH Client and Server, Python and Node.js through their official uninstallers, Skills CLI, Claude Code, Codex CLI, Antigravity CLI, the SetupVibe-managed files from `%USERPROFILE%\.setupvibe\bin` and their user `PATH` entries, restores the previous WSL optional-feature, WSL firewall, and OpenSSH firewall-rule states, removes the SetupVibe WSL configuration, removes every WinGet and Chocolatey utility managed by SetupVibe, and removes SetupVibe-added package and runtime machine `PATH` entries and recognized legacy SetupVibe Starship/zoxide profile blocks. Installed agent skills are preserved. It also removes legacy framework tools, missing runtime-manager paths, and npm packages installed by earlier Windows Beta versions. Existing user-managed `PATH` directories, Starship configuration, Linux distributions, AI CLI user configuration and credentials, WinGet, Chocolatey, transcript logs, and unrelated files under `%USERPROFILE%\.setupvibe` are preserved.
