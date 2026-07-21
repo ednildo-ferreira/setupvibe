@@ -87,6 +87,19 @@ Quando `REAL_USER` não é root, pacotes npm globais devem usar
 Sem isso, o npm tenta alterar `/usr/lib/node_modules` como usuário comum e
 falha com `EACCES`.
 
+### Pacotes pip globais para o usuário
+
+O Python fornecido pelo APT e pelo Homebrew é marcado como externamente
+gerenciado conforme a PEP 668. Para um pacote solicitado como global, mas que
+deve pertencer a `REAL_USER`, use o interpretador absoluto correspondente e
+instale com `python -m pip --user --break-system-packages`; nunca use `sudo pip`.
+
+Resolva o diretório dos executáveis com `python -m site --user-base` executado
+via `user_do`, porque ele é `~/.local/bin` no Linux e
+`~/Library/Python/X.Y/bin` no macOS. Adicione esse diretório ao `PATH`, valide o
+import do pacote e execute a validação do CLI com a identidade e o `HOME` do
+usuário-alvo.
+
 ## APT e repositórios
 
 - Chaves APT pertencem a `/etc/apt/keyrings/`.

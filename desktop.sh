@@ -249,7 +249,7 @@ STEPS=(
     "Homebrew (Package Manager)"
     "PHP ${PHP_VERSION} Ecosystem (Laravel)"
     "Ruby ${RUBY_VERSION} Ecosystem (Rails)"
-    "Languages (Go, Rust, Python + uv)"
+    "Languages (Go, Rust, Python + uv + qrcode)"
     "JavaScript (Node, Bun, PNPM)"
     "DevOps (Docker, Ansible, GH)"
     "Modern Unix Tools (Via Brew)"
@@ -917,10 +917,40 @@ step_4() {
 }
 
 
+install_qrcode() {
+    local python_bin=$1
+    local python_user_base
+    local qr_bin
+
+    echo "Installing qrcode globally for $REAL_USER via pip..."
+    python_user_base=$(user_do "$python_bin" -m site --user-base)
+    qr_bin="$python_user_base/bin/qr"
+
+    user_do "$python_bin" -m pip install \
+        --user \
+        --upgrade \
+        --break-system-packages \
+        --no-warn-script-location \
+        qrcode
+
+    user_do "$python_bin" -c 'import qrcode'
+    if [[ ! -x "$qr_bin" ]]; then
+        echo -e "${RED}✘ qrcode CLI was not installed at $qr_bin.${NC}"
+        return 1
+    fi
+    user_do "$qr_bin" --help >/dev/null
+
+    path_prepend_once "$python_user_base/bin"
+    export PATH
+}
+
+
 step_5() {
     if $IS_MACOS; then
         echo "Setup Python..."
         brew_cmd install "python@${PYTHON_VERSION}"
+
+        install_qrcode "$(brew_cmd --prefix "python@${PYTHON_VERSION}")/bin/python${PYTHON_VERSION}"
         
         echo "Setup uv (Python Package Manager)..."
         if ! command -v uv &> /dev/null; then
@@ -948,6 +978,8 @@ step_5() {
     else
         echo "Setup Python..."
         sys_do apt-get install -y python3 python3-pip python3-venv python-is-python3
+
+        install_qrcode /usr/bin/python3
 
         echo "Setup uv (Python Package Manager)..."
         if ! user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; command -v uv" &> /dev/null; then

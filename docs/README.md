@@ -49,7 +49,7 @@ Add `--yes` for unattended installation or `--advertise-addr ADDRESS` to choose 
 | WSL 2 base without a distribution     | ✗              | ✔               | ✗       |
 | PHP 8.5 + Composer + Laravel          | ✔              | ✗               | ✗       |
 | Ruby + rbenv + Rails                  | ✔              | ✗               | ✗       |
-| Go, Rust, Python + uv                 | ✔              | ✗               | ✗       |
+| Go, Rust, Python + uv + qrcode        | ✔              | ✗               | ✗       |
 | Node.js 24                            | ✔              | Node.js 24 LTS   | ✔ (APT) |
 | Bun + PNPM                            | ✔              | ✗                | ✗       |
 | n8n                                   | ✔              | ✗               | ✗       |

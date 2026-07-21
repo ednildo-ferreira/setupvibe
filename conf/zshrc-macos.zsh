@@ -8,6 +8,7 @@ fi
 
 # Define PATHs before loading plugins so they can find the tools
 export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/Library/Python/3.14/bin:$PATH"
 export PATH="$HOME/.cargo/bin:$PATH"
 export PATH="$HOME/.config/composer/vendor/bin:$PATH"
 export PATH="$HOME/.composer/vendor/bin:$PATH"

@@ -72,7 +72,8 @@ The script shows an interactive roadmap and asks for confirmation before startin
 | -------- | -------------------------- | -------------------------------------------------- |
 | Python 3 | `python@3.14` via Homebrew | via APT (`python3`, `python3-pip`, `python3-venv`) |
 | uv       | via install script         | same                                               |
-| Go       | via Homebrew               | verified 1.26.5 binary in `~/.local/go`             |
+| qrcode   | `pip --user`; CLI `qr`     | same                                               |
+| Go       | via Homebrew               | verified 1.26.5 binary in `~/.local/go`            |
 | Rust     | via rustup                 | same                                               |
 
 ### Step 6 — JavaScript

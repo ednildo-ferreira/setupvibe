@@ -72,6 +72,7 @@ O script exibe um roteiro interativo e solicita confirmação antes de iniciar. 
 | --------- | -------------------------- | -------------------------------------------------- |
 | Python 3  | `python@3.14` via Homebrew | via APT (`python3`, `python3-pip`, `python3-venv`) |
 | uv        | via script de instalação   | igual                                              |
+| qrcode    | `pip --user`; CLI `qr`     | igual                                              |
 | Go        | via Homebrew               | binário 1.26.5 verificado em `~/.local/go`         |
 | Rust      | via rustup                 | igual                                              |
 

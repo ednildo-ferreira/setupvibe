@@ -18,6 +18,7 @@ Installs and configures a development environment in one command, supporting Win
 - **Agent Skills:** Installs and validates the [Vercel Labs Skills CLI](https://github.com/vercel-labs/skills) on Desktop, Windows, and Server editions.
 - **WSL 2 Ready:** Installs the WSL base without a Linux distribution and configures mirrored VPN/LAN networking and development optimizations on Windows 11.
 - **Smart Privilege Elevation:** Uses `sudo` only where strictly necessary on macOS and Linux; most tools are installed in `$HOME/.local/bin`.
+- **Global QR Code Generator:** Installs the PyPI `qrcode` package for the target user on macOS and Linux, exposing its `qr` command in the shell.
 - **Auto-Update:** Automatically upgrades existing Homebrew packages during setup.
 - **Modern Shell:** ZSH + Oh My Zsh + Starship with a curated set of plugins and aliases.
 - **Optimized Tmux:** Pre-configured with TPM, intuitive keybindings, and window/pane numbering starting at 1.

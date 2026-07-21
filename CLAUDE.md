@@ -69,7 +69,7 @@ While the Windows Edition is in Beta, every SetupVibe repository URL in Windows-
 2. Homebrew
 3. PHP 8.5 (Composer, Laravel)
 4. Ruby 3.4.10 (rbenv, Rails)
-5. Go 1.26.5, Rust, Python (uv; Python 3.14 on macOS)
+5. Go 1.26.5, Rust, Python (uv, user-global `qrcode` via pip; Python 3.14 on macOS)
 6. JavaScript (Node, Bun, PNPM)
 7. DevOps (Docker, Ansible, GitHub CLI)
 8. Modern Unix tools via Homebrew

@@ -72,6 +72,7 @@ Le script affiche une feuille de route interactive et demande confirmation avant
 | -------- | -------------------------- | -------------------------------------------------- |
 | Python 3 | `python@3.14` via Homebrew | via APT (`python3`, `python3-pip`, `python3-venv`) |
 | uv       | via script d'installation  | identique                                          |
+| qrcode   | `pip --user`; CLI `qr`     | identique                                          |
 | Go       | via Homebrew               | binaire 1.26.5 vérifié dans `~/.local/go`          |
 | Rust     | via rustup                 | identique                                          |
 
