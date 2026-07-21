@@ -1,6 +1,6 @@
 # SetupVibe — Desktop Edition
 
-> Cross-platform development environment setup — v0.41.7
+> Cross-platform development environment setup — v0.41.8
 
 Cross-platform setup for macOS and Linux desktops. Installs a complete development stack in one command: PHP 8.5, Ruby 3.4.10, Go 1.26.5, Rust, Python, the global `qrcode` package and its `qr` command, Node.js 24 LTS, DevOps tools, modern Unix utilities, shell, tmux, AI CLI tools, and the Vercel Labs Skills CLI.
 

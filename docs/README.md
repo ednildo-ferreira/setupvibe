@@ -1,6 +1,6 @@
 # SetupVibe Documentation
 
-> Automated development environment setup — v0.41.7
+> Automated development environment setup — v0.41.8
 
 SetupVibe transforms any fresh machine into a fully configured development workspace in one command. It supports three editions depending on your target:
 

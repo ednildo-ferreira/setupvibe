@@ -4,11 +4,15 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ---
 
-## [v0.41.7] - 2026-07-21
+## [v0.41.8] - 2026-07-21
 
 ### Added
 
 - Added the PyPI `qrcode` package as a user-global pip installation on macOS and Linux Desktop, with import validation and the `qr` command exposed in the managed shell `PATH`.
+
+---
+
+## [v0.41.7] - 2026-07-21
 
 ### Fixed
 
