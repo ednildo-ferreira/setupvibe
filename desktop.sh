@@ -27,7 +27,7 @@ NC='\033[0m' # No Color
 
 
 # --- VERSION ---
-VERSION="0.41.6"
+VERSION="0.41.7"
 PHP_VERSION="8.5"
 RUBY_VERSION="3.4.10"
 PYTHON_VERSION="3.14"
@@ -97,8 +97,38 @@ path_deduplicate() {
     PATH="$normalized"
 }
 
+resolve_brew_prefix() {
+    local candidate
+    local -a candidates=("$BREW_PREFIX")
+
+    if $IS_LINUX; then
+        candidates=(
+            "/home/linuxbrew/.linuxbrew"
+            "$REAL_HOME/.linuxbrew"
+        )
+    fi
+
+    for candidate in "${candidates[@]}"; do
+        if [[ -x "$candidate/bin/brew" ]]; then
+            BREW_PREFIX="$candidate"
+            path_prepend_once "$BREW_PREFIX/sbin"
+            path_prepend_once "$BREW_PREFIX/bin"
+            path_deduplicate
+            export PATH
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 # Run Homebrew as the real user and isolate stdin from curl-piped installs.
 brew_cmd() {
+    if ! resolve_brew_prefix; then
+        echo "Error: Homebrew executable not found in a supported prefix." >&2
+        return 127
+    fi
+
     if [[ "$(id -u)" -eq 0 && -n "$REAL_USER" && "$REAL_USER" != "root" ]]; then
         ( cd "$REAL_HOME" && runuser -u "$REAL_USER" -- env HOME="$REAL_HOME" "$BREW_PREFIX/bin/brew" "$@" < /dev/null )
     else
@@ -499,6 +529,9 @@ run_section() {
     echo -e "${BOLD}▶ [$(($index+1))/${#STEPS[@]}] $title ${NC}"
     echo -e "${BLUE}========================================================${NC}"
 
+    # Pick up Homebrew installed by a previous step or an older SetupVibe run.
+    resolve_brew_prefix || true
+
     # Keep installer-managed paths available without duplicating them at each step.
     for managed_dir in \
         "$REAL_HOME/.bun/bin" \
@@ -658,6 +691,8 @@ step_1() {
 
 
 step_2() {
+    local brew_environment
+
     if $IS_MACOS; then
         echo "Checking Homebrew installation..."
         if ! command -v brew &>/dev/null; then
@@ -684,7 +719,7 @@ step_2() {
         fi
     else
         echo "Checking Homebrew installation..."
-        if [ ! -d "/home/linuxbrew/.linuxbrew" ] && [ ! -d "$REAL_HOME/.linuxbrew" ]; then
+        if ! resolve_brew_prefix; then
             echo "Installing Homebrew..."
             sys_do apt-get install -y build-essential procps curl file git
 
@@ -708,6 +743,11 @@ step_2() {
 
         fi
 
+        if ! resolve_brew_prefix; then
+            echo -e "${RED}✘ Homebrew installation did not produce an executable in a supported prefix.${NC}"
+            return 1
+        fi
+
         # Configure Homebrew PATH in shell profiles
         echo "Configuring Homebrew PATH in shell profiles..."
         for CONFIG_FILE in "$REAL_HOME/.bashrc" "$REAL_HOME/.profile" "$REAL_HOME/.zshrc"; do
@@ -717,26 +757,23 @@ step_2() {
             fi
             
             # Add Homebrew configuration if not present
-            if ! grep -q "linuxbrew" "$CONFIG_FILE"; then
-                echo -e "\n# Homebrew Configuration" | user_do tee -a "$CONFIG_FILE" > /dev/null
-                echo 'if [ -d "/home/linuxbrew/.linuxbrew" ]; then eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"; fi' | user_do tee -a "$CONFIG_FILE" > /dev/null
-                echo 'if [ -d "$HOME/.linuxbrew" ]; then eval "$($HOME/.linuxbrew/bin/brew shellenv)"; fi' | user_do tee -a "$CONFIG_FILE" > /dev/null
+            if ! grep -Fq "$BREW_PREFIX/bin/brew" "$CONFIG_FILE"; then
+                printf '\n# Homebrew Configuration\nif [ -x "%s/bin/brew" ]; then eval "$("%s/bin/brew" shellenv)"; fi\n' \
+                    "$BREW_PREFIX" "$BREW_PREFIX" | user_do tee -a "$CONFIG_FILE" > /dev/null
                 echo -e "${GREEN}✔ Added Homebrew to $CONFIG_FILE${NC}"
             fi
         done
 
         # Load brew environment for this script session
         echo "Loading Homebrew environment for current session..."
-        if [ -f "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
-            eval "$(cd "$REAL_HOME" && runuser -u "$REAL_USER" -- env HOME="$REAL_HOME" /home/linuxbrew/.linuxbrew/bin/brew shellenv 2>/dev/null)"
-            export PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:$PATH"
-        elif [ -f "$REAL_HOME/.linuxbrew/bin/brew" ]; then
-            eval "$(cd "$REAL_HOME" && runuser -u "$REAL_USER" -- env HOME="$REAL_HOME" "$REAL_HOME/.linuxbrew/bin/brew" shellenv 2>/dev/null)"
-            export PATH="$REAL_HOME/.linuxbrew/bin:$REAL_HOME/.linuxbrew/sbin:$PATH"
+        if ! brew_environment=$(brew_cmd shellenv); then
+            echo -e "${RED}✘ Homebrew environment could not be loaded.${NC}"
+            return 1
         fi
+        eval "$brew_environment"
 
         # Verify brew is accessible
-        if command -v brew &>/dev/null; then
+        if [[ "$(command -v brew 2>/dev/null)" == "$BREW_PREFIX/bin/brew" ]]; then
             echo -e "${GREEN}✔ Homebrew is ready and available in PATH.${NC}"
             echo "Updating Homebrew and upgrading existing packages..."
             brew_cmd update
