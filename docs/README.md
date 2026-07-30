@@ -63,6 +63,7 @@ Add `--yes` for unattended installation or `--advertise-addr ADDRESS` to choose 
 | Tmux + TPM plugins                    | ✔              | ✗               | ✔       |
 | AI CLI tools                          | ✔              | ✔ (selected)    | ✔       |
 | Vercel Labs Skills CLI                | ✔              | ✔               | ✔       |
+| Herdr agent multiplexer               | ✔              | ✗               | ✔       |
 | PM2 auto-startup                      | ✔              | ✗               | ✗       |
 | Docker Swarm Manager (`--manager`)    | ✗              | ✗               | ✔       |
 
@@ -88,6 +89,13 @@ Add `--yes` for unattended installation or `--advertise-addr ADDRESS` to choose 
 - [Portuguese](desktop/pt-br/cronboard.md)
 - [French](desktop/fr/cronboard.md)
 - [Spanish](desktop/es/cronboard.md)
+
+### Herdr
+
+- [English](en/HERDR.md)
+- [Portuguese](pt-br/HERDR.md)
+- [French](fr/HERDR.md)
+- [Spanish](es/HERDR.md)
 
 ### Executables
 

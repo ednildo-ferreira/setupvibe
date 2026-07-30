@@ -96,6 +96,27 @@ Subset of desktop steps — no Homebrew, no language ecosystems (PHP, Ruby, Pyth
 | `docs/desktop/en/tmux.md`   | Tmux plugin and keybinding reference (shared by both editions)    |
 | `docs/desktop/en/pm2.md`    | PM2 command and configuration reference (shared by both editions) |
 
+### `brand/` Directory
+
+`brand/` is the normative source for the SetupVibe visual and verbal
+identity. It contains the vector icon, PNG fallback, horizontal logotype,
+brand description, voice guide, usage rules, and publication checklist.
+
+| Path | Content |
+| --- | --- |
+| `brand/README.md` | Brand overview and governance |
+| `brand/description.md` | Positioning, promise, tagline, and institutional descriptions |
+| `brand/logo/icon.svg` | Canonical vector symbol |
+| `brand/logo/icon.png` | Raster fallback |
+| `brand/logo/logotype.svg` | Canonical horizontal signature |
+| `brand/logo/LOGO.md` | Construction and usage contract |
+| `brand/voice/voice.md` | Operational voice and terminology |
+| `brand/checklist.md` | Brand Gate for publication |
+
+Update the relevant normative file whenever a public asset, tagline,
+description, or voice rule changes. Do not create divergent logo copies inside
+this repository.
+
 ### `conf/` Directory
 
 Configuration files deployed by the scripts to the user's home directory:

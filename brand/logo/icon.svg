@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+  width="512"
+  height="512"
+  viewBox="0 0 512 512"
+  role="img"
+  aria-labelledby="title description">
+  <title id="title">Logo SetupVibe</title>
+  <desc id="description">Símbolo vetorial do SetupVibe com uma janela de terminal, código e base de notebook.</desc>
+
+  <!--
+    O vetor preserva a silhueta e os recortes do PNG original de 512 × 512.
+    Cada grupo é uma camada nomeada para manter a construção auditável.
+  -->
+
+  <g
+    inkscape:groupmode="layer"
+    inkscape:label="01 — Janela e código"
+    id="layer-terminal"
+    transform="translate(0 512) scale(0.1 -0.1)"
+    fill="#000000"
+    stroke="none">
+    <path
+      id="terminal-and-code"
+      d="M300 3010v-1500h4520v3000H300V3010zm2558 1051c73-22 136-41 139-44
+      4-4-584-2083-593-2095-2-4-274 74-281 81-6 6 589 2097 597 2097
+      3 0 65-18 138-39zm-896-448c54-54 98-102 98-108 0-5-109-119-242-252
+      l-243-243 245-245 245-245-108-107-107-108-352 353-353 352 350 350
+      c192 192 354 350 360 350 5 0 54-44 107-97zm1663-253 350-350-353-352
+      -352-353-107 108-108 107 245 245 245 245-243 243
+      c-133 133-242 247-242 252 0 13 192 205 205 205 5 0 168-158 360-350z"/>
+  </g>
+
+  <g
+    inkscape:groupmode="layer"
+    inkscape:label="02 — Base"
+    id="layer-base"
+    transform="translate(0 512) scale(0.1 -0.1)"
+    fill="#000000"
+    stroke="none">
+    <path
+      id="notebook-base"
+      d="M0 1115c0-173 36-273 134-370 66-65 138-105 224-124
+      75-16 4328-16 4404 0 87 18 158 58 223 123 99 99 135 199 135 371
+      v95H0v-95z"/>
+  </g>
+</svg>

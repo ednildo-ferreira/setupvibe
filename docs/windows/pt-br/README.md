@@ -7,9 +7,9 @@ A Edição Windows (Beta) configura utilitários nativos do Windows, Python, Nod
 ## Requisitos
 
 - Windows 11 versão 22H2 (build 22621) ou posterior
-- Uma edição desktop x64 (AMD64) do Windows; não há suporte para Windows de 32 bits, Windows em ARM, Windows 10 nem Windows Server
+- Uma edição desktop x64 (AMD64) do Windows. Não há suporte para Windows de 32 bits, Windows em ARM, Windows 10 nem Windows Server
 - Windows PowerShell 5.1 ou posterior
-- Uma conta que pertença ao grupo Administradores local; o prompt do UAC deve usar a mesma conta conectada
+- Uma conta que pertença ao grupo Administradores local. O prompt do UAC deve usar a mesma conta conectada
 - Acesso à internet
 
 ## O Que É Instalado
@@ -27,7 +27,7 @@ A Edição Windows (Beta) configura utilitários nativos do Windows, Python, Nod
 - Nmap, Speedtest CLI, Tailscale, gping, btop4win e trippy
 - PowerShell 7, Windows Terminal, FiraCode Nerd Font e JetBrains Mono Nerd Font
 
-O instalador é idempotente: pacotes WinGet instalados são detectados e ignorados, o Chocolatey garante seus pacotes com segurança e os instaladores oficiais do Python e Node.js são reaplicados com segurança. Falhas são registradas por pacote para que as demais instalações continuem. Um log completo é salvo em `C:\ProgramData\SetupVibe\Logs`.
+O instalador é idempotente: pacotes WinGet instalados são detectados e ignorados, o Chocolatey verifica os pacotes sob sua gestão e os instaladores oficiais do Python e Node.js são reaplicados com segurança. Falhas são registradas por pacote para que as demais instalações continuem. Um log completo é salvo em `C:\ProgramData\SetupVibe\Logs`.
 
 Os perfis do Windows PowerShell e PowerShell 7 permanecem originais. Starship e ZSH não são instalados, a política de execução não é alterada e o zoxide permanece somente como utilitário CLI sem inicialização automática.
 
@@ -83,7 +83,7 @@ Durante a execução, o instalador:
 
 1. Valida o Windows 11 22H2 ou posterior e a arquitetura x64, reiniciando o próprio script pelo Windows PowerShell x64 nativo se ele tiver sido iniciado em um processo de 32 bits, e recusa elevação UAC com credenciais de outro perfil de usuário.
 2. Solicita privilégios de administrador pelo UAC.
-3. Lista processos de instalação concorrentes e pergunta se deve encerrá-los. Se aceito, tenta normalmente, força os que permanecerem e executa `sfc.exe /scannow`; se recusado, aguarda ENTER e encerra.
+3. Lista processos de instalação concorrentes e pergunta se deve encerrá-los. Se aceito, tenta normalmente, força os que permanecerem e executa `sfc.exe /scannow`. Se recusado, aguarda ENTER e encerra.
 4. Recusa reinicializações pendentes, inicia os serviços necessários, executa `sfc.exe /scannow` caso ainda não tenha sido executado, verifica a política WSUS e valida o armazenamento de componentes do Windows.
 5. Resolve o MSI x64 oficial mais recente do Microsoft Win32-OpenSSH sem usar a API de releases do GitHub, valida sua assinatura, instala e repara explicitamente Cliente e Servidor, configura o `PATH` da máquina, valida o código de saída de `ssh.exe -V`, inicia `sshd` automaticamente e libera a entrada TCP/22 salvando o estado anterior da regra de firewall.
 6. Copia os scripts auxiliares Windows do SetupVibe para `%USERPROFILE%\.setupvibe\bin` e adiciona esse diretório ao `PATH` do usuário, normalizando e eliminando entradas duplicadas e notificando o Windows sobre a alteração de ambiente.
@@ -92,7 +92,7 @@ Durante a execução, o instalador:
 9. Instala WinGet e Chocolatey quando necessário.
 10. Baixa Python 3.14 do `python.org` e resolve o Node.js 24 LTS diretamente pelo canal oficial `latest-v24.x` do `nodejs.org`, sem a API do índice de releases, WinGet ou Chocolatey. Usa o `curl.exe` do Windows com redirecionamentos somente HTTPS e novas tentativas, valida o Authenticode e o SHA-256 oficial do Node.js, repara recursos ausentes do Python ou do MSI do Node.js, remove os shims redundantes `npm.ps1` e `npx.ps1` que falham sob uma política de execução restrita, coloca os diretórios x64 nativos dos runtimes no início do `PATH` da máquina e valida `python`, `pip`, `node`, `npm` e `npx` exatamente como o usuário os executa.
 11. Instala cada utilitário restante do Windows de forma independente, executa cada CLI previsível do WinGet e Chocolatey pelo `PATH` atualizado, valida `gh.exe` e o alias `wt.exe` do Windows Terminal e continua após falhas isoladas de pacote ou comando.
-12. Instala e valida Skills CLI, Claude Code, Codex CLI e Antigravity CLI por suas fontes oficiais, preservando todos os arquivos de perfil PowerShell do usuário. Skills usa seu pacote npm oficial e um lançador CMD compatível com política de execução restrita; o Claude usa o instalador nativo recomendado independentemente do npm e recorre ao pacote npm oficial da Anthropic somente quando necessário; o Codex usa o instalador autônomo oficial da OpenAI em vez do npm.
+12. Instala e valida Skills CLI, Claude Code, Codex CLI e Antigravity CLI por suas fontes oficiais, preservando todos os arquivos de perfil PowerShell do usuário. Skills usa seu pacote npm oficial e um lançador CMD compatível com política de execução restrita. O Claude usa o instalador nativo recomendado independentemente do npm e recorre ao pacote npm oficial da Anthropic somente quando necessário. O Codex usa o instalador autônomo oficial da OpenAI em vez do npm.
 13. Remove somente blocos legados reconhecidos do SetupVibe para Starship/zoxide sem recodificar conteúdo não relacionado, preservando os bytes originais dos perfis PowerShell, a configuração Starship do usuário e a política de execução.
 14. Exibe um resumo final e o local do log completo.
 
@@ -104,7 +104,7 @@ O processo pode demorar porque os gerenciadores de pacotes baixam e instalam cad
 2. Abra o Windows Terminal ou PowerShell 7 para carregar o novo `PATH`.
 3. Conclua as autenticações iniciais exigidas pelo GitHub CLI, Tailscale, Claude Code, Codex CLI ou Antigravity CLI.
 
-Os scripts auxiliares do SetupVibe ficam em `%USERPROFILE%\.setupvibe\bin`. O núcleo instalado `ssh_copy_id_core.ps1` e seu lançador mínimo `ssh_copy_id.cmd` podem ser iniciados sem ambiguidade como `ssh_copy_id`. O Codex usa seu `codex.exe` nativo; nenhum script PowerShell ou lançador do SetupVibe é necessário. Ambos os comandos funcionam em uma nova sessão do PowerShell, Windows Terminal ou Prompt de Comando.
+Os scripts auxiliares do SetupVibe ficam em `%USERPROFILE%\.setupvibe\bin`. O núcleo instalado `ssh_copy_id_core.ps1` e seu lançador mínimo `ssh_copy_id.cmd` podem ser iniciados sem ambiguidade como `ssh_copy_id`. O Codex usa seu `codex.exe` nativo. Nenhum script PowerShell ou lançador do SetupVibe é necessário. Ambos os comandos funcionam em uma nova sessão do PowerShell, Windows Terminal ou Prompt de Comando.
 
 Verifique os principais componentes em um novo terminal:
 
@@ -189,8 +189,8 @@ Combine `-Uninstall` com `-Restart` para reiniciar automaticamente quando o Wind
 
 ## Escopo e Limitações
 
-- Windows 10, Windows Server, builds do Windows 11 anteriores a 22621, Windows de 32 bits e Windows em ARM são recusados; somente x64 é compatível.
+- Windows 10, Windows Server, builds do Windows 11 anteriores a 22621, Windows de 32 bits e Windows em ARM são recusados. Somente x64 é compatível.
 - O WSL é instalado e configurado para WSL 2, rede espelhada por VPN/LAN e otimizações comuns de desenvolvimento, mas nenhuma distribuição Linux é instalada.
-- Python 3.14 e Node.js 24 LTS são instalados para automações locais; Claude Code, Codex CLI e Antigravity CLI são as únicas CLIs de IA instaladas. Outras linguagens de programação, frameworks, gerenciadores de runtime e CLIs de IA são excluídos.
+- Python 3.14 e Node.js 24 LTS são instalados para automações locais. Claude Code, Codex CLI e Antigravity CLI são as únicas CLIs de IA instaladas. Outras linguagens de programação, frameworks, gerenciadores de runtime e CLIs de IA são excluídos.
 - Starship e ZSH não são instalados no Windows, os perfis do PowerShell não são personalizados e a política de execução persistente não é alterada.
 - O Docker Desktop e um mecanismo Docker local não são instalados.

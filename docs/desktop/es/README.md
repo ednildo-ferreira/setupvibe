@@ -155,17 +155,18 @@ Presiona `prefix + I` dentro de tmux para instalar todos los plugins. Consulta [
 
 ### Paso 13 — Herramientas de IA (CLI)
 
-Instaladas globalmente a través de `npm install -g`:
+Instala paquetes npm globalmente y Herdr desde su manifiesto oficial de releases:
 
-| Herramienta        | Paquete                          |
+| Herramienta        | Instalación                      |
 | ------------------ | -------------------------------- |
 | Agentlytics        | `agentlytics`                    |
 | Claude Code        | `@anthropic-ai/claude-code`      |
 | OpenAI Codex       | `@openai/codex`                  |
 | GitHub Copilot CLI | `@github/copilot`                |
 | Skills CLI         | `skills`                         |
+| Herdr              | Binario del manifiesto oficial   |
 
-Cada CLI de la lista se valida después de la instalación. **Spec-Kit** se instala a través de `uv tool install specify-cli`. Consulte [SPECKIT.md](SPECKIT.md) para obtener la guía completa de Spec-Driven Development y los aliases.
+Cada CLI de la lista se valida después de la instalación. [Herdr](https://github.com/luizeof/herdr) se instala en `~/.local/bin` según el sistema operativo y la arquitectura detectados; consulta la [guía de Herdr](../../es/HERDR.md) para conocer las sesiones, los atajos, las actualizaciones y el diagnóstico. **Spec-Kit** se instala a través de `uv tool install specify-cli`. Consulte [SPECKIT.md](SPECKIT.md) para obtener la guía completa de Spec-Driven Development y los aliases.
 
 ### Paso 14 — Finalización y Limpieza
 

@@ -2,7 +2,7 @@
 
 > Configuração de servidor Linux — v0.41.8
 
-Um script de configuração enxuto e focado para servidores Linux. Sem Homebrew, sem ecossistemas de linguagens, sem ferramentas de desktop. Instala apenas o que um servidor de produção precisa: Docker, Ansible, rede, shell, tmux e ferramentas AI CLI.
+Um script de configuração focado em servidores Linux. Sem Homebrew, ecossistemas de linguagens ou ferramentas de desktop, ele instala Docker, Ansible, recursos de rede, shell, tmux e ferramentas de CLI de IA.
 
 ## Requisitos do Sistema
 
@@ -37,7 +37,7 @@ curl -sSL server.setupvibe.dev | bash -s -- --manager
 bash server.sh --manager
 ```
 
-Para uma instalação não interativa, adicione `--yes`. Para escolher explicitamente o endereço ou a interface do Swarm, use `--advertise-addr ENDERECO`; essa opção implica `--manager`.
+Para uma instalação não interativa, adicione `--yes`. Para escolher explicitamente o endereço ou a interface do Swarm, use `--advertise-addr ENDERECO`. Essa opção implica `--manager`.
 
 O script valida o sistema operacional, a versão, a arquitetura, o usuário de destino e os argumentos antes de alterar o sistema. Em seguida, exibe um roteiro interativo, solicita confirmação, aguarda por até cinco minutos a liberação dos locks do APT e repete comandos APT que falharem. As etapas param no primeiro erro, o resumo identifica as etapas não executadas e o script retorna um status diferente de zero. Se `--manager` não for informado, instalações interativas perguntam ao final se o Docker Swarm deve ser configurado.
 
@@ -74,7 +74,7 @@ Instala via APT:
 
 **GitHub CLI (`gh`)** — via repositório APT oficial do GitHub
 
-**Portainer CE** — usa o canal de imagem `lts` e expõe HTTPS na porta `9443`; a porta HTTP legada `9000` e a porta opcional `8000` para Edge Agent não são abertas
+**Portainer CE** — usa o canal de imagem `lts` e expõe HTTPS na porta `9443`. A porta HTTP legada `9000` e a porta opcional `8000` para Edge Agent não são abertas
 
 ### Etapa 3 — Rede, Monitoramento e Tailscale
 
@@ -89,7 +89,7 @@ Pacotes APT:
 - Instala `openssh-server` e `openssh-client`
 - Habilita e inicia o serviço systemd `ssh`
 - Valida a configuração efetiva com `sshd -t`
-- Preserva a política de autenticação existente; não habilita login de root nem autenticação por senha
+- Preserva a política de autenticação existente. Não habilita login de root nem autenticação por senha
 
 ### Etapa 5 — Shell (ZSH e Starship)
 
@@ -97,7 +97,7 @@ Pacotes APT:
 - Instala Oh My Zsh (sem interação)
 - Clona `zsh-autosuggestions` e `zsh-syntax-highlighting`
 - Instala o prompt Starship em `~/.local/bin` e aplica o preset **Gruvbox Rainbow**
-- Baixa scripts auxiliares de [`bin/`](../../../bin) para `~/.setupvibe/bin`; veja [Executáveis](../../pt-br/EXECUTABLES.md)
+- Baixa scripts auxiliares de [`bin/`](../../../bin) para `~/.setupvibe/bin`. Veja [Executáveis](../../pt-br/EXECUTABLES.md)
 - Baixa [`conf/zshrc-server.zsh`](../../../conf/zshrc-server.zsh) para `~/.zshrc`
 - Preserva uma vez os arquivos `.zshrc`, `.bashrc` e `.tmux.conf` existentes com o sufixo `.pre-setupvibe` antes de substituir ou acrescentar conteúdo
 - Define o ZSH como shell padrão via `chsh`
@@ -134,22 +134,23 @@ Pacotes APT:
 - Clona o [TPM](https://github.com/tmux-plugins/tpm) em `~/.tmux/plugins/tpm`
 - Baixa [`conf/tmux-server.conf`](../../../conf/tmux-server.conf) para `~/.tmux.conf`
 - Se executado como root com um `REAL_HOME` não-root, também instala em `/root/.tmux.conf`
-- Preserva as sessões tmux em execução; a nova configuração é aplicada às novas sessões
+- Preserva as sessões tmux em execução. A nova configuração é aplicada às novas sessões
 
 Pressione `prefix + I` dentro do tmux para instalar todos os plugins. Consulte o [Guia do Tmux](../../desktop/pt-br/tmux.md) para a referência completa de plugins e atalhos.
 
 ### Passo 7 — Ferramentas de IA CLI
 
-Instala o **Node.js 24** via repositório NodeSource APT, e então instala globalmente via `npm install -g`:
+Instala o **Node.js 24** pelo repositório APT do NodeSource, instala os pacotes npm globalmente e obtém o Herdr pelo manifesto oficial de releases:
 
-| Ferramenta         | Pacote                      |
-| ------------------ | --------------------------- |
-| Claude Code        | `@anthropic-ai/claude-code` |
-| OpenAI Codex       | `@openai/codex`             |
-| GitHub Copilot CLI | `@github/copilot`           |
-| Skills CLI         | `skills`                    |
+| Ferramenta         | Instalação                       |
+| ------------------ | -------------------------------- |
+| Claude Code        | `@anthropic-ai/claude-code`      |
+| OpenAI Codex       | `@openai/codex`                  |
+| GitHub Copilot CLI | `@github/copilot`                |
+| Skills CLI         | `skills`                         |
+| Herdr              | Binário do manifesto oficial     |
 
-O [Vercel Labs Skills CLI](https://github.com/vercel-labs/skills) e cada comando de CLI de IA são validados após a instalação. O pacote descontinuado `@githubnext/github-copilot-cli` é removido. Os pacotes globais do npm são instalados em `~/.npm-global` sempre que o usuário de destino não for root, inclusive quando o instalador for executado por `sudo`.
+O [Vercel Labs Skills CLI](https://github.com/vercel-labs/skills), o [Herdr](https://github.com/luizeof/herdr) e cada comando de CLI de IA são validados após a instalação. O Herdr é instalado em `~/.local/bin` conforme a arquitetura detectada. Consulte o [guia do Herdr](../../pt-br/HERDR.md) para entender sessões, atalhos, atualizações e diagnóstico. O pacote descontinuado `@githubnext/github-copilot-cli` é removido. Os pacotes globais do npm são instalados em `~/.npm-global` sempre que o usuário de destino não for root, inclusive quando o instalador for executado por `sudo`.
 
 ### Passo 8 — Finalização e Limpeza
 

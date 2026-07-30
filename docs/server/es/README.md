@@ -140,16 +140,17 @@ Presiona `prefix + I` dentro de tmux para instalar todos los plugins. Consulta l
 
 ### Paso 7 — Herramientas de IA CLI
 
-Instala **Node.js 24** a través del repositorio APT de NodeSource, luego instala globalmente mediante `npm install -g`:
+Instala **Node.js 24** desde el repositorio APT de NodeSource, instala los paquetes npm globalmente y obtiene Herdr desde su manifiesto oficial de releases:
 
-| Herramienta        | Paquete                     |
-| ------------------ | --------------------------- |
-| Claude Code        | `@anthropic-ai/claude-code` |
-| OpenAI Codex       | `@openai/codex`             |
-| GitHub Copilot CLI | `@github/copilot`           |
-| Skills CLI         | `skills`                    |
+| Herramienta        | Instalación                      |
+| ------------------ | -------------------------------- |
+| Claude Code        | `@anthropic-ai/claude-code`      |
+| OpenAI Codex       | `@openai/codex`                  |
+| GitHub Copilot CLI | `@github/copilot`                |
+| Skills CLI         | `skills`                         |
+| Herdr              | Binario del manifiesto oficial   |
 
-La [CLI Skills de Vercel Labs](https://github.com/vercel-labs/skills) y cada comando de CLI de IA se validan después de la instalación. Se elimina el paquete obsoleto `@githubnext/github-copilot-cli`. Los paquetes globales de npm se instalan en `~/.npm-global` siempre que el usuario de destino no sea root, incluso cuando el instalador se ejecute mediante `sudo`.
+La [CLI Skills de Vercel Labs](https://github.com/vercel-labs/skills), [Herdr](https://github.com/luizeof/herdr) y cada comando de CLI de IA se validan después de la instalación. Herdr se instala en `~/.local/bin` según la arquitectura detectada; consulta la [guía de Herdr](../../es/HERDR.md) para conocer las sesiones, los atajos, las actualizaciones y el diagnóstico. Se elimina el paquete obsoleto `@githubnext/github-copilot-cli`. Los paquetes globales de npm se instalan en `~/.npm-global` siempre que el usuario de destino no sea root, incluso cuando el instalador se ejecute mediante `sudo`.
 
 ### Paso 8 — Finalización y Limpieza
 

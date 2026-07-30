@@ -46,7 +46,7 @@ O script exibe um roteiro interativo e solicita confirmação antes de iniciar. 
 ### Etapa 2 — Homebrew
 
 - **macOS:** instala o Homebrew se ausente, depois instala ferramentas base (`wget`, `curl`, `tmux`, `ffmpeg`, `imagemagick`, `openssl`, `readline`, etc.)
-- **Linux:** instala o Linuxbrew em `/home/linuxbrew/.linuxbrew`; adiciona entradas de PATH ao `~/.bashrc`, `~/.profile`, `~/.zshrc`; executa `brew upgrade` se já presente
+- **Linux:** instala o Linuxbrew em `/home/linuxbrew/.linuxbrew`. Adiciona entradas de PATH ao `~/.bashrc`, `~/.profile`, `~/.zshrc`. Executa `brew upgrade` se já presente
 
 ### Etapa 3 — Ecossistema PHP 8.5
 
@@ -72,7 +72,7 @@ O script exibe um roteiro interativo e solicita confirmação antes de iniciar. 
 | --------- | -------------------------- | -------------------------------------------------- |
 | Python 3  | `python@3.14` via Homebrew | via APT (`python3`, `python3-pip`, `python3-venv`) |
 | uv        | via script de instalação   | igual                                              |
-| qrcode    | `pip --user`; CLI `qr`     | igual                                              |
+| qrcode    | `pip --user` com CLI `qr`  | igual                                              |
 | Go        | via Homebrew               | binário 1.26.5 verificado em `~/.local/go`         |
 | Rust      | via rustup                 | igual                                              |
 
@@ -123,9 +123,9 @@ Instaladas via Homebrew em ambas as plataformas.
 
 ### Etapa 9 — Rede, Monitoramento e Tailscale
 
-**macOS:** `wget`, `nmap`, `mtr`, `htop`, `btop`, `glances`, `speedtest-cli` via Homebrew; `bandwhich`, `gping`, `trippy`, `rustscan` via Cargo; `ctop` via Homebrew; Tailscale via Cask.
+**macOS:** `wget`, `nmap`, `mtr`, `htop`, `btop`, `glances`, `speedtest-cli` via Homebrew. `bandwhich`, `gping`, `trippy`, `rustscan` via Cargo. `ctop` via Homebrew. Tailscale via Cask.
 
-**Linux:** mesmas ferramentas via APT + Cargo + binário ctop verificado com SHA-256 em `~/.local/bin`; Tailscale via script oficial de instalação.
+**Linux:** mesmas ferramentas via APT + Cargo + binário ctop verificado com SHA-256 em `~/.local/bin`. Tailscale via script oficial de instalação.
 
 ### Etapa 10 — Servidor SSH *(somente Linux)*
 
@@ -136,12 +136,12 @@ Instaladas via Homebrew em ambas as plataformas.
 
 ### Etapa 11 — Shell (ZSH e Starship)
 
-- Instala ZSH (Linux via APT; já padrão no macOS)
+- Instala ZSH pelo APT no Linux. O ZSH já é padrão no macOS
 - Instala Oh My Zsh (sem interação)
 - Clona os plugins `zsh-autosuggestions` e `zsh-syntax-highlighting`
-- Instala Nerd Fonts: **FiraCode** e **JetBrains Mono** (Homebrew Cask no macOS; v3.4.0 baixada em `~/.local/share/fonts` no Linux)
+- Instala Nerd Fonts: **FiraCode** e **JetBrains Mono**. Usa Homebrew Cask no macOS e baixa a v3.4.0 em `~/.local/share/fonts` no Linux
 - Instala o prompt Starship e aplica o preset **Gruvbox Rainbow**
-- Baixa scripts auxiliares de [`bin/`](../../../bin) para `~/.setupvibe/bin`; veja [Executáveis](../../pt-br/EXECUTABLES.md)
+- Baixa scripts auxiliares de [`bin/`](../../../bin) para `~/.setupvibe/bin`. Veja [Executáveis](../../pt-br/EXECUTABLES.md)
 - Baixa o `.zshrc` adequado:
   - macOS → [`conf/zshrc-macos.zsh`](../../../conf/zshrc-macos.zsh)
   - Linux → [`conf/zshrc-linux.zsh`](../../../conf/zshrc-linux.zsh)
@@ -156,23 +156,24 @@ Pressione `prefix + I` dentro do tmux para instalar todos os plugins. Consulte [
 
 ### Passo 13 — Ferramentas de IA (CLI)
 
-Instaladas globalmente via `npm install -g`:
+Instala pacotes npm globalmente e o Herdr pelo manifesto oficial de releases:
 
-| Ferramenta         | Pacote                           |
+| Ferramenta         | Instalação                       |
 | ------------------ | -------------------------------- |
 | Agentlytics        | `agentlytics`                    |
 | Claude Code        | `@anthropic-ai/claude-code`      |
 | OpenAI Codex       | `@openai/codex`                  |
 | GitHub Copilot CLI | `@github/copilot`                |
 | Skills CLI         | `skills`                         |
+| Herdr              | Binário do manifesto oficial     |
 
-Cada CLI listado é validado após a instalação. O **Spec-Kit** é instalado via `uv tool install specify-cli`. Veja o [SPECKIT.md](SPECKIT.md) para o guia completo de Spec-Driven Development e aliases.
+Cada CLI listado é validado após a instalação. O [Herdr](https://github.com/luizeof/herdr) é instalado em `~/.local/bin` conforme o sistema operacional e a arquitetura detectados. Consulte o [guia do Herdr](../../pt-br/HERDR.md) para entender sessões, atalhos, atualizações e diagnóstico. O **Spec-Kit** é instalado via `uv tool install specify-cli`. Veja o [SPECKIT.md](SPECKIT.md) para o guia completo de Spec-Driven Development e aliases.
 
 ### Passo 14 — Finalização e Limpeza
 
 **macOS:** `brew cleanup --prune=all`, `brew autoremove` e remove somente arquivos temporários do SetupVibe.
 
-**Linux:** `apt autoremove`, `apt clean`, remove arquivos temporários e limpa logs do journal; limpa `~/.cache/pip`, `~/.cache/composer`, `~/.npm/_npx`, `~/.bundle/cache`.
+**Linux:** `apt autoremove`, `apt clean`, remove arquivos temporários e limpa logs do journal. Também limpa `~/.cache/pip`, `~/.cache/composer`, `~/.npm/_npx`, `~/.bundle/cache`.
 
 **Ambos:** configura inicialização automática do PM2 (launchd no macOS, systemd no Linux), executa `pm2 save`, define `pm2:autodump true` e baixa `ecosystem.config.js` com tentativas HTTPS limitadas para `~/ecosystem.config.js`.
 

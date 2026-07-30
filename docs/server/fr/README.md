@@ -140,16 +140,17 @@ Appuyez sur `prefix + I` dans tmux pour installer tous les plugins. Voir le [Gui
 
 ### Étape 7 — Outils CLI IA
 
-Installe **Node.js 24** via le dépôt APT NodeSource, puis installe globalement via `npm install -g` :
+Installe **Node.js 24** depuis le dépôt APT NodeSource, installe les paquets npm globalement et récupère Herdr depuis son manifeste officiel de releases :
 
-| Outil              | Paquet                      |
-| ------------------ | --------------------------- |
-| Claude Code        | `@anthropic-ai/claude-code` |
-| OpenAI Codex       | `@openai/codex`             |
-| GitHub Copilot CLI | `@github/copilot`           |
-| Skills CLI         | `skills`                    |
+| Outil              | Installation                     |
+| ------------------ | -------------------------------- |
+| Claude Code        | `@anthropic-ai/claude-code`      |
+| OpenAI Codex       | `@openai/codex`                  |
+| GitHub Copilot CLI | `@github/copilot`                |
+| Skills CLI         | `skills`                         |
+| Herdr              | Binaire du manifeste officiel    |
 
-Le [CLI Skills de Vercel Labs](https://github.com/vercel-labs/skills) et chaque commande CLI d'IA sont validés après l'installation. Le paquet obsolète `@githubnext/github-copilot-cli` est supprimé. Les paquets globaux npm sont installés dans `~/.npm-global` chaque fois que l'utilisateur cible n'est pas root, y compris lorsque l'installateur est exécuté avec `sudo`.
+Le [CLI Skills de Vercel Labs](https://github.com/vercel-labs/skills), [Herdr](https://github.com/luizeof/herdr) et chaque commande CLI d'IA sont validés après l'installation. Herdr est installé dans `~/.local/bin` selon l'architecture détectée ; consultez le [guide Herdr](../../fr/HERDR.md) pour les sessions, les raccourcis, les mises à jour et le dépannage. Le paquet obsolète `@githubnext/github-copilot-cli` est supprimé. Les paquets globaux npm sont installés dans `~/.npm-global` chaque fois que l'utilisateur cible n'est pas root, y compris lorsque l'installateur est exécuté avec `sudo`.
 
 ### Étape 8 — Finalisation & Nettoyage
 

@@ -4,6 +4,14 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ---
 
+## Unreleased
+
+### Added
+
+- Added [Herdr](https://github.com/luizeof/herdr) to the Desktop and Server editions, with architecture-aware installation from its official release manifest and post-install command validation.
+
+---
+
 ## [v0.41.8] - 2026-07-21
 
 ### Added

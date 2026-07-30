@@ -140,16 +140,17 @@ Press `prefix + I` inside tmux to install all plugins. See the [Tmux Guide](../.
 
 ### Step 7 — AI CLI Tools
 
-Installs **Node.js 24** via NodeSource APT repo, then installs globally via `npm install -g`:
+Installs **Node.js 24** from the NodeSource APT repository, installs the npm packages globally, and obtains Herdr from its official release manifest:
 
-| Tool               | Package                     |
-| ------------------ | --------------------------- |
-| Claude Code        | `@anthropic-ai/claude-code` |
-| OpenAI Codex       | `@openai/codex`             |
-| GitHub Copilot CLI | `@github/copilot`           |
-| Skills CLI         | `skills`                    |
+| Tool               | Installation                     |
+| ------------------ | -------------------------------- |
+| Claude Code        | `@anthropic-ai/claude-code`      |
+| OpenAI Codex       | `@openai/codex`                  |
+| GitHub Copilot CLI | `@github/copilot`                |
+| Skills CLI         | `skills`                         |
+| Herdr              | Official release manifest binary |
 
-The [Vercel Labs Skills CLI](https://github.com/vercel-labs/skills) and every AI CLI command are validated after installation. The deprecated `@githubnext/github-copilot-cli` package is removed. npm global packages are installed to `~/.npm-global` whenever the target user is non-root, including when the installer itself runs through `sudo`.
+The [Vercel Labs Skills CLI](https://github.com/vercel-labs/skills), [Herdr](https://github.com/luizeof/herdr), and every AI CLI command are validated after installation. Herdr is installed in `~/.local/bin` for the detected architecture; see the [Herdr guide](../../en/HERDR.md) for sessions, shortcuts, updates, and troubleshooting. The deprecated `@githubnext/github-copilot-cli` package is removed. npm global packages are installed to `~/.npm-global` whenever the target user is non-root, including when the installer itself runs through `sudo`.
 
 ### Step 8 — Finalization & Cleanup
 

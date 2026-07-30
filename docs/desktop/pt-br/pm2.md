@@ -4,8 +4,8 @@
 
 O SetupVibe instala o [PM2](https://pm2.keymetrics.io/) globalmente e o configura para inicialização automática na edição Desktop.
 
-- **macOS:** inicialização automática via launchd; baixa e inicia `ecosystem.config.js` do repositório para `~/ecosystem.config.js`
-- **Linux:** inicialização automática via systemd; baixa e inicia `ecosystem.config.js` do repositório para `~/ecosystem.config.js`
+- **macOS:** inicialização automática via launchd. Baixa e inicia `ecosystem.config.js` do repositório para `~/ecosystem.config.js`
+- **Linux:** inicialização automática via systemd. Baixa e inicia `ecosystem.config.js` do repositório para `~/ecosystem.config.js`
 
 ---
 
@@ -154,7 +154,7 @@ module.exports = {
 
 | Opção       | Tipo   | Padrão | Descrição                                                |
 | ----------- | ------ | ------ | -------------------------------------------------------- |
-| `instances` | number | `1`    | Número de instâncias; `-1` = todos os núcleos da CPU     |
+| `instances` | number | `1`    | Número de instâncias. `-1` = todos os núcleos da CPU     |
 | `exec_mode` | string | `fork` | `fork` (qualquer runtime) ou `cluster` (somente Node.js) |
 
 ### Estabilidade e Reinicialização
@@ -175,7 +175,7 @@ module.exports = {
 
 | Opção          | Tipo          | Padrão  | Descrição                                                    |
 | -------------- | ------------- | ------- | ------------------------------------------------------------ |
-| `watch`        | boolean/array | `false` | Reiniciar em mudanças de arquivo; passe um array de caminhos |
+| `watch`        | boolean/array | `false` | Reiniciar em mudanças de arquivo. Passe um array de caminhos |
 | `ignore_watch` | array         | —       | Caminhos ou padrões glob excluídos do watch                  |
 
 ### Logging

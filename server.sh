@@ -564,6 +564,64 @@ install_setupvibe_bin() {
     user_do chmod +x "$REAL_HOME/.setupvibe/bin/sshcopykey"
 }
 
+install_herdr() {
+    local herdr_arch
+    local herdr_target
+    local herdr_url
+    local herdr_tmp_dir
+    local manifest_tmp
+    local binary_tmp
+
+    case "$ARCH_RAW" in
+        amd64)
+            herdr_arch=x86_64
+            ;;
+        arm64)
+            herdr_arch=aarch64
+            ;;
+        *)
+            echo -e "${RED}✘ Herdr does not support architecture: $ARCH_RAW${NC}" >&2
+            return 1
+            ;;
+    esac
+
+    herdr_target="linux-${herdr_arch}"
+    user_do mkdir -p "$REAL_HOME/.setupvibe/tmp"
+    herdr_tmp_dir=$(user_do mktemp -d "$REAL_HOME/.setupvibe/tmp/herdr.XXXXXX")
+    manifest_tmp="$herdr_tmp_dir/latest.json"
+    binary_tmp="$herdr_tmp_dir/herdr"
+
+    if ! safe_download https://herdr.dev/latest.json "$manifest_tmp" 1000; then
+        user_do rmdir -- "$herdr_tmp_dir" 2>/dev/null || true
+        return 1
+    fi
+
+    herdr_url=$(jq -er \
+        --arg target "$herdr_target" \
+        '.assets[$target] | select(startswith("https://github.com/ogulcancelik/herdr/releases/download/"))' \
+        "$manifest_tmp") || {
+        echo -e "${RED}✘ Herdr manifest has no trusted asset for: $herdr_target${NC}" >&2
+        user_do rm -f -- "$manifest_tmp"
+        user_do rmdir -- "$herdr_tmp_dir"
+        return 1
+    }
+
+    if ! safe_download "$herdr_url" "$binary_tmp" 100000; then
+        user_do rm -f -- "$manifest_tmp"
+        user_do rmdir -- "$herdr_tmp_dir"
+        return 1
+    fi
+
+    sys_do install -d -o "$REAL_USER" -g "$REAL_GROUP" -m 0755 "$REAL_HOME/.local/bin"
+    sys_do install -o "$REAL_USER" -g "$REAL_GROUP" -m 0755 \
+        "$binary_tmp" "$REAL_HOME/.local/bin/herdr"
+    user_do rm -f -- "$manifest_tmp" "$binary_tmp"
+    user_do rmdir -- "$herdr_tmp_dir"
+
+    user_do env PATH="$REAL_HOME/.local/bin:$PATH" herdr --version >/dev/null
+    echo -e "${GREEN}✔ Herdr installed and validated.${NC}"
+}
+
 
 # --- INSTALLATION STEPS ---
 
@@ -894,6 +952,9 @@ step_7() {
         user_do env PATH="$npm_path" "$npm_bin" install --global "$package"
         user_do env PATH="$npm_path" "$command_name" --version >/dev/null
     done
+
+    echo "Installing Herdr..."
+    install_herdr
 }
 
 
