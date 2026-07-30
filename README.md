@@ -40,9 +40,10 @@ Installs and configures a development environment in one command, supporting Win
 
 ## Brand
 
-The official icon, horizontal logotype, brand description, and voice guide
-live in [`brand/`](brand/). Use the SVG assets by default and follow the
-publication checklist before creating public material.
+The official light and dark logos, color tokens, local webfonts, brand
+description, and voice guide live in [`brand/`](brand/). Use the SVG assets
+and semantic tokens by default, then follow the publication checklist before
+creating public material.
 
 ## Quick Start
 

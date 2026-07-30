@@ -99,8 +99,9 @@ Subset of desktop steps — no Homebrew, no language ecosystems (PHP, Ruby, Pyth
 ### `brand/` Directory
 
 `brand/` is the normative source for the SetupVibe visual and verbal
-identity. It contains the vector icon, PNG fallback, horizontal logotype,
-brand description, voice guide, usage rules, and publication checklist.
+identity. It contains light and dark logo variants, PNG fallback, design
+tokens, local webfonts, brand description, voice guide, usage rules, and the
+publication checklist.
 
 | Path | Content |
 | --- | --- |
@@ -108,8 +109,14 @@ brand description, voice guide, usage rules, and publication checklist.
 | `brand/description.md` | Positioning, promise, tagline, and institutional descriptions |
 | `brand/logo/icon.svg` | Canonical vector symbol |
 | `brand/logo/icon.png` | Raster fallback |
-| `brand/logo/logotype.svg` | Canonical horizontal signature |
+| `brand/logo/logo-light.svg` | Horizontal signature for light surfaces |
+| `brand/logo/logo-dark.svg` | Horizontal signature for dark surfaces |
+| `brand/logo/logotype.svg` | Compatibility alias for the light signature |
 | `brand/logo/LOGO.md` | Construction and usage contract |
+| `brand/colors/palette.json` | Editable color source |
+| `brand/global.css` | Webfonts and semantic CSS tokens |
+| `brand/tailwind-theme.js` | Tailwind CSS theme extension |
+| `brand/typography/README.md` | Web typography guide |
 | `brand/voice/voice.md` | Operational voice and terminology |
 | `brand/checklist.md` | Brand Gate for publication |
 
@@ -134,9 +141,9 @@ Configuration files deployed by the scripts to the user's home directory:
 
 Executable helper scripts deployed by the installers to `~/.setupvibe/bin`:
 
-| File         | Deployed to                    | Purpose                                                                                                 |
-| ------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `sshcopykey` | `~/.setupvibe/bin/sshcopykey` | Copies the local public SSH key to a remote server using `--host`, `--user`, and optional `--pass` or hidden password prompt |
+| File         | Deployed to                     | Purpose                                                                                                                      |
+| ------------ | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `sshcopykey` | `~/.setupvibe/bin/sshcopykey`   | Copies the local public SSH key to a remote server using `--host`, `--user`, and optional `--pass` or hidden password prompt |
 
 ## Key Scripting Patterns
 
