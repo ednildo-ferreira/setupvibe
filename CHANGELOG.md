@@ -4,6 +4,14 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ---
 
+## [v0.41.10] - 2026-08-03
+
+### Fixed
+
+- Fixed the Unix Desktop edition's Antigravity CLI install failing with `unknown parameter --skip-aliases`: the official Unix bootstrapper (`antigravity.google/cli/install.sh`) only accepts `-d`/`--dir` and does not forward `--skip-aliases`/`--skip-path` to its bundled `agy install` step, unlike the Windows PowerShell installer. `desktop.sh` now resolves and SHA-512-verifies the same versioned release manifest the bootstrapper uses, places the `agy` binary directly, and runs `agy install --skip-aliases --skip-path` itself.
+
+---
+
 ## [v0.41.9] - 2026-08-03
 
 ### Added

@@ -27,7 +27,7 @@ NC='\033[0m' # No Color
 
 
 # --- VERSION ---
-VERSION="0.41.9"
+VERSION="0.41.10"
 PHP_VERSION="8.5"
 RUBY_VERSION="3.4.10"
 PYTHON_VERSION="3.14"
@@ -736,26 +736,121 @@ install_herdr() {
 }
 
 install_antigravity() {
+    local antigravity_os
+    local antigravity_arch
+    local antigravity_platform
+    local antigravity_base_url="https://antigravity-cli-auto-updater-974169037036.us-central1.run.app"
     local antigravity_tmp_dir
-    local installer_tmp
+    local manifest_tmp
+    local payload_tmp
+    local download_url
+    local expected_sha512
+    local actual_sha512
+    local is_tar_gz=false
+
+    if $IS_MACOS; then
+        antigravity_os=darwin
+    else
+        antigravity_os=linux
+    fi
+
+    case "$ARCH_RAW" in
+        x86_64|amd64)
+            antigravity_arch=amd64
+            ;;
+        arm64|aarch64)
+            antigravity_arch=arm64
+            ;;
+        *)
+            echo -e "${RED}✘ Antigravity CLI does not support architecture: $ARCH_RAW${NC}"
+            return 1
+            ;;
+    esac
+
+    antigravity_platform="${antigravity_os}_${antigravity_arch}"
+    if ! $IS_MACOS && {
+        [[ -f /lib/libc.musl-x86_64.so.1 ]] ||
+            [[ -f /lib/libc.musl-aarch64.so.1 ]] ||
+            ldd /bin/ls 2>&1 | grep -q musl
+    }; then
+        antigravity_platform="${antigravity_platform}_musl"
+    fi
 
     user_do mkdir -p "$REAL_HOME/.local/bin" "$REAL_HOME/.setupvibe/tmp"
     antigravity_tmp_dir=$(user_do mktemp -d "$REAL_HOME/.setupvibe/tmp/antigravity.XXXXXX")
-    installer_tmp="$antigravity_tmp_dir/install.sh"
+    manifest_tmp="$antigravity_tmp_dir/manifest.json"
 
-    # Downloaded to a file and executed as a file, not piped, so the
-    # installer's own `agy install` step at the end keeps a real stdin
-    # instead of inheriting the exhausted curl-to-bash pipe.
-    if ! safe_download https://antigravity.google/cli/install.sh "$installer_tmp" 1000; then
+    # The official Unix bootstrapper (antigravity.google/cli/install.sh) does
+    # not forward --skip-aliases/--skip-path to its own bundled `agy install`
+    # step, so those flags fail there. This mirrors install_herdr(): resolve
+    # the same versioned manifest, verify the same SHA-512 checksum the
+    # bootstrapper itself checks, and place the binary directly, so we can
+    # call `agy install` ourselves with the flags it actually supports.
+    if ! safe_download "$antigravity_base_url/manifests/${antigravity_platform}.json" "$manifest_tmp" 100; then
         user_do rmdir -- "$antigravity_tmp_dir" 2>/dev/null || true
         return 1
     fi
 
-    user_do chmod +x "$installer_tmp"
-    user_do bash "$installer_tmp" --skip-aliases --skip-path
-    user_do rm -f -- "$installer_tmp"
+    download_url=$(jq -er \
+        '.url | select(startswith("https://storage.googleapis.com/antigravity-public/"))' \
+        "$manifest_tmp") || {
+        echo -e "${RED}✘ Antigravity CLI manifest has no trusted asset for: $antigravity_platform${NC}"
+        user_do rm -f -- "$manifest_tmp"
+        user_do rmdir -- "$antigravity_tmp_dir"
+        return 1
+    }
+    expected_sha512=$(jq -er '.sha512' "$manifest_tmp") || {
+        echo -e "${RED}✘ Antigravity CLI manifest is missing a checksum for: $antigravity_platform${NC}"
+        user_do rm -f -- "$manifest_tmp"
+        user_do rmdir -- "$antigravity_tmp_dir"
+        return 1
+    }
+
+    case "$download_url" in
+        *.tar.gz*)
+            is_tar_gz=true
+            payload_tmp="$antigravity_tmp_dir/agy.tar.gz"
+            ;;
+        *)
+            payload_tmp="$antigravity_tmp_dir/agy"
+            ;;
+    esac
+
+    if ! safe_download "$download_url" "$payload_tmp" 1000000; then
+        user_do rm -f -- "$manifest_tmp"
+        user_do rmdir -- "$antigravity_tmp_dir"
+        return 1
+    fi
+
+    if $IS_MACOS; then
+        actual_sha512=$(user_do shasum -a 512 "$payload_tmp" | cut -d' ' -f1)
+    else
+        actual_sha512=$(user_do sha512sum "$payload_tmp" | cut -d' ' -f1)
+    fi
+    if [[ "$actual_sha512" != "$expected_sha512" ]]; then
+        echo -e "${RED}✘ Antigravity CLI checksum verification failed: $download_url${NC}"
+        user_do rm -f -- "$manifest_tmp" "$payload_tmp"
+        user_do rmdir -- "$antigravity_tmp_dir"
+        return 1
+    fi
+
+    if $is_tar_gz; then
+        user_do tar -xzf "$payload_tmp" -C "$antigravity_tmp_dir" antigravity
+    else
+        user_do mv -- "$payload_tmp" "$antigravity_tmp_dir/antigravity"
+    fi
+
+    if $IS_MACOS; then
+        user_do install -m 0755 "$antigravity_tmp_dir/antigravity" "$REAL_HOME/.local/bin/agy"
+        user_do xattr -d com.apple.quarantine "$REAL_HOME/.local/bin/agy" 2>/dev/null || true
+    else
+        sys_do install -o "$REAL_USER" -g "$REAL_GROUP" -m 0755 \
+            "$antigravity_tmp_dir/antigravity" "$REAL_HOME/.local/bin/agy"
+    fi
+    user_do rm -f -- "$manifest_tmp" "$payload_tmp" "$antigravity_tmp_dir/antigravity"
     user_do rmdir -- "$antigravity_tmp_dir"
 
+    user_do env PATH="$REAL_HOME/.local/bin:$PATH" agy install --skip-aliases --skip-path
     user_do env PATH="$REAL_HOME/.local/bin:$PATH" agy --version >/dev/null
     echo -e "${GREEN}✔ Antigravity CLI installed and validated.${NC}"
 }

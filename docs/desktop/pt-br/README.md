@@ -1,6 +1,6 @@
 # SetupVibe — Edição Desktop
 
-> Configuração de ambiente de desenvolvimento multiplataforma — v0.41.9
+> Configuração de ambiente de desenvolvimento multiplataforma — v0.41.10
 
 Instala e configura um stack de desenvolvedor completo em um comando. Suporta macOS e as principais distribuições Linux.
 
@@ -155,8 +155,8 @@ Pressione `prefix + I` dentro do tmux para instalar todos os plugins. Consulte [
 
 ### Passo 13 — Ferramentas de IA (CLI)
 
-Instala pacotes npm globalmente, o Herdr pelo manifesto oficial de releases e o
-Antigravity CLI pelo instalador oficial:
+Instala pacotes npm globalmente, além do Herdr e do Antigravity CLI pelos seus
+manifestos oficiais de releases:
 
 | Ferramenta         | Instalação                       |
 | ------------------ | -------------------------------- |
@@ -166,9 +166,9 @@ Antigravity CLI pelo instalador oficial:
 | GitHub Copilot CLI | `@github/copilot`                |
 | Skills CLI         | `skills`                         |
 | Herdr              | Binário do manifesto oficial     |
-| Antigravity CLI    | Instalador oficial, como `agy`   |
+| Antigravity CLI    | Binário do manifesto oficial     |
 
-Cada CLI listado é validado após a instalação. O [Herdr](https://github.com/herdrdev/herdr) é instalado em `~/.local/bin` conforme o sistema operacional e a arquitetura detectados. Consulte o [guia do Herdr](../../pt-br/HERDR.md) para entender sessões, atalhos, atualizações e diagnóstico. O Antigravity CLI é instalado em `~/.local/bin` como `agy` pelo instalador oficial Unix do Google com `--skip-aliases --skip-path`, sem alterar perfis de shell. O **Spec-Kit** é instalado via `uv tool install specify-cli`. Veja o [SPECKIT.md](SPECKIT.md) para o guia completo de Spec-Driven Development e aliases.
+Cada CLI listado é validado após a instalação. O [Herdr](https://github.com/herdrdev/herdr) é instalado em `~/.local/bin` conforme o sistema operacional e a arquitetura detectados. Consulte o [guia do Herdr](../../pt-br/HERDR.md) para entender sessões, atalhos, atualizações e diagnóstico. O Antigravity CLI é instalado em `~/.local/bin` como `agy`: o manifesto versionado e o checksum SHA-512 do próprio feed de releases do Google são resolvidos e verificados diretamente (o bootstrapper oficial Unix não repassa `--skip-aliases`/`--skip-path` ao seu passo interno `agy install`), e então `agy install --skip-aliases --skip-path` é executado explicitamente para não alterar perfis de shell. O **Spec-Kit** é instalado via `uv tool install specify-cli`. Veja o [SPECKIT.md](SPECKIT.md) para o guia completo de Spec-Driven Development e aliases.
 
 ### Passo 14 — Finalização e Limpeza
 

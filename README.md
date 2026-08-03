@@ -1,6 +1,6 @@
 # SetupVibe
 
-> The ultimate cross-platform development environment setup script — v0.41.9
+> The ultimate cross-platform development environment setup script — v0.41.10
 
 Installs and configures a development environment in one command, supporting Windows 11, macOS, and major Linux distributions. The Windows Edition focuses on native utilities, Python, Node.js, selected native AI CLIs, and the WSL 2 base system. The Unix Desktop Edition includes complete language ecosystems and a broader AI toolkit, while the Server Edition remains focused on operations tooling.
 
@@ -17,7 +17,7 @@ Installs and configures a development environment in one command, supporting Win
 - **Native Windows AI CLIs:** Installs Claude Code through Anthropic's recommended native installer with its official npm package as a recovery path, Codex CLI through OpenAI's official standalone Windows installer, and Google Antigravity CLI as `agy`, while preserving PowerShell profiles and restricted execution policies.
 - **Agent Skills:** Installs and validates the [Vercel Labs Skills CLI](https://github.com/vercel-labs/skills) on Desktop, Windows, and Server editions.
 - **Agent Multiplexer:** Installs and validates [Herdr](https://github.com/herdrdev/herdr) on the Unix Desktop and Server editions, with a dedicated [usage guide](docs/en/HERDR.md).
-- **Unix Antigravity CLI:** Installs Google's Antigravity CLI as `agy` on the Unix Desktop edition through its official installer, downloaded to a file and run with `--skip-aliases --skip-path` so shell profiles stay untouched.
+- **Unix Antigravity CLI:** Installs Google's Antigravity CLI as `agy` on the Unix Desktop edition, resolving and SHA-512-verifying its versioned release manifest directly (the official Unix bootstrapper does not forward `--skip-aliases`/`--skip-path` to its own `agy install` step) and running `agy install --skip-aliases --skip-path` explicitly so shell profiles stay untouched.
 - **WSL 2 Ready:** Installs the WSL base without a Linux distribution and configures mirrored VPN/LAN networking and development optimizations on Windows 11.
 - **Smart Privilege Elevation:** Uses `sudo` only where strictly necessary on macOS and Linux; most tools are installed in `$HOME/.local/bin`.
 - **Global QR Code Generator:** Installs the PyPI `qrcode` package for the target user on macOS and Linux, exposing its `qr` command in the shell.

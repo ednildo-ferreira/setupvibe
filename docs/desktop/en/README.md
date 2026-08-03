@@ -1,6 +1,6 @@
 # SetupVibe — Desktop Edition
 
-> Cross-platform development environment setup — v0.41.9
+> Cross-platform development environment setup — v0.41.10
 
 Installs and configures a complete developer stack in one command. Supports macOS and major Linux distributions.
 
@@ -155,7 +155,7 @@ Press `prefix + I` inside tmux to install all plugins. See [tmux.md](tmux.md) fo
 
 ### Step 13 — AI CLI Tools
 
-Installs npm packages globally, Herdr from its official release manifest, and Antigravity CLI from its official installer:
+Installs npm packages globally, and Herdr and Antigravity CLI from their official release manifests:
 
 | Tool               | Installation                     |
 | ------------------ | -------------------------------- |
@@ -165,9 +165,9 @@ Installs npm packages globally, Herdr from its official release manifest, and An
 | GitHub Copilot CLI | `@github/copilot`                |
 | Skills CLI         | `skills`                         |
 | Herdr              | Official release manifest binary |
-| Antigravity CLI    | Official installer, as `agy`     |
+| Antigravity CLI    | Official release manifest binary |
 
-Every listed CLI is validated after installation. [Herdr](https://github.com/herdrdev/herdr) is installed in `~/.local/bin` for the detected operating system and architecture; see the [Herdr guide](../../en/HERDR.md) for sessions, shortcuts, updates, and troubleshooting. Antigravity CLI is installed to `~/.local/bin` as `agy` through Google's official Unix installer with `--skip-aliases --skip-path`, so it does not modify shell profiles. **Spec-Kit** is installed via `uv tool install specify-cli`. See [SPECKIT.md](SPECKIT.md) for the full Spec-Driven Development guide and aliases.
+Every listed CLI is validated after installation. [Herdr](https://github.com/herdrdev/herdr) is installed in `~/.local/bin` for the detected operating system and architecture; see the [Herdr guide](../../en/HERDR.md) for sessions, shortcuts, updates, and troubleshooting. Antigravity CLI is installed to `~/.local/bin` as `agy`: the versioned manifest and SHA-512 checksum from Google's own release feed are resolved and verified directly (the official Unix bootstrapper does not forward `--skip-aliases`/`--skip-path` to its bundled `agy install` step), then `agy install --skip-aliases --skip-path` is run explicitly so shell profiles stay untouched. **Spec-Kit** is installed via `uv tool install specify-cli`. See [SPECKIT.md](SPECKIT.md) for the full Spec-Driven Development guide and aliases.
 
 ### Step 14 — Finalization & Cleanup
 
