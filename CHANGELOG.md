@@ -4,11 +4,19 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ---
 
-## Unreleased
+## [v0.41.9] - 2026-08-03
 
 ### Added
 
 - Added [Herdr](https://github.com/luizeof/herdr) to the Desktop and Server editions, with architecture-aware installation from its official release manifest and post-install command validation.
+
+### Changed
+
+- Renamed the macOS and Linux SSH key-copy helper from `sshcopykey` to `ssh_copy_id`, matching the name already used by the Windows utility so the same command works across every SetupVibe edition. `desktop.sh` and `server.sh` remove the old `~/.setupvibe/bin/sshcopykey` file on reinstall.
+
+### Fixed
+
+- Fixed Windows `ssh_copy_id` failing to copy a key to a server it had never connected to before: the key-copy command piped the public key over stdin without accepting the new host key, so the interactive host-key prompt consumed that piped input instead of the user's confirmation. `StrictHostKeyChecking=accept-new` is now applied consistently across the copy, verification, and connection steps.
 
 ---
 

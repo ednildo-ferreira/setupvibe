@@ -1,6 +1,6 @@
 # Executáveis do SetupVibe
 
-> Scripts executáveis auxiliares — v0.41.8
+> Scripts executáveis auxiliares — v0.41.9
 
 O SetupVibe mantém scripts auxiliares reutilizáveis no diretório [`bin/`](../../bin) do repositório. Durante a instalação, as edições Desktop e Server baixam esses arquivos diretamente do repositório para `~/.setupvibe/bin` e aplicam permissão de execução.
 
@@ -8,21 +8,21 @@ O SetupVibe mantém scripts auxiliares reutilizáveis no diretório [`bin/`](../
 
 | Arquivo fonte | Caminho instalado | Edições |
 | ------------- | ----------------- | ------- |
-| [`bin/sshcopykey`](../../bin/sshcopykey) | `~/.setupvibe/bin/sshcopykey` | Desktop e Server |
+| [`bin/ssh_copy_id`](../../bin/ssh_copy_id) | `~/.setupvibe/bin/ssh_copy_id` | Desktop e Server |
 
 O alias do shell aponta para o executável instalado:
 
 ```bash
-alias sshcopykey="$HOME/.setupvibe/bin/sshcopykey"
+alias ssh_copy_id="$HOME/.setupvibe/bin/ssh_copy_id"
 ```
 
 Os instaladores baixam o arquivo de:
 
 ```text
-https://raw.githubusercontent.com/promovaweb/setupvibe/main/bin/sshcopykey
+https://raw.githubusercontent.com/promovaweb/setupvibe/main/bin/ssh_copy_id
 ```
 
-## `sshcopykey`
+## `ssh_copy_id`
 
 Copia sua chave SSH pública local para um servidor remoto usando autenticação por senha. Ele cria `~/.ssh/authorized_keys` no servidor remoto se necessário, aplica permissões seguras e evita adicionar a mesma chave duas vezes.
 
@@ -38,7 +38,7 @@ Copia sua chave SSH pública local para um servidor remoto usando autenticação
 ### Uso
 
 ```bash
-sshcopykey --host HOST --user USUARIO [--pass SENHA] [--key ~/.ssh/id_ed25519.pub] [--port 22]
+ssh_copy_id --host HOST --user USUARIO [--pass SENHA] [--key ~/.ssh/id_ed25519.pub] [--port 22]
 ```
 
 ### Argumentos
@@ -57,19 +57,19 @@ sshcopykey --host HOST --user USUARIO [--pass SENHA] [--key ~/.ssh/id_ed25519.pu
 Perguntar a senha com segurança:
 
 ```bash
-sshcopykey --host 192.0.2.10 --user root
+ssh_copy_id --host 192.0.2.10 --user root
 ```
 
 Passar a senha inline:
 
 ```bash
-sshcopykey --host 192.0.2.10 --user root --pass 'senha'
+ssh_copy_id --host 192.0.2.10 --user root --pass 'senha'
 ```
 
 Usar uma chave pública e porta SSH customizadas:
 
 ```bash
-sshcopykey --host 192.0.2.10 --user deploy --key ~/.ssh/id_rsa.pub --port 2222
+ssh_copy_id --host 192.0.2.10 --user deploy --key ~/.ssh/id_rsa.pub --port 2222
 ```
 
 ### Comportamento

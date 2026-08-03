@@ -25,7 +25,7 @@ readonly MAGENTA='\033[0;35m'
 readonly NC='\033[0m'
 
 # --- VERSION & DOWNLOADS ---
-readonly VERSION="0.41.8"
+readonly VERSION="0.41.9"
 readonly CTOP_VERSION="0.7.7"
 readonly CTOP_SHA256_AMD64="b78374734ebe3d14b6edee3d5512c911c250d7fa7f3f964cb00acd3bc5a02a09"
 readonly CTOP_SHA256_ARM64="d8d91e0fea53a8c78fa81192f078272e5a92f0ea6c4f0e38ec7c944d76e6f02f"
@@ -558,10 +558,11 @@ install_setupvibe_bin() {
     sys_do install -d -o "$REAL_USER" -g "$REAL_GROUP" -m 0755 \
         "$REAL_HOME/.setupvibe" \
         "$REAL_HOME/.setupvibe/bin"
-    if ! safe_download https://raw.githubusercontent.com/promovaweb/setupvibe/main/bin/sshcopykey "$REAL_HOME/.setupvibe/bin/sshcopykey" 500; then
+    user_do rm -f "$REAL_HOME/.setupvibe/bin/sshcopykey"
+    if ! safe_download https://raw.githubusercontent.com/promovaweb/setupvibe/main/bin/ssh_copy_id "$REAL_HOME/.setupvibe/bin/ssh_copy_id" 500; then
         return 1
     fi
-    user_do chmod +x "$REAL_HOME/.setupvibe/bin/sshcopykey"
+    user_do chmod +x "$REAL_HOME/.setupvibe/bin/ssh_copy_id"
 }
 
 install_herdr() {

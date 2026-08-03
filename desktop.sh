@@ -27,7 +27,7 @@ NC='\033[0m' # No Color
 
 
 # --- VERSION ---
-VERSION="0.41.8"
+VERSION="0.41.9"
 PHP_VERSION="8.5"
 RUBY_VERSION="3.4.10"
 PYTHON_VERSION="3.14"
@@ -656,10 +656,11 @@ safe_download() {
 install_setupvibe_bin() {
     echo "Installing SetupVibe helper scripts..."
     user_do mkdir -p "$REAL_HOME/.setupvibe/bin"
-    if ! safe_download https://raw.githubusercontent.com/promovaweb/setupvibe/main/bin/sshcopykey "$REAL_HOME/.setupvibe/bin/sshcopykey" 500; then
+    user_do rm -f "$REAL_HOME/.setupvibe/bin/sshcopykey"
+    if ! safe_download https://raw.githubusercontent.com/promovaweb/setupvibe/main/bin/ssh_copy_id "$REAL_HOME/.setupvibe/bin/ssh_copy_id" 500; then
         return 1
     fi
-    user_do chmod +x "$REAL_HOME/.setupvibe/bin/sshcopykey"
+    user_do chmod +x "$REAL_HOME/.setupvibe/bin/ssh_copy_id"
     if $IS_LINUX; then
         sys_do chown -R "$REAL_USER:$REAL_GROUP" "$REAL_HOME/.setupvibe"
     fi

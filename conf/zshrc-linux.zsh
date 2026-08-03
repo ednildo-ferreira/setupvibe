@@ -154,7 +154,7 @@ alias sshal="ssh-add -l"                        # Lista chaves carregadas no age
 alias sshkeys="ls -la ~/.ssh/"                  # Lista todos os arquivos de chaves SSH
 alias sshconfig="nano ~/.ssh/config"            # Edita o arquivo de configuração do SSH
 alias keygen="ssh-keygen -t ed25519 -C"         # Gera nova chave SSH Ed25519 (ex: keygen 'email@x.com')
-alias sshcopykey="$HOME/.setupvibe/bin/sshcopykey" # Copia a chave SSH pública para um servidor remoto com senha
+alias ssh_copy_id="$HOME/.setupvibe/bin/ssh_copy_id" # Copia a chave SSH pública para um servidor remoto com senha
 
 # --- Docker ---
 alias d="docker"                                # Atalho para o comando docker

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Nome: sshcopykey
+# Nome: ssh_copy_id
 # Autor: Luiz Eduardo de Oliveira Fonseca <luizeof@gmail.com>
 # Organizacao: promovaweb.com <contato@promovaweb.com>
 # Versao: 0.41.8
@@ -8,16 +8,16 @@
 #            autenticacao por senha. A senha pode ser informada com --pass ou
 #            digitada em um prompt oculto quando --pass nao for usado.
 # Uso:
-#   sshcopykey --host HOST --user USUARIO [--pass SENHA] [--key ~/.ssh/id_ed25519.pub] [--port 22]
+#   ssh_copy_id --host HOST --user USUARIO [--pass SENHA] [--key ~/.ssh/id_ed25519.pub] [--port 22]
 # Exemplos:
-#   sshcopykey --host 192.0.2.10 --user root
-#   sshcopykey --host 192.0.2.10 --user root --pass 'senha'
-#   sshcopykey --host 192.0.2.10 --user deploy --key ~/.ssh/id_rsa.pub --port 2222
+#   ssh_copy_id --host 192.0.2.10 --user root
+#   ssh_copy_id --host 192.0.2.10 --user root --pass 'senha'
+#   ssh_copy_id --host 192.0.2.10 --user deploy --key ~/.ssh/id_rsa.pub --port 2222
 #
 set -euo pipefail
 
 usage() {
-  echo "Uso: sshcopykey --host HOST --user USUARIO [--pass SENHA] [--key ~/.ssh/id_ed25519.pub] [--port 22]"
+  echo "Uso: ssh_copy_id --host HOST --user USUARIO [--pass SENHA] [--key ~/.ssh/id_ed25519.pub] [--port 22]"
 }
 
 remote_host=""

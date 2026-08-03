@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-**SetupVibe** is a cross-platform automated development environment setup script (v0.41.8). It installs and configures a complete developer toolkit in one command, supporting Windows 11 22H2+, macOS 12+, and Linux (Ubuntu 24.04+, Debian 12+, Zorin OS 18+).
+**SetupVibe** is a cross-platform automated development environment setup script (v0.41.9). It installs and configures a complete developer toolkit in one command, supporting Windows 11 22H2+, macOS 12+, and Linux (Ubuntu 24.04+, Debian 12+, Zorin OS 18+).
 
 There are three editions:
 
@@ -141,9 +141,9 @@ Configuration files deployed by the scripts to the user's home directory:
 
 Executable helper scripts deployed by the installers to `~/.setupvibe/bin`:
 
-| File         | Deployed to                     | Purpose                                                                                                                      |
-| ------------ | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `sshcopykey` | `~/.setupvibe/bin/sshcopykey`   | Copies the local public SSH key to a remote server using `--host`, `--user`, and optional `--pass` or hidden password prompt |
+| File          | Deployed to                     | Purpose                                                                                                                      |
+| ------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `ssh_copy_id` | `~/.setupvibe/bin/ssh_copy_id`  | Copies the local public SSH key to a remote server using `--host`, `--user`, and optional `--pass` or hidden password prompt |
 
 ## Key Scripting Patterns
 

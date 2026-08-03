@@ -1,6 +1,6 @@
 # Aliases SetupVibe
 
-> Alias de l'environnement shell — v0.41.8
+> Alias de l'environnement shell — v0.41.9
 
 Voici la liste exhaustive de todos os aliases configurados por SetupVibe sur toutes les plateformes.
 
@@ -558,11 +558,11 @@ Voici la liste exhaustive de todos os aliases configurados por SetupVibe sur tou
   - Description : Génère une nouvelle clé SSH Ed25519.
   - Exemple : `keygen 'email@x.com'`
 
-- **`sshcopykey`**
+- **`ssh_copy_id`**
   - Disponibilité : 🌐 Les deux
-  - Commande : `~/.setupvibe/bin/sshcopykey --host HOTE --user UTILISATEUR [--pass MOT_DE_PASSE]`
+  - Commande : `~/.setupvibe/bin/ssh_copy_id --host HOTE --user UTILISATEUR [--pass MOT_DE_PASSE]`
   - Description : Copie votre clé SSH publique vers un serveur distant avec mot de passe inline ou invite masquée.
-  - Exemple : `sshcopykey --host 192.0.2.10 --user root --pass 'secret'`
+  - Exemple : `ssh_copy_id --host 192.0.2.10 --user root --pass 'secret'`
 
 ## Docker
 

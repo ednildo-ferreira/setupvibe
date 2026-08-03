@@ -1,6 +1,6 @@
 # SetupVibe — Edição Servidor
 
-> Configuração de servidor Linux — v0.41.8
+> Configuração de servidor Linux — v0.41.9
 
 Um script de configuração focado em servidores Linux. Sem Homebrew, ecossistemas de linguagens ou ferramentas de desktop, ele instala Docker, Ansible, recursos de rede, shell, tmux e ferramentas de CLI de IA.
 
@@ -108,7 +108,7 @@ Pacotes APT:
 | -------------- | -------------------------------------------------------------- |
 | `reload`       | `source ~/.zshrc`                                              |
 | `zconfig`      | `nano ~/.zshrc`                                                |
-| `sshcopykey`   | `sshcopykey --host HOST --user USUARIO [--pass SENHA]`         |
+| `ssh_copy_id`   | `ssh_copy_id --host HOST --user USUARIO [--pass SENHA]`         |
 | `update`       | `sudo apt update && sudo apt upgrade`                          |
 | `cc`           | `claude --permission-mode=auto --dangerously-skip-permissions` |
 | `skl`          | `skills list`                                                  |

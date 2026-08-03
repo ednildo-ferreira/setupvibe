@@ -1,6 +1,6 @@
 # SetupVibe — Desktop Edition
 
-> Cross-platform development environment setup — v0.41.8
+> Cross-platform development environment setup — v0.41.9
 
 Installs and configures a complete developer stack in one command. Supports macOS and major Linux distributions.
 
@@ -196,7 +196,7 @@ Each platform gets a dedicated `.zshrc`:
 | ---------- | ------------------------------------------------------------------------------------- |
 | `reload`   | `source ~/.zshrc`                                                                     |
 | `zconfig`  | `nano ~/.zshrc`                                                                       |
-| `sshcopykey` | `sshcopykey --host HOST --user USER [--pass PASS]`                                 |
+| `ssh_copy_id` | `ssh_copy_id --host HOST --user USER [--pass PASS]`                                 |
 | `update`   | `brew update && brew upgrade` (macOS) / `sudo apt update && sudo apt upgrade` (Linux) |
 | `brewup`   | `brew update && brew upgrade && brew cleanup`                                         |
 | `cc`       | `claude --permission-mode=auto --dangerously-skip-permissions`                        |

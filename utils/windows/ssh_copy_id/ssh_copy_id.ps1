@@ -236,7 +236,7 @@ try {
         throw "The selected public key must contain exactly one non-empty line: $($keyPair.PublicKeyPath)"
     }
     $remoteCommand = 'umask 077; key_file="$HOME/.ssh/.setupvibe_key.$$"; mkdir -p "$HOME/.ssh" && touch "$HOME/.ssh/authorized_keys" && chmod 700 "$HOME/.ssh" && chmod 600 "$HOME/.ssh/authorized_keys" && trap ''rm -f "$key_file"'' 0 1 2 15 && tr -d ''\r'' > "$key_file" && { grep -qxF -f "$key_file" "$HOME/.ssh/authorized_keys" || cat "$key_file" >> "$HOME/.ssh/authorized_keys"; } && grep -qxF -f "$key_file" "$HOME/.ssh/authorized_keys"'
-    $publicKeyLines[0] | & $script:SshPath -p $Port $Remote $remoteCommand
+    $publicKeyLines[0] | & $script:SshPath -p $Port -o 'StrictHostKeyChecking=accept-new' $Remote $remoteCommand
     if ($LASTEXITCODE -ne 0) {
         throw "The SSH key could not be copied to $Remote."
     }
@@ -244,6 +244,7 @@ try {
     $identityArguments = @(
         '-p', $Port,
         '-i', $keyPair.PrivateKeyPath,
+        '-o', 'StrictHostKeyChecking=accept-new',
         '-o', 'IdentitiesOnly=yes',
         '-o', 'PreferredAuthentications=publickey',
         '-o', 'PubkeyAuthentication=yes',

@@ -37,10 +37,11 @@ O lançador `.cmd` não contém lógica SSH. Ele procura primeiro o PowerShell 7
 6. Cria uma chave Ed25519 sem senha quando nenhum par de chaves válido é encontrado, sem sobrescrever arquivos órfãos.
 7. Valida o destino no formato `usuario@endereco` e a porta TCP.
 8. Copia a chave para `~/.ssh/authorized_keys` sem duplicar uma chave já instalada.
-9. Normaliza a quebra de linha do Windows antes de gravar a chave no servidor.
-10. Testa a autenticação com a chave privada correspondente e sem fallback para a senha do servidor.
-11. Só informa sucesso depois que o servidor aceita a autenticação por chave.
-12. Abre uma sessão SSH usando explicitamente a identidade validada, a menos que `-NoConnect` seja informado.
+9. Usa `StrictHostKeyChecking=accept-new` para aceitar uma nova chave de host na primeira conexão, mas continuar rejeitando chaves alteradas.
+10. Normaliza a quebra de linha do Windows antes de gravar a chave no servidor.
+11. Testa a autenticação com a chave privada correspondente e sem fallback para a senha do servidor.
+12. Só informa sucesso depois que o servidor aceita a autenticação por chave.
+13. Abre uma sessão SSH usando explicitamente a identidade validada, a menos que `-NoConnect` seja informado.
 
 ## Uso
 

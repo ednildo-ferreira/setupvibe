@@ -1,6 +1,6 @@
 # SetupVibe — Server Edition
 
-> Linux server setup — v0.41.8
+> Linux server setup — v0.41.9
 
 A lean, focused setup script for Linux servers. No Homebrew, no language ecosystems, no desktop tools. Installs only what a production server needs: Docker, Ansible, networking, shell, tmux, and AI CLI tools.
 
@@ -108,7 +108,7 @@ APT packages:
 | -------------- | -------------------------------------------------------------- |
 | `reload`       | `source ~/.zshrc`                                              |
 | `zconfig`      | `nano ~/.zshrc`                                                |
-| `sshcopykey`   | `sshcopykey --host HOST --user USER [--pass PASS]`             |
+| `ssh_copy_id`   | `ssh_copy_id --host HOST --user USER [--pass PASS]`             |
 | `update`       | `sudo apt update && sudo apt upgrade`                          |
 | `cc`           | `claude --permission-mode=auto --dangerously-skip-permissions` |
 | `skl`          | `skills list`                                                  |
