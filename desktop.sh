@@ -707,7 +707,7 @@ install_herdr() {
 
     herdr_url=$(jq -er \
         --arg target "$herdr_target" \
-        '.assets[$target] | select(startswith("https://github.com/ogulcancelik/herdr/releases/download/"))' \
+        '.assets[$target] | select(startswith("https://github.com/herdrdev/herdr/releases/download/"))' \
         "$manifest_tmp") || {
         echo -e "${RED}✘ Herdr manifest has no trusted asset for: $herdr_target${NC}"
         user_do rm -f -- "$manifest_tmp"
@@ -733,6 +733,31 @@ install_herdr() {
 
     user_do env PATH="$REAL_HOME/.local/bin:$PATH" herdr --version >/dev/null
     echo -e "${GREEN}✔ Herdr installed and validated.${NC}"
+}
+
+install_antigravity() {
+    local antigravity_tmp_dir
+    local installer_tmp
+
+    user_do mkdir -p "$REAL_HOME/.local/bin" "$REAL_HOME/.setupvibe/tmp"
+    antigravity_tmp_dir=$(user_do mktemp -d "$REAL_HOME/.setupvibe/tmp/antigravity.XXXXXX")
+    installer_tmp="$antigravity_tmp_dir/install.sh"
+
+    # Downloaded to a file and executed as a file, not piped, so the
+    # installer's own `agy install` step at the end keeps a real stdin
+    # instead of inheriting the exhausted curl-to-bash pipe.
+    if ! safe_download https://antigravity.google/cli/install.sh "$installer_tmp" 1000; then
+        user_do rmdir -- "$antigravity_tmp_dir" 2>/dev/null || true
+        return 1
+    fi
+
+    user_do chmod +x "$installer_tmp"
+    user_do bash "$installer_tmp" --skip-aliases --skip-path
+    user_do rm -f -- "$installer_tmp"
+    user_do rmdir -- "$antigravity_tmp_dir"
+
+    user_do env PATH="$REAL_HOME/.local/bin:$PATH" agy --version >/dev/null
+    echo -e "${GREEN}✔ Antigravity CLI installed and validated.${NC}"
 }
 
 
@@ -1149,15 +1174,8 @@ step_6() {
     echo "Installing PM2..."
     user_do env PATH="$npm_path" "$npm_bin" install -g pm2
 
-    echo "Installing n8n..."
-    user_do env PATH="$npm_path" "$npm_bin" install -g \
-        --allow-remote=all \
-        --allow-scripts='@parcel/watcher,isolated-vm,sqlite3,agent-browser,oracledb,protobufjs,msgpackr-extract,ssh2,@sentry/node-native-stacktrace,@sentry/node-cpu-profiler' \
-        n8n
-
     user_do env PATH="$npm_path" pnpm --version
     user_do env PATH="$npm_path" pm2 --version
-    user_do env PATH="$npm_path" n8n --version
     user_do "$REAL_HOME/.bun/bin/bun" --version
 }
 
@@ -1553,6 +1571,9 @@ step_13() {
 
     echo "Installing Herdr..."
     install_herdr
+
+    echo "Installing Antigravity CLI..."
+    install_antigravity
 
     echo "Installing Spec-Kit (specify-cli)..."
     if ! user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; command -v specify" &>/dev/null; then

@@ -77,7 +77,7 @@ While the Windows Edition is in Beta, every SetupVibe repository URL in Windows-
 10. SSH server (Linux only)
 11. ZSH, Oh-My-Zsh, Starship
 12. Tmux & TPM plugins
-13. AI CLI tools (includes n8n)
+13. AI CLI tools
 14. Finalization & cleanup
 
 ### `server.sh` Steps (9)

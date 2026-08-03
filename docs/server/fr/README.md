@@ -150,7 +150,7 @@ Installe **Node.js 24** depuis le dépôt APT NodeSource, installe les paquets n
 | Skills CLI         | `skills`                         |
 | Herdr              | Binaire du manifeste officiel    |
 
-Le [CLI Skills de Vercel Labs](https://github.com/vercel-labs/skills), [Herdr](https://github.com/luizeof/herdr) et chaque commande CLI d'IA sont validés après l'installation. Herdr est installé dans `~/.local/bin` selon l'architecture détectée ; consultez le [guide Herdr](../../fr/HERDR.md) pour les sessions, les raccourcis, les mises à jour et le dépannage. Le paquet obsolète `@githubnext/github-copilot-cli` est supprimé. Les paquets globaux npm sont installés dans `~/.npm-global` chaque fois que l'utilisateur cible n'est pas root, y compris lorsque l'installateur est exécuté avec `sudo`.
+Le [CLI Skills de Vercel Labs](https://github.com/vercel-labs/skills), [Herdr](https://github.com/herdrdev/herdr) et chaque commande CLI d'IA sont validés après l'installation. Herdr est installé dans `~/.local/bin` selon l'architecture détectée ; consultez le [guide Herdr](../../fr/HERDR.md) pour les sessions, les raccourcis, les mises à jour et le dépannage. Le paquet obsolète `@githubnext/github-copilot-cli` est supprimé. Les paquets globaux npm sont installés dans `~/.npm-global` chaque fois que l'utilisateur cible n'est pas root, y compris lorsque l'installateur est exécuté avec `sudo`.
 
 ### Étape 8 — Finalisation & Nettoyage
 

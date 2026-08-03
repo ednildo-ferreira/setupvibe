@@ -599,7 +599,7 @@ install_herdr() {
 
     herdr_url=$(jq -er \
         --arg target "$herdr_target" \
-        '.assets[$target] | select(startswith("https://github.com/ogulcancelik/herdr/releases/download/"))' \
+        '.assets[$target] | select(startswith("https://github.com/herdrdev/herdr/releases/download/"))' \
         "$manifest_tmp") || {
         echo -e "${RED}✘ Herdr manifest has no trusted asset for: $herdr_target${NC}" >&2
         user_do rm -f -- "$manifest_tmp"

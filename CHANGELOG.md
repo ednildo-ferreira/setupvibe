@@ -8,7 +8,8 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ### Added
 
-- Added [Herdr](https://github.com/luizeof/herdr) to the Desktop and Server editions, with architecture-aware installation from its official release manifest and post-install command validation.
+- Added [Herdr](https://github.com/herdrdev/herdr) to the Desktop and Server editions, with architecture-aware installation from its official release manifest and post-install command validation.
+- Added Google's Antigravity CLI to the Unix Desktop edition, installed as `agy` through its official Unix installer, downloaded to a file and run with `--skip-aliases --skip-path` so the installer's own final setup step keeps a real stdin instead of an exhausted `curl`-to-`bash` pipe, and so shell profiles stay untouched.
 
 ### Changed
 
@@ -17,6 +18,11 @@ All notable changes to **SetupVibe** are documented in this file.
 ### Fixed
 
 - Fixed Windows `ssh_copy_id` failing to copy a key to a server it had never connected to before: the key-copy command piped the public key over stdin without accepting the new host key, so the interactive host-key prompt consumed that piped input instead of the user's confirmation. `StrictHostKeyChecking=accept-new` is now applied consistently across the copy, verification, and connection steps.
+- Fixed Herdr installation failing on every platform after the project's GitHub organization migration: `desktop.sh` and `server.sh` still trusted release assets under the retired `ogulcancelik/herdr` path, while the official manifest now publishes them under `herdrdev/herdr`.
+
+### Removed
+
+- Removed n8n from the Unix Desktop edition's JavaScript step; it is no longer installed by `desktop.sh`.
 
 ---
 

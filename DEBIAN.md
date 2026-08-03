@@ -251,17 +251,12 @@ escopo:
 8. validação de Portainer com `docker ps`;
 9. teste negativo do Desktop sem TTY.
 
-Avisos de dependências opcionais do npm, especialmente durante a instalação do
-`n8n`, não são por si só falhas. O critério é o exit code da instalação e a
-execução bem-sucedida dos comandos gerenciados.
+Avisos de dependências opcionais do npm não são por si só falhas. O critério é
+o exit code da instalação e a execução bem-sucedida dos comandos gerenciados.
 
 Versões atuais do npm controlam scripts de instalação de dependências em
 instalações globais. Aprove somente os pacotes nativos necessários com
 `--allow-scripts`; não use a opção ampla que libera todos os scripts.
-
-O n8n possui uma dependência transitiva do SheetJS distribuída como tarball
-HTTPS fora do registry npm. A permissão `--allow-remote=all` deve ser passada
-somente na instalação do n8n. Não persista essa opção no `.npmrc`.
 
 ## Aprendizados da investigação de julho de 2026
 

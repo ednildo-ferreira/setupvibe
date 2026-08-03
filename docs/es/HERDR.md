@@ -2,7 +2,7 @@
 
 > Multiplexor de agentes instalado por las ediciones Desktop y Server.
 
-[Herdr](https://github.com/luizeof/herdr) organiza agentes de código en workspaces persistentes dentro del terminal. Cada workspace puede contener pestañas y paneles, mientras la barra lateral muestra si un agente detectado está trabajando, esperando una respuesta, finalizado o inactivo.
+[Herdr](https://github.com/herdrdev/herdr) organiza agentes de código en workspaces persistentes dentro del terminal. Cada workspace puede contener pestañas y paneles, mientras la barra lateral muestra si un agente detectado está trabajando, esperando una respuesta, finalizado o inactivo.
 
 ## Disponibilidad
 
@@ -102,6 +102,6 @@ Este comando también detiene los procesos ejecutados en los paneles. Si solo qu
 
 ## Lectura Adicional
 
-- [Repositorio de Herdr](https://github.com/luizeof/herdr)
+- [Repositorio de Herdr](https://github.com/herdrdev/herdr)
 - [Documentación de Herdr](https://herdr.dev/docs/)
 - [Índice de documentación de SetupVibe](../README.md)

@@ -2,7 +2,7 @@
 
 > Agent multiplexer installed by the Desktop and Server editions.
 
-[Herdr](https://github.com/luizeof/herdr) organizes coding agents in persistent terminal workspaces. Each workspace can contain tabs and panes, while the sidebar shows whether a detected agent is working, waiting for input, finished, or idle.
+[Herdr](https://github.com/herdrdev/herdr) organizes coding agents in persistent terminal workspaces. Each workspace can contain tabs and panes, while the sidebar shows whether a detected agent is working, waiting for input, finished, or idle.
 
 ## Availability
 
@@ -102,6 +102,6 @@ also terminates the processes running in the session panes. Detach with `prefix`
 
 ## Further Reading
 
-- [Herdr source repository](https://github.com/luizeof/herdr)
+- [Herdr source repository](https://github.com/herdrdev/herdr)
 - [Herdr documentation](https://herdr.dev/docs/)
 - [SetupVibe documentation index](../README.md)

@@ -83,11 +83,10 @@ O script exibe um roteiro interativo e solicita confirmação antes de iniciar. 
 | Node.js 24 | `node@24` via Homebrew    | via repositório APT NodeSource |
 | PNPM       | `npm install -g pnpm`     | igual                   |
 | PM2        | `npm install -g pm2`      | igual                   |
-| n8n        | `npm install -g n8n`       | igual                   |
 | Bun        | via script de instalação  | igual                   |
 
 No Linux, os pacotes npm globais usam o prefixo gravável `~/.npm-global` do
-usuário-alvo, mesmo quando o instalador é executado por `sudo`. PNPM, PM2, n8n
+usuário-alvo, mesmo quando o instalador é executado por `sudo`. PNPM, PM2
 e Bun são validados após a instalação.
 
 ### Etapa 7 — DevOps
@@ -156,7 +155,8 @@ Pressione `prefix + I` dentro do tmux para instalar todos os plugins. Consulte [
 
 ### Passo 13 — Ferramentas de IA (CLI)
 
-Instala pacotes npm globalmente e o Herdr pelo manifesto oficial de releases:
+Instala pacotes npm globalmente, o Herdr pelo manifesto oficial de releases e o
+Antigravity CLI pelo instalador oficial:
 
 | Ferramenta         | Instalação                       |
 | ------------------ | -------------------------------- |
@@ -166,8 +166,9 @@ Instala pacotes npm globalmente e o Herdr pelo manifesto oficial de releases:
 | GitHub Copilot CLI | `@github/copilot`                |
 | Skills CLI         | `skills`                         |
 | Herdr              | Binário do manifesto oficial     |
+| Antigravity CLI    | Instalador oficial, como `agy`   |
 
-Cada CLI listado é validado após a instalação. O [Herdr](https://github.com/luizeof/herdr) é instalado em `~/.local/bin` conforme o sistema operacional e a arquitetura detectados. Consulte o [guia do Herdr](../../pt-br/HERDR.md) para entender sessões, atalhos, atualizações e diagnóstico. O **Spec-Kit** é instalado via `uv tool install specify-cli`. Veja o [SPECKIT.md](SPECKIT.md) para o guia completo de Spec-Driven Development e aliases.
+Cada CLI listado é validado após a instalação. O [Herdr](https://github.com/herdrdev/herdr) é instalado em `~/.local/bin` conforme o sistema operacional e a arquitetura detectados. Consulte o [guia do Herdr](../../pt-br/HERDR.md) para entender sessões, atalhos, atualizações e diagnóstico. O Antigravity CLI é instalado em `~/.local/bin` como `agy` pelo instalador oficial Unix do Google com `--skip-aliases --skip-path`, sem alterar perfis de shell. O **Spec-Kit** é instalado via `uv tool install specify-cli`. Veja o [SPECKIT.md](SPECKIT.md) para o guia completo de Spec-Driven Development e aliases.
 
 ### Passo 14 — Finalização e Limpeza
 

@@ -52,7 +52,6 @@ Add `--yes` for unattended installation or `--advertise-addr ADDRESS` to choose 
 | Go, Rust, Python + uv + qrcode        | ✔              | ✗               | ✗       |
 | Node.js 24                            | ✔              | Node.js 24 LTS   | ✔ (APT) |
 | Bun + PNPM                            | ✔              | ✗                | ✗       |
-| n8n                                   | ✔              | ✗               | ✗       |
 | Docker + Ansible + GitHub CLI         | ✔              | GitHub CLI only | ✔       |
 | Modern Unix tools (bat, eza, fzf…)    | ✔ via Homebrew | ✔               | ✗       |
 | Network & monitoring tools            | ✔              | ✔               | ✔       |
@@ -64,6 +63,7 @@ Add `--yes` for unattended installation or `--advertise-addr ADDRESS` to choose 
 | AI CLI tools                          | ✔              | ✔ (selected)    | ✔       |
 | Vercel Labs Skills CLI                | ✔              | ✔               | ✔       |
 | Herdr agent multiplexer               | ✔              | ✗               | ✔       |
+| Antigravity CLI (`agy`)               | ✔              | ✔               | ✗       |
 | PM2 auto-startup                      | ✔              | ✗               | ✗       |
 | Docker Swarm Manager (`--manager`)    | ✗              | ✗               | ✔       |
 
