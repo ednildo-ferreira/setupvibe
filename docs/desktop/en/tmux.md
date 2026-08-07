@@ -49,6 +49,12 @@ After opening tmux, press `prefix + I` (capital i) to install all plugins.
 
 ---
 
+## Extended Keys
+
+Both configs set `extended-keys on` and append `terminal-features '*:extkeys'`, so tmux passes modifier+key combinations — `Shift+Enter`, `Ctrl+Arrow`, and similar — through to the running app instead of swallowing them. This benefits apps that distinguish those combos, including Claude Code, Codex, Kimi Code, and Neovim.
+
+---
+
 ## Default Keybindings
 
 > All keybinds require pressing **`Ctrl + b`** first, then the key.

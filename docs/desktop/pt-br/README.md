@@ -164,6 +164,7 @@ manifestos oficiais de releases:
 | Claude Code        | `@anthropic-ai/claude-code`      |
 | OpenAI Codex       | `@openai/codex`                  |
 | GitHub Copilot CLI | `@github/copilot`                |
+| Kimi Code          | `@moonshot-ai/kimi-code`         |
 | Skills CLI         | `skills`                         |
 | Herdr              | Binário do manifesto oficial     |
 | Antigravity CLI    | Binário do manifesto oficial     |

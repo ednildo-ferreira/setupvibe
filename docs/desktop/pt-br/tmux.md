@@ -49,6 +49,12 @@ Após abrir o tmux, pressione `prefix + I` (i maiúsculo) para instalar todos os
 
 ---
 
+## Teclas Estendidas
+
+Ambas as configurações ativam `extended-keys on` e adicionam `terminal-features '*:extkeys'`, para que o tmux repasse combinações de modificador+tecla — `Shift+Enter`, `Ctrl+Seta` e semelhantes — para o aplicativo em execução em vez de absorvê-las. Isso beneficia aplicativos que distinguem essas combinações, incluindo Claude Code, Codex, Kimi Code e Neovim.
+
+---
+
 ## Atalhos de Teclado Padrão
 
 > Todos os atalhos exigem pressionar **`Ctrl + b`** primeiro, depois a tecla.
