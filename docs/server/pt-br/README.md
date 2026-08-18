@@ -41,6 +41,12 @@ Para uma instalação não interativa, adicione `--yes`. Para escolher explicita
 
 O script valida o sistema operacional, a versão, a arquitetura, o usuário de destino e os argumentos antes de alterar o sistema. Em seguida, exibe um roteiro interativo, solicita confirmação, aguarda por até cinco minutos a liberação dos locks do APT e repete comandos APT que falharem. As etapas param no primeiro erro, o resumo identifica as etapas não executadas e o script retorna um status diferente de zero. Se `--manager` não for informado, instalações interativas perguntam ao final se o Docker Swarm deve ser configurado.
 
+## Skill de setup
+
+Use `$setupvibe-setup` para escolher a edição Server, repetir a instalação ou
+conferir o ambiente. Depois do SetupVibe, instale as skills de cada projeto
+com `npx skills add <origem>`.
+
 ---
 
 ## O Que é Instalado

@@ -60,6 +60,12 @@ A URL canônica do instalador Windows é `https://windows.setupvibe.dev`.
 
 O comando baixa o `desktop.ps1` do repositório oficial do SetupVibe e o executa na sessão atual do PowerShell. Quando a elevação é necessária, o instalador baixa uma cópia temporária e continua em uma sessão de administrador.
 
+## Skill de setup
+
+Use `$setupvibe-setup` para escolher a edição Windows, repetir a instalação ou
+conferir o ambiente. Depois do SetupVibe, instale as skills de cada projeto
+com `npx skills add <origem>`.
+
 ## Instalação Local
 
 Para baixar o script antes de executá-lo:
