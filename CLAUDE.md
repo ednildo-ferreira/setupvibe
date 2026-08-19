@@ -4,13 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-**SetupVibe** is a cross-platform automated development environment setup script (v0.41.10). It installs and configures a complete developer toolkit in one command, supporting Windows 11 22H2+, macOS 12+, and Linux (Ubuntu 24.04+, Debian 12+, Zorin OS 18+).
+**SetupVibe** is a cross-platform automated development environment setup script (v0.41.10). It installs and configures a complete developer toolkit in one command, supporting Windows 11 22H2+, macOS 12+, Linux (Ubuntu 24.04+, Debian 12+, Zorin OS 18+) and Omarchy 4 on Arch Linux x86_64.
 
-There are three editions:
+There are four editions:
 
 - `desktop.sh` — macOS, Linux desktops, and WSL; full stack including language ecosystems, GUI tools, and AI CLIs
 - `desktop.ps1` — native x64 Windows 11 22H2+ (Beta); Windows utilities, Python 3.14, Node.js 24 LTS, Claude Code, Codex CLI, Antigravity CLI, and the WSL 2 base without a Linux distribution, frameworks, or runtime managers
 - `server.sh` — Linux-only; lean install focused on DevOps tools, Docker, shell, and monitoring
+- `omarchy.sh` — Omarchy 4 on Arch Linux x86_64; additive SetupVibe layer that preserves Omarchy defaults and configuration
 
 ## How to Run
 
@@ -20,6 +21,7 @@ There are no build tools, package managers, or test suites. Scripts are executed
 # Run locally
 bash desktop.sh
 bash server.sh
+bash omarchy.sh
 
 # Or via curl (canonical usage)
 curl -sSL desktop.setupvibe.dev | bash
@@ -84,6 +86,17 @@ While the Windows Edition is in Beta, every SetupVibe repository URL in Windows-
 
 Subset of desktop steps — no Homebrew, no language ecosystems (PHP, Ruby, Python, Go, Rust) or desktop-specific tools. Node.js is installed via NodeSource APT repo. Focus on base tools, Docker, Ansible, shell, tmux, monitoring, and AI CLIs.
 
+### `omarchy.sh`
+
+Omarchy 4 is an existing Arch-based desktop environment and owns its shell,
+prompt, aliases, Tmux, Docker, mise, runtimes, fonts, modern Unix tools,
+Neovim, Herdr and the main AI CLI set. `omarchy.sh` must only add missing
+SetupVibe components through `omarchy pkg add`, user files under
+`~/.config/setupvibe` and `~/.setupvibe`, and additive shell integration. It
+must not use APT or Homebrew, install ZSH or Oh My Zsh, replace Omarchy's
+`.bashrc`, `starship.toml` or Tmux configuration, or execute package-removal
+commands.
+
 ### `docs/` Directory
 
 | Path                        | Content                                                           |
@@ -92,9 +105,10 @@ Subset of desktop steps — no Homebrew, no language ecosystems (PHP, Ruby, Pyth
 | `docs/desktop/en/README.md` | Full desktop edition documentation (14 steps)                     |
 | `docs/server/en/README.md`  | Server edition documentation (9 steps)                            |
 | `docs/windows/en/README.md` | Windows edition (Beta) documentation                              |
-| `docs/en/EXECUTABLES.md`    | Executable helper script documentation (shared by both editions)  |
-| `docs/desktop/en/tmux.md`   | Tmux plugin and keybinding reference (shared by both editions)    |
-| `docs/desktop/en/pm2.md`    | PM2 command and configuration reference (shared by both editions) |
+| `docs/omarchy/README.md`    | Omarchy 4 additive edition documentation                          |
+| `docs/en/EXECUTABLES.md`    | Executable helper script documentation (shared by Unix editions) |
+| `docs/desktop/en/tmux.md`   | Tmux plugin and keybinding reference (shared by Unix editions)   |
+| `docs/desktop/en/pm2.md`    | PM2 command and configuration reference (shared by Unix editions)|
 
 ### `brand/` Directory
 
@@ -166,11 +180,12 @@ ARCH_RAW=$(dpkg --print-architecture)  # amd64 or arm64
 
 ## Versioning
 
-The version number is defined at the top of `desktop.sh`, `desktop.ps1`, and `server.sh`. **Whenever a version is changed, it must be updated in ALL related files to maintain consistency**, including:
+The version number is defined at the top of `desktop.sh`, `desktop.ps1`, `server.sh`, and `omarchy.sh`. **Whenever a version is changed, it must be updated in ALL related files to maintain consistency**, including:
 
 - `desktop.sh` (version variable)
 - `desktop.ps1` (version variable)
 - `server.sh` (version variable)
+- `omarchy.sh` (version variable)
 - `CHANGELOG.md` (new entry)
 - `README.md` (root project overview)
 - `AGENTS.md` (project overview)

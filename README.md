@@ -2,7 +2,7 @@
 
 > The ultimate cross-platform development environment setup script — v0.41.10
 
-Installs and configures a development environment in one command, supporting Windows 11, macOS, and major Linux distributions. The Windows Edition focuses on native utilities, Python, Node.js, selected native AI CLIs, and the WSL 2 base system. The Unix Desktop Edition includes complete language ecosystems and a broader AI toolkit, while the Server Edition remains focused on operations tooling.
+Installs and configures a development environment in one command, supporting Windows 11, macOS, major Linux distributions and Omarchy 4. The Windows Edition focuses on native utilities, Python, Node.js, selected native AI CLIs, and the WSL 2 base system. The Unix Desktop Edition includes complete language ecosystems and a broader AI toolkit, the Server Edition remains focused on operations tooling, and the Omarchy edition adds only the SetupVibe layer that is not already present in the operating system.
 
 ## Key Features
 
@@ -26,6 +26,7 @@ Installs and configures a development environment in one command, supporting Win
 - **Optimized Tmux:** Pre-configured with TPM, intuitive keybindings, and window/pane numbering starting at 1.
 - **Current Runtimes:** PHP 8.5, Ruby 3.4.10, Go 1.26.5, Python 3.14 on macOS, and Node.js 24 LTS.
 - **AI-Ready Unix Editions:** Includes the latest AI CLI tools for developers on macOS, Linux, and WSL.
+- **Omarchy 4 Edition:** Preserves Omarchy defaults and adds SetupVibe through `omarchy.sh`, without removing operating-system packages or replacing its shell configuration.
 
 ## Documentation
 
@@ -35,6 +36,7 @@ Installs and configures a development environment in one command, supporting Win
 | Desktop Edition        | [docs/desktop/README.md](docs/desktop/README.md)           |
 | Windows Edition (Beta) | [docs/windows/README.md](docs/windows/README.md)           |
 | Server Edition         | [docs/server/README.md](docs/server/README.md)             |
+| Omarchy 4 Edition      | [docs/omarchy/README.md](docs/omarchy/README.md)           |
 | Debian Engineering     | [DEBIAN.md](DEBIAN.md)                                     |
 | Tmux Guide             | [docs/desktop/en/tmux.md](docs/desktop/en/tmux.md)         |
 | PM2 Guide              | [docs/desktop/en/pm2.md](docs/desktop/en/pm2.md)           |
@@ -77,6 +79,16 @@ curl -sSL server.setupvibe.dev | bash -s -- --manager
 ```
 
 Add `--yes` for unattended installation or `--advertise-addr ADDRESS` to choose the Swarm address or interface explicitly.
+
+### Omarchy 4
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/promovaweb/setupvibe/main/omarchy.sh | bash
+```
+
+Use `bash omarchy.sh --yes` for an unattended local run. See the [Omarchy
+installation guide](docs/omarchy/README.md) for the preserved components and
+the added layer.
 
 ## Contributing
 
