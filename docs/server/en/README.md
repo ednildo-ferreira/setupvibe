@@ -99,6 +99,7 @@ APT packages:
 - Installs Starship prompt to `~/.local/bin` and applies the **Gruvbox Rainbow** preset
 - Downloads helper scripts from [`bin/`](../../../bin) to `~/.setupvibe/bin`; see [Executables](../../en/EXECUTABLES.md)
 - Downloads [`conf/zshrc-server.zsh`](../../../conf/zshrc-server.zsh) to `~/.zshrc`
+- Creates `~/.zshrc.local` for personal aliases and settings; updates never overwrite it.
 - Preserves existing `.zshrc`, `.bashrc`, and `.tmux.conf` files once with the `.pre-setupvibe` suffix before replacing or appending
 - Sets ZSH as the default shell via `chsh`
 
@@ -108,6 +109,7 @@ APT packages:
 | -------------- | -------------------------------------------------------------- |
 | `reload`       | `source ~/.zshrc`                                              |
 | `zconfig`      | `nano ~/.zshrc`                                                |
+| `zlocal`       | `nano ~/.zshrc.local`                                          |
 | `ssh_copy_id`   | `ssh_copy_id --host HOST --user USER [--pass PASS]`             |
 | `update`       | `sudo apt update && sudo apt upgrade`                          |
 | `cc`           | `claude --permission-mode=auto --dangerously-skip-permissions` |

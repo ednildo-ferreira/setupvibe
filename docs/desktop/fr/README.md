@@ -142,7 +142,8 @@ Installés via Homebrew sur les deux plateformes.
 - Télécharge les scripts auxiliaires depuis [`bin/`](../../../bin) vers `~/.setupvibe/bin` ; consultez [Exécutables](../../fr/EXECUTABLES.md)
 - Télécharge le `.zshrc` approprié :
   - macOS → [`conf/zshrc-macos.zsh`](../../../conf/zshrc-macos.zsh)
-  - Linux → [`conf/zshrc-linux.zsh`](../../../conf/zshrc-linux.zsh)
+- Linux → [`conf/zshrc-linux.zsh`](../../../conf/zshrc-linux.zsh)
+- Crée `~/.zshrc.local` pour les alias et paramètres personnels ; les mises à jour ne l'écrasent jamais.
 
 ### Étape 12 — Tmux et Plugins
 
@@ -198,6 +199,7 @@ Chaque plateforme reçoit un `.zshrc` dédié :
 | ---------- | ---------------------------------------------------------------------------------------- |
 | `reload`   | `source ~/.zshrc`                                                                        |
 | `zconfig`  | `nano ~/.zshrc`                                                                          |
+| `zlocal`   | `nano ~/.zshrc.local`                                                                    |
 | `ssh_copy_id` | `ssh_copy_id --host HOTE --user UTILISATEUR [--pass MOT_DE_PASSE]`                    |
 | `update`   | `brew update && brew upgrade` (macOS) / `sudo apt update && sudo apt upgrade` (Linux)      |
 | `brewup`   | `brew update && brew upgrade && brew cleanup`                                            |

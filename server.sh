@@ -837,6 +837,9 @@ step_5() {
 
     backup_file_once "$REAL_HOME/.zshrc"
     safe_download https://raw.githubusercontent.com/promovaweb/setupvibe/main/conf/zshrc-server.zsh "$REAL_HOME/.zshrc"
+    if [ ! -f "$REAL_HOME/.zshrc.local" ]; then
+        user_do touch "$REAL_HOME/.zshrc.local"
+    fi
 
     # shellcheck disable=SC2016 # Keep HOME and PATH literal for future shells.
     if ! grep -Fq 'export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"' "$REAL_HOME/.bashrc" 2>/dev/null; then

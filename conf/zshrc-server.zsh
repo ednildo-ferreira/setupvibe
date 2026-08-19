@@ -242,3 +242,9 @@ alias genpass="openssl rand -base64 32"         # Gera uma senha aleatória segu
 alias envls="env | sort"                        # Lista todas as variáveis de ambiente ordenadas
 alias envg="env | grep"                         # Filtra variáveis de ambiente (ex: envg PATH)
 alias dotenv="export \$(cat .env | grep -v '^#' | xargs)" # Carrega variáveis do arquivo .env atual
+
+# --- Configurações Personalizadas ---
+alias zlocal="nano ~/.zshrc.local"              # Edita o arquivo de configurações personalizadas
+
+# Carrega configurações locais sem substituir o arquivo do usuário.
+[ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
