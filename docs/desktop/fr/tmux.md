@@ -49,6 +49,12 @@ Après avoir ouvert tmux, appuyez sur `prefix + I` (i majuscule) pour installer 
 
 ---
 
+## Touches étendues
+
+Les deux configurations activent `extended-keys on` et ajoutent `terminal-features '*:extkeys'`, afin que tmux transmette les combinaisons modificateur+touche — `Shift+Entrée`, `Ctrl+Flèche`, et autres — à l'application en cours au lieu de les absorber. Cela profite aux applications qui distinguent ces combinaisons, dont Claude Code, Codex, Kimi Code et Neovim.
+
+---
+
 ## Raccourcis clavier par défaut
 
 > Tous les raccourcis nécessitent d'appuyer d'abord sur **`Ctrl + b`**, puis sur la touche.

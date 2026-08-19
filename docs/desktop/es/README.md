@@ -164,6 +164,7 @@ manifiestos oficiales de releases:
 | OpenAI Codex       | `@openai/codex`                  |
 | GitHub Copilot CLI | `@github/copilot`                |
 | OpenCode CLI       | `opencode-ai`                    |
+| Kimi Code          | `@moonshot-ai/kimi-code`         |
 | Skills CLI         | `skills`                         |
 | Herdr              | Binario del manifiesto oficial   |
 | Antigravity CLI    | Binario del manifiesto oficial   |

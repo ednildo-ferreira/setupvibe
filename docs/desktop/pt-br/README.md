@@ -31,6 +31,12 @@ bash desktop.sh
 
 O script exibe um roteiro interativo e solicita confirmação antes de iniciar. Também solicita a configuração da identidade do Git, caso ainda não esteja definida.
 
+## Skill de setup
+
+Use `$setupvibe-setup` quando precisar escolher a edição, repetir a instalação
+ou conferir o ambiente. Depois que o SetupVibe terminar, instale as skills de
+cada projeto com `npx skills add <origem>`.
+
 ---
 
 ## O Que é Instalado
@@ -165,6 +171,7 @@ manifestos oficiais de releases:
 | OpenAI Codex       | `@openai/codex`                  |
 | GitHub Copilot CLI | `@github/copilot`                |
 | OpenCode CLI       | `opencode-ai`                    |
+| Kimi Code          | `@moonshot-ai/kimi-code`         |
 | Skills CLI         | `skills`                         |
 | Herdr              | Binário do manifesto oficial     |
 | Antigravity CLI    | Binário do manifesto oficial     |

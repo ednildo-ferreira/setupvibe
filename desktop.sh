@@ -1625,6 +1625,7 @@ step_13() {
         "@openai/codex"
         "@github/copilot"
         "opencode-ai"
+        "@moonshot-ai/kimi-code"
         "skills@latest"
     )
     local -a ai_commands=(
@@ -1633,6 +1634,7 @@ step_13() {
         codex
         copilot
         opencode
+        kimi
         skills
     )
     local -a ai_allowed_scripts=(
@@ -1641,6 +1643,7 @@ step_13() {
         @openai/codex
         @github/copilot
         opencode-ai
+        @moonshot-ai/kimi-code
         skills
     )
 

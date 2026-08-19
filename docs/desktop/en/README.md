@@ -164,6 +164,7 @@ Installs npm packages globally, and Herdr and Antigravity CLI from their officia
 | OpenAI Codex       | `@openai/codex`                  |
 | GitHub Copilot CLI | `@github/copilot`                |
 | OpenCode CLI       | `opencode-ai`                    |
+| Kimi Code          | `@moonshot-ai/kimi-code`         |
 | Skills CLI         | `skills`                         |
 | Herdr              | Official release manifest binary |
 | Antigravity CLI    | Official release manifest binary |
