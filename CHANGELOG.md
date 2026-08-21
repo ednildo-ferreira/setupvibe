@@ -4,17 +4,11 @@ All notable changes to **SetupVibe** are documented in this file.
 
 ---
 
-## [v0.41.11] - 2026-08-04
+## [v0.41.11] - 2026-08-21
 
 ### Added
 
 - Added OpenCode CLI (`opencode-ai`) to the AI CLI Tools step in Desktop, Server, and Windows editions.
-
----
-
-## [Unreleased]
-
-### Added
 
 - Added Moonshot AI's Kimi Code CLI (`@moonshot-ai/kimi-code`) to the Unix Desktop edition's AI CLI Tools step, installed and validated globally via npm alongside Claude Code, Codex, and Copilot CLI.
 - Enabled tmux extended keys (`extended-keys on` and `terminal-features '*:extkeys'`) in both `tmux-desktop.conf` and `tmux-server.conf`, so modifier+key combinations like `Shift+Enter` and `Ctrl+Arrow` reach TUI apps such as Claude Code, Codex, Kimi Code, and Neovim instead of being swallowed by tmux.
