@@ -1222,7 +1222,7 @@ step_5() {
 
         echo "Installing Cronboard (Cron TUI)..."
         if ! user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; command -v cronboard" &> /dev/null; then
-            user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; uv tool install git+https://github.com/antoniorodr/cronboard"
+            user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; uv tool install --force git+https://github.com/antoniorodr/cronboard"
         fi
 
         cron_ensure
@@ -1322,7 +1322,7 @@ step_7() {
         echo "Configuring Ansible..."
         if $IS_UBUNTU; then
             echo "Using Ubuntu Ansible PPA Strategy..."
-            sys_do add-apt-repository --yes --update ppa:ansible/ansible
+            sys_do add-apt-repository -y ppa:ansible/ansible
             sys_do apt-get install -y ansible
         elif $IS_DEBIAN; then
             echo "Using Debian Ansible Strategy..."
@@ -1684,7 +1684,7 @@ step_13() {
 
     echo "Installing Spec-Kit (specify-cli)..."
     if ! user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; command -v specify" &>/dev/null; then
-        user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; uv tool install specify-cli"
+        user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; uv tool install --force specify-cli"
     else
         user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; uv tool upgrade specify-cli" 2>/dev/null || true
     fi
