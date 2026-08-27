@@ -1146,7 +1146,7 @@ step_5() {
         if ! command -v uv &> /dev/null; then
             user_do curl -LsSf https://astral.sh/uv/install.sh | sh
         else
-            user_do uv self update
+            user_do uv self update 2>/dev/null || true
         fi
         
         echo "Setup Go $GO_VERSION..."
@@ -1175,7 +1175,7 @@ step_5() {
         if ! user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; command -v uv" &> /dev/null; then
             user_do bash -c "curl -LsSf https://astral.sh/uv/install.sh | sh"
         else
-            user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; uv self update"
+            user_do bash -c "export PATH=\$HOME/.local/bin:\$PATH; uv self update 2>/dev/null || true"
         fi
         export PATH="$REAL_HOME/.local/bin:$PATH"
 
