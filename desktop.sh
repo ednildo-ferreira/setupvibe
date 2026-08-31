@@ -1412,8 +1412,10 @@ step_9() {
         
         echo "Installing Network Tools (Rust)..."
         for tool in bandwhich gping trippy rustscan; do
-            if ! command -v $tool &> /dev/null; then
-                user_do cargo install $tool
+            local bin_name="$tool"
+            [[ "$tool" == "trippy" ]] && bin_name="trip"
+            if ! command -v "$bin_name" &> /dev/null; then
+                user_do cargo install "$tool"
             fi
         done
         
@@ -1433,7 +1435,9 @@ step_9() {
 
         echo "Installing Network Tools (Rust)..."
         for tool in bandwhich gping trippy rustscan; do
-            if ! user_do bash -c "export PATH=\$HOME/.cargo/bin:\$PATH; command -v $tool" &> /dev/null; then
+            local bin_name="$tool"
+            [[ "$tool" == "trippy" ]] && bin_name="trip"
+            if ! user_do bash -c "export PATH=\$HOME/.cargo/bin:\$PATH; command -v $bin_name" &> /dev/null; then
                  user_do bash -c "export PATH=\$HOME/.cargo/bin:\$PATH; cargo install $tool"
             fi
         done
