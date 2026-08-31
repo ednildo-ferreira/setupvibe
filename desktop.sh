@@ -332,8 +332,15 @@ REAL_GROUP=$(id -gn "$REAL_USER" 2>/dev/null || echo "$REAL_USER")
 if $IS_LINUX; then
     DISTRO_ID=$(lsb_release -is 2>/dev/null | tr '[:upper:]' '[:lower:]')
     DISTRO_CODENAME=$(lsb_release -cs 2>/dev/null)
+    # Check if LMDE (Linux Mint Debian Edition) or other Debian derivatives
+    if grep -Eq '^(ID_LIKE=.*debian|NAME="LMDE")' /etc/os-release 2>/dev/null; then
+        DISTRO_ID="debian"
+        BASE_CODENAME=$(grep -oP '(?<=DEBIAN_CODENAME=).*' /etc/os-release 2>/dev/null)
+        if [[ -n "$BASE_CODENAME" ]]; then
+            DISTRO_CODENAME="$BASE_CODENAME"
+        fi
     # Map derivative distros to their Ubuntu base codename for repository compatibility
-    if [[ "$DISTRO_ID" == "zorin" || "$DISTRO_ID" == "linuxmint" ]]; then
+    elif [[ "$DISTRO_ID" == "zorin" || "$DISTRO_ID" == "linuxmint" ]]; then
         DISTRO_ID="ubuntu"
         BASE_CODENAME=$(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release 2>/dev/null)
         if [[ -n "$BASE_CODENAME" ]]; then
